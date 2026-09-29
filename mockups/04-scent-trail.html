@@ -1,0 +1,165 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>persianPerch · scentTrail</title><style>
+:root{
+  --bg:#17110d;--panel:#211811;--panel2:#2a1f17;--line:#3b2c21;--text:#f4ead9;--muted:#b3a08b;--faint:#7d6b59;
+  --accent:#c89b6d;--accent2:#e2c29a;
+  --slowBlink:#6fa287;--earTwitch:#6b8fb3;--tailFlick:#d9953b;--hiss:#c8453b;--unknown:#6d6259;
+  --radius:12px;--shadow:0 1px 0 rgba(255,255,255,.03) inset,0 8px 24px rgba(0,0,0,.25);
+}
+@media (prefers-color-scheme: light){
+  :root{--bg:#f6efe4;--panel:#fffaf2;--panel2:#f3e9da;--line:#e3d4bf;--text:#2b1d16;--muted:#7a6553;--faint:#a8927c;
+    --accent:#9a6a3c;--accent2:#6f4a28;--shadow:0 1px 2px rgba(60,40,20,.06),0 8px 24px rgba(60,40,20,.06);}
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+a{color:var(--accent2);text-decoration:none} a:hover{text-decoration:underline}
+code,.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px}
+.wrap{max-width:1360px;margin:0 auto;padding:0 20px}
+header.top{position:sticky;top:0;z-index:5;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+header.top .wrap{display:flex;align-items:center;gap:18px;height:58px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:.2px}
+.brand svg{width:28px;height:28px}
+.brand small{font-weight:500;color:var(--muted)}
+nav.main{display:flex;gap:4px;margin-left:12px}
+nav.main a{color:var(--muted);padding:7px 12px;border-radius:8px}
+nav.main a.on{background:var(--panel2);color:var(--text)}
+nav.main a:hover{text-decoration:none;color:var(--text)}
+.spacer{flex:1}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600;border:1px solid var(--line);background:var(--panel)}
+.dot{width:9px;height:9px;border-radius:50%;display:inline-block;flex:none}
+.bl-slowBlink{--c:var(--slowBlink)} .bl-earTwitch{--c:var(--earTwitch)} .bl-tailFlick{--c:var(--tailFlick)} .bl-hiss{--c:var(--hiss)} .bl-unknown{--c:var(--unknown)}
+.dot{background:var(--c)}
+.badge{display:inline-flex;align-items:center;gap:6px;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:600;color:var(--c);background:color-mix(in srgb,var(--c) 14%,transparent);border:1px solid color-mix(in srgb,var(--c) 35%,transparent);white-space:nowrap}
+.badge i{font-style:normal;font-weight:800}
+.muted{color:var(--muted)} .faint{color:var(--faint)}
+main{padding:22px 0 40px}
+h1{font-size:22px;margin:0} h2{font-size:15px;margin:0 0 12px;letter-spacing:.2px} h3{font-size:13px;margin:0 0 8px;color:var(--muted);font-weight:600;text-transform:none}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow)}
+.grid{display:grid;gap:16px}
+.row{display:flex;align-items:center;gap:10px}
+.between{justify-content:space-between}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:13px}
+.kv dt{color:var(--muted)} .kv dd{margin:0}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;color:var(--muted);font-weight:600;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:8px 10px;border-bottom:1px solid color-mix(in srgb,var(--line) 60%,transparent);vertical-align:top}
+tr:last-child td{border-bottom:none}
+.bar{height:6px;border-radius:4px;background:var(--panel2);overflow:hidden}
+.bar b{display:block;height:100%;background:var(--c,var(--accent));border-radius:4px}
+.legend{display:flex;flex-wrap:wrap;gap:16px;font-size:12px;color:var(--muted)}
+footer.foot{border-top:1px solid var(--line);padding:16px 0;color:var(--faint);font-size:12px}
+.mockflag{position:fixed;left:14px;bottom:14px;font-size:11px;padding:4px 10px;border-radius:999px;background:var(--panel2);border:1px dashed var(--faint);color:var(--muted);z-index:9}
+.tabs{display:flex;gap:2px;overflow-x:auto;white-space:nowrap;border-bottom:1px solid var(--line);margin:14px 0 16px}
+.tabs a{padding:8px 14px;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px}
+.tabs a.on{color:var(--text);border-color:var(--accent)}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;border:1px solid var(--line);background:var(--panel);font-size:12px;color:var(--muted);cursor:pointer;white-space:nowrap}
+.chip.on{color:var(--text);border-color:var(--accent);background:var(--panel2)}
+input.search{background:var(--panel);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:7px 10px;width:260px;font:inherit}
+.sr{position:absolute;left:-9999px}
+.grid>*,.card{min-width:0} svg{max-width:100%} pre{max-width:100%} td,dd{overflow-wrap:anywhere}
+@media (max-width:700px){
+  nav.main{display:none} .hide-sm{display:none!important}
+  input.search{width:100%}
+}
+</style></head><body>
+<header class="top"><div class="wrap">
+  <div class="brand"><svg viewBox="0 0 32 32" aria-hidden="true"><rect x="2" y="27" width="28" height="2.5" rx="1.2" fill="var(--accent)"/>
+<path d="M11 27c-2-3-2.5-7-1-10.5L9 11l3.2 2.4c1.2-.5 2.6-.6 3.8-.4L19 10.5l.3 4.2c2.8 2.1 3.6 6.3 2.2 9.6-.4 1-1 1.9-1.7 2.7z" fill="var(--text)"/>
+<path d="M21 26.5c3 0 5.5-1.6 5.5-4.2 0-1.6-1.3-2.4-2.3-1.7" fill="none" stroke="var(--text)" stroke-width="1.8" stroke-linecap="round"/>
+<circle cx="13.6" cy="17.2" r=".9" fill="var(--bg)"/><circle cx="17" cy="17" r=".9" fill="var(--bg)"/></svg><span>persianPerch <small>unified watcher</small></span></div>
+  <nav class="main"><a href="01-perch-overview.html" class="">perch</a><a href="02-cat-tree.html" class="">catTree</a><a href="03-groom-backups.html" class="">groom</a><a href="04-scent-trail.html" class="on">scentTrail</a></nav><div class="spacer"></div>
+  <span class="pill hide-sm"><span class="dot bl-slowBlink"></span>purr 12 s ago</span>
+  <span class="badge bl-tailFlick" title="tailFlick"><i>~</i>tailFlick · 1 needs a look</span>
+</div></header>
+<main><div class="wrap">
+<div class="row between" style="flex-wrap:wrap;gap:12px;margin-bottom:14px">
+  <div><h1>scentTrail</h1><div class="muted">Everything the senses noticed, newest first. <span class="row" style="display:inline-flex;gap:6px"><span class="dot bl-slowBlink" title="slowBlink"></span> live</span></div></div>
+  <input class="search" placeholder="search: n8n, vaultwarden, consume…">
+</div>
+<div class="row" style="flex-wrap:wrap;gap:8px;margin-bottom:6px"><span class="chip on">purr</span><span class="chip on">pounce</span><span class="chip on">whiskers</span><span class="chip on">glare</span><span class="chip on">binocs</span><span class="chip on">groom</span></div>
+<div class="row" style="flex-wrap:wrap;gap:8px;margin-bottom:10px"><span class="chip "><span class="dot bl-slowBlink" title="slowBlink"></span>slowBlink</span><span class="chip on"><span class="dot bl-earTwitch" title="earTwitch"></span>earTwitch</span><span class="chip on"><span class="dot bl-tailFlick" title="tailFlick"></span>tailFlick</span><span class="chip on"><span class="dot bl-hiss" title="hiss"></span>hiss</span><span class="chip">node: all ▾</span><span class="chip">last 48 h ▾</span></div>
+<div class="grid" style="grid-template-columns:minmax(0,3fr) minmax(0,2fr);align-items:start">
+  <div class="card" style="padding:6px 8px"><h3 style="margin:18px 0 6px">Today</h3><div class="row" style="align-items:flex-start;gap:12px;padding:10px 12px;border-radius:10px;background:var(--panel2);">
+  <div class="mono muted" style="width:64px;flex:none">07:42:18</div>
+  <div style="width:3px;align-self:stretch;border-radius:2px;background:var(--tailFlick)"></div>
+  <div style="flex:1;min-width:0"><div class="row" style="gap:8px;flex-wrap:wrap"><span class="badge bl-tailFlick" title="tailFlick"><i>~</i>tailFlick</span><span class="chip" style="cursor:default">purr</span><a class="mono" href="02-cat-tree.html">grinder/n8n</a></div>
+  <div style="margin-top:4px">restarted (exit 137, out of memory) · 2nd in 15 min</div><div class="faint" style="font-size:12px;margin-top:2px">litter L7 · meow sent</div></div></div><div class="row" style="align-items:flex-start;gap:12px;padding:10px 12px;border-radius:10px;">
+  <div class="mono muted" style="width:64px;flex:none">07:31:02</div>
+  <div style="width:3px;align-self:stretch;border-radius:2px;background:var(--earTwitch)"></div>
+  <div style="flex:1;min-width:0"><div class="row" style="gap:8px;flex-wrap:wrap"><span class="badge bl-earTwitch" title="earTwitch"><i>◦</i>earTwitch</span><span class="chip" style="cursor:default">pounce</span><a class="mono" href="02-cat-tree.html">percolator/paperless</a></div>
+  <div style="margin-top:4px">2 files dropped into consume/ (scan_0412.pdf, scan_0413.pdf)</div></div></div><div class="row" style="align-items:flex-start;gap:12px;padding:10px 12px;border-radius:10px;">
+  <div class="mono muted" style="width:64px;flex:none">07:27:44</div>
+  <div style="width:3px;align-self:stretch;border-radius:2px;background:var(--tailFlick)"></div>
+  <div style="flex:1;min-width:0"><div class="row" style="gap:8px;flex-wrap:wrap"><span class="badge bl-tailFlick" title="tailFlick"><i>~</i>tailFlick</span><span class="chip" style="cursor:default">purr</span><a class="mono" href="02-cat-tree.html">grinder/n8n</a></div>
+  <div style="margin-top:4px">restarted (exit 137, out of memory)</div><div class="faint" style="font-size:12px;margin-top:2px">litter L7</div></div></div><div class="row" style="align-items:flex-start;gap:12px;padding:10px 12px;border-radius:10px;">
+  <div class="mono muted" style="width:64px;flex:none">07:02:00</div>
+  <div style="width:3px;align-self:stretch;border-radius:2px;background:var(--earTwitch)"></div>
+  <div style="flex:1;min-width:0"><div class="row" style="gap:8px;flex-wrap:wrap"><span class="badge bl-earTwitch" title="earTwitch"><i>◦</i>earTwitch</span><span class="chip" style="cursor:default">whiskers</span><a class="mono" href="02-cat-tree.html">mochaPot/homeassistant</a></div>
+  <div style="margin-top:4px">automation &quot;morning lights&quot; ran</div></div></div><div class="row" style="align-items:flex-start;gap:12px;padding:10px 12px;border-radius:10px;">
+  <div class="mono muted" style="width:64px;flex:none">06:48:13</div>
+  <div style="width:3px;align-self:stretch;border-radius:2px;background:var(--earTwitch)"></div>
+  <div style="flex:1;min-width:0"><div class="row" style="gap:8px;flex-wrap:wrap"><span class="badge bl-earTwitch" title="earTwitch"><i>◦</i>earTwitch</span><span class="chip" style="cursor:default">whiskers</span><a class="mono" href="02-cat-tree.html">mochaPot/homeassistant</a></div>
+  <div style="margin-top:4px">pet feeder dispensed breakfast (2 portions)</div></div></div><div class="row" style="align-items:flex-start;gap:12px;padding:10px 12px;border-radius:10px;">
+  <div class="mono muted" style="width:64px;flex:none">06:00:05</div>
+  <div style="width:3px;align-self:stretch;border-radius:2px;background:var(--slowBlink)"></div>
+  <div style="flex:1;min-width:0"><div class="row" style="gap:8px;flex-wrap:wrap"><span class="badge bl-slowBlink" title="slowBlink"><i>·</i>slowBlink</span><span class="chip" style="cursor:default">groom</span><a class="mono" href="02-cat-tree.html">cellar/restic</a></div>
+  <div style="margin-top:4px">freshness: every snapshot, dump and the Drive copy under 26 h</div></div></div><div class="row" style="align-items:flex-start;gap:12px;padding:10px 12px;border-radius:10px;">
+  <div class="mono muted" style="width:64px;flex:none">03:58:41</div>
+  <div style="width:3px;align-self:stretch;border-radius:2px;background:var(--slowBlink)"></div>
+  <div style="flex:1;min-width:0"><div class="row" style="gap:8px;flex-wrap:wrap"><span class="badge bl-slowBlink" title="slowBlink"><i>·</i>slowBlink</span><span class="chip" style="cursor:default">groom</span><a class="mono" href="02-cat-tree.html">cellar/restic</a></div>
+  <div style="margin-top:4px">Drive sync OK · 1.2 GB changed · 28 min</div></div></div><div class="row" style="align-items:flex-start;gap:12px;padding:10px 12px;border-radius:10px;">
+  <div class="mono muted" style="width:64px;flex:none">02:17:39</div>
+  <div style="width:3px;align-self:stretch;border-radius:2px;background:var(--slowBlink)"></div>
+  <div style="flex:1;min-width:0"><div class="row" style="gap:8px;flex-wrap:wrap"><span class="badge bl-slowBlink" title="slowBlink"><i>·</i>slowBlink</span><span class="chip" style="cursor:default">glare</span><a class="mono" href="02-cat-tree.html">percolator/vaultwarden</a></div>
+  <div style="margin-top:4px">back: 200 · was down 3 min 30 s</div><div class="faint" style="font-size:12px;margin-top:2px">litter L6 · recovery sent</div></div></div><div class="row" style="align-items:flex-start;gap:12px;padding:10px 12px;border-radius:10px;">
+  <div class="mono muted" style="width:64px;flex:none">02:14:09</div>
+  <div style="width:3px;align-self:stretch;border-radius:2px;background:var(--hiss)"></div>
+  <div style="flex:1;min-width:0"><div class="row" style="gap:8px;flex-wrap:wrap"><span class="badge bl-hiss" title="hiss"><i>!</i>hiss</span><span class="chip" style="cursor:default">glare</span><a class="mono" href="02-cat-tree.html">percolator/vaultwarden</a></div>
+  <div style="margin-top:4px">https://vaultwarden.${DOMAIN} → 502 for 3 checks</div><div class="faint" style="font-size:12px;margin-top:2px">litter L6 · meow sent</div></div></div><div class="row" style="align-items:flex-start;gap:12px;padding:10px 12px;border-radius:10px;">
+  <div class="mono muted" style="width:64px;flex:none">01:31:10</div>
+  <div style="width:3px;align-self:stretch;border-radius:2px;background:var(--earTwitch)"></div>
+  <div style="flex:1;min-width:0"><div class="row" style="gap:8px;flex-wrap:wrap"><span class="badge bl-earTwitch" title="earTwitch"><i>◦</i>earTwitch</span><span class="chip" style="cursor:default">pounce</span><a class="mono" href="02-cat-tree.html">cellar</a></div>
+  <div style="margin-top:4px">dumps arrived: sieve, percolator, mochaPot, grinder</div></div></div><h3 style="margin:18px 0 6px">Yesterday</h3><div class="row" style="align-items:flex-start;gap:12px;padding:10px 12px;border-radius:10px;">
+  <div class="mono muted" style="width:64px;flex:none">22:40:12</div>
+  <div style="width:3px;align-self:stretch;border-radius:2px;background:var(--earTwitch)"></div>
+  <div style="flex:1;min-width:0"><div class="row" style="gap:8px;flex-wrap:wrap"><span class="badge bl-earTwitch" title="earTwitch"><i>◦</i>earTwitch</span><span class="chip" style="cursor:default">purr</span><a class="mono" href="02-cat-tree.html">fleet</a></div>
+  <div style="margin-top:4px">every node pulled fe60ba4 (setup-secrets: typed answers…)</div></div></div><div class="row" style="align-items:flex-start;gap:12px;padding:10px 12px;border-radius:10px;">
+  <div class="mono muted" style="width:64px;flex:none">19:05:51</div>
+  <div style="width:3px;align-self:stretch;border-radius:2px;background:var(--tailFlick)"></div>
+  <div style="flex:1;min-width:0"><div class="row" style="gap:8px;flex-wrap:wrap"><span class="badge bl-tailFlick" title="tailFlick"><i>~</i>tailFlick</span><span class="chip" style="cursor:default">whiskers</span><a class="mono" href="02-cat-tree.html">mochaPot/homeassistant</a></div>
+  <div style="margin-top:4px">water fountain level low (18 %)</div><div class="faint" style="font-size:12px;margin-top:2px">meow batched</div></div></div><div class="row" style="align-items:flex-start;gap:12px;padding:10px 12px;border-radius:10px;">
+  <div class="mono muted" style="width:64px;flex:none">14:22:30</div>
+  <div style="width:3px;align-self:stretch;border-radius:2px;background:var(--earTwitch)"></div>
+  <div style="flex:1;min-width:0"><div class="row" style="gap:8px;flex-wrap:wrap"><span class="badge bl-earTwitch" title="earTwitch"><i>◦</i>earTwitch</span><span class="chip" style="cursor:default">binocs</span><a class="mono" href="02-cat-tree.html">grinder/n8n</a></div>
+  <div style="margin-top:4px">upstream release 1.118.2</div></div></div></div>
+  <aside class="grid" style="position:sticky;top:76px">
+    <div class="card"><div class="row between"><h2>Litter L7 · grinder/n8n</h2><span class="badge bl-tailFlick" title="tailFlick"><i>~</i>tailFlick</span></div>
+      <dl class="kv" style="margin-bottom:12px"><dt>first</dt><dd>07:27:44 · 2 events</dd><dt>cause</dt><dd>out of memory at 1 024 MiB (container limit)</dd>
+      <dt>node</dt><dd>grinder RAM 91 % · CPU 63 %</dd><dt>meow</dt><dd>ntfy 07:42 (default) · next only if it hisses</dd>
+      <dt>escalates</dt><dd>3 restarts in 15 min → <span class="badge bl-hiss" title="hiss"><i>!</i>hiss</span></dd></dl>
+      <div class="muted" style="font-size:12px;margin-bottom:6px">log tail · scrubbed</div>
+      <pre class="mono" style="margin:0;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:12px;overflow:auto;max-height:220px;color:var(--muted);white-space:pre-wrap">2026-09-29T07:42:11Z n8n  Task runner started
+2026-09-29T07:42:12Z n8n  Workflow &quot;karakeep → embed&quot; started (exec 88213)
+2026-09-29T07:42:16Z n8n  Loading 1 912 bookmarks into memory
+&lt;--- Last few GCs ---&gt;
+[1:0x7f…] 14921 ms: Mark-Compact 1011.8 (1043.2) -&gt; 1009.9 (1043.9) MB
+FATAL ERROR: Reached heap limit Allocation failed - JavaScript heap out of memory
+container exited with code 137 (OOMKilled: true, limit 1024 MiB)</pre>
+      <div class="row" style="gap:8px;margin-top:12px"><span class="chip on">acknowledge</span><span class="chip">snooze 6 h</span><a class="chip" href="02-cat-tree.html">open n8n</a></div></div>
+    <div class="card"><h2>meow · last 24 h</h2>
+      <table><tbody>
+      <tr><td class="mono muted">07:42</td><td><span class="badge bl-tailFlick" title="tailFlick"><i>~</i>tailFlick</span></td><td>n8n restarting</td><td class="muted">ntfy</td></tr>
+      <tr><td class="mono muted">02:17</td><td><span class="badge bl-slowBlink" title="slowBlink"><i>·</i>recovered</span></td><td>vaultwarden back</td><td class="muted">ntfy</td></tr>
+      <tr><td class="mono muted">02:14</td><td><span class="badge bl-hiss" title="hiss"><i>!</i>hiss</span></td><td>vaultwarden 502</td><td class="muted">ntfy high</td></tr>
+      </tbody></table>
+      <div class="faint" style="font-size:12px;margin-top:8px">quiet hours 23:00–07:00: tailFlick waits for the digest, hiss always goes through</div></div>
+  </aside>
+</div>
+<style>@media (max-width:900px){main .grid[style*="3fr"]{grid-template-columns:1fr!important} aside.grid{position:static!important}}</style></div></main>
+<footer class="foot"><div class="wrap row between" style="flex-wrap:wrap;gap:12px">
+  <div class="legend"><span class="row"><span class="badge bl-slowBlink" title="slowBlink"><i>·</i>slowBlink</span><span>OK / info</span></span><span class="row"><span class="badge bl-earTwitch" title="earTwitch"><i>◦</i>earTwitch</span><span>notice: expected event</span></span><span class="row"><span class="badge bl-tailFlick" title="tailFlick"><i>~</i>tailFlick</span><span>warn: degraded, late, retrying</span></span><span class="row"><span class="badge bl-hiss" title="hiss"><i>!</i>hiss</span><span>critical: needs barista</span></span></div>
+  <div>perch on cellar · nineLives → healthchecks.io <span class="dot bl-slowBlink"></span></div>
+</div></footer>
+<div class="mockflag">mockup · sample data</div>
+</body></html>
