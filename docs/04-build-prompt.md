@@ -76,7 +76,7 @@ and keep going. Stop and ask only for the cases listed under "When to stop".
 
 The dev plan ends with five open questions. Use these answers:
 
-1. **Host:** cellar (Debian 12, i3-7100T, 8 GB). Budget ≤ 300 MB RAM, < 2 % CPU at rest.
+1. **Host:** cellar (Debian 13 — *corrected 2026-09-30, 05 plan C11; was "Debian 12"* — i3-7100T, 8 GB). Budget ≤ 300 MB RAM, < 2 % CPU at rest.
 2. **Hostname:** `perch.${DOMAIN}`, behind Traefik + Authelia (group `admins`).
 3. **pounce paths:** exactly the table in design plan §4.4, as the default config.
 4. **whiskers:** ship `whiskers.example.yml` with generic entities (door/window sensors,

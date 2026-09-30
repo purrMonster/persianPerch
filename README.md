@@ -8,7 +8,10 @@ smart-home events (**whiskers**), endpoints and the outside web (**glare** / **b
 and every backup (**groom**). Severity speaks body language: **slowBlink**, **earTwitch**,
 **tailFlick**, **hiss**.
 
-Status: **planning** (2026-09-29). Nothing here runs yet.
+Status: **building, M0 Litter** (2026-09-30): catTree, scentTrail and the windowsill skeleton
+run; no sense is watching yet. Live status: the runbook's Backlog.
+
+Tests (containers only, on roastery): `powershell -ExecutionPolicy Bypass -File scripts\test.ps1`.
 
 | Doc | What it's for |
 |---|---|

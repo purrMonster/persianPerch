@@ -1,0 +1,32 @@
+# How purrbrews-containers will run perch on cellar (the real file is prepared in
+# integration/ at M6 and applied by the owner). Everything here is an example:
+# ${DOMAIN} and every secret come from the node's env files, never from this repo.
+services:
+  persian-perch:
+    image: persian-perch:dev
+    build: .
+    container_name: persian-perch
+    restart: unless-stopped
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    mem_limit: 300m            # design plan 2.1 budget
+    env_file:
+      - secrets.env.local      # written on cellar by ./setup-secrets.sh (05 plan C13)
+    environment:
+      PERCH_TZ: ${TZ}
+      PERCH_REPO_DIR: /opt/purrbrews
+      PERCH_TRAIL_DB: /data/scentTrail.db
+      PERCH_TRUSTED_PROXIES: "*"   # only Traefik can reach it on cellar_net
+    volumes:
+      - /opt/purrbrews:/opt/purrbrews:ro                 # the node's checkout of the fleet repo
+      - ${DATA_DIR:-/srv/data}/persian-perch:/data       # scentTrail (backed up with a sqlite line, C9)
+      - /var/lib/purrbrews/groom:/var/lib/purrbrews/groom:ro
+    networks: [cellar_net]      # Komodo and Scrutiny by container name (05 plan C6)
+    labels:
+      - traefik.enable=false    # routed by cellar's dynamic.yml (05 plan C1, A11)
+
+networks:
+  cellar_net:
+    external: true

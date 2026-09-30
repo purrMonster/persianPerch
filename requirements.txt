@@ -1,0 +1,6 @@
+# perch runtime (Python 3.12). Pinned; bump deliberately and note it in runbook.md.
+fastapi==0.142.2
+starlette==1.7.0
+uvicorn==0.54.0
+jinja2==3.1.6
+tzdata==2026.4

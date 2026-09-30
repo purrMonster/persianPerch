@@ -1,0 +1,6 @@
+# Text files are stored with LF. PowerShell files get CRLF in the working copy
+# (PowerShell 5 is happiest with them) and stay ASCII-only (test S8).
+* text=auto eol=lf
+*.ps1 text eol=crlf
+*.png binary
+*.ico binary

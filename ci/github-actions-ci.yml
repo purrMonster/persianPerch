@@ -1,0 +1,58 @@
+# CI for GitHub Actions, prepared but NOT active: agents can't write .github/ (a protected
+# path), and turning Actions on for the public repo is the owner's call. To enable it, move
+# this file to .github/workflows/ci.yml (runbook, M0 entry). Same checks as scripts/test.ps1.
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  FLEET_COMMIT: f94efdfb1995d7217ec2be33e45b33720a0a0b3b
+
+jobs:
+  perch:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - name: Pin the fleet repo (05 plan 3)
+        run: |
+          git clone --quiet https://github.com/purrMonster/purrbrews-containers .cache/purrbrews-containers
+          git -C .cache/purrbrews-containers checkout --quiet "$FLEET_COMMIT"
+      - name: Build the test image
+        run: docker build --quiet -f tests/Dockerfile -t persian-perch-test:dev .
+      - name: ruff + pytest
+        run: docker run --rm -v "$PWD:/src" -w /src persian-perch-test:dev sh -c 'ruff check . && pytest'
+
+  kitten:
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        python: ["3.13", "3.14"]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python }}
+      - run: python -m unittest discover -s tests/kitten
+
+  ui:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - name: Pin the fleet repo
+        run: |
+          git clone --quiet https://github.com/purrMonster/purrbrews-containers .cache/purrbrews-containers
+          git -C .cache/purrbrews-containers checkout --quiet "$FLEET_COMMIT"
+      - name: Playwright UI check
+        run: |
+          mkdir -p screenshots && chmod 777 screenshots
+          docker compose -f tests/ui/compose.yml up --build --abort-on-container-exit --exit-code-from playwright
+      - uses: actions/upload-artifact@v5
+        if: always()
+        with:
+          name: screenshots
+          path: screenshots/

@@ -1,0 +1,15 @@
+.git
+.cache
+.github
+.venv
+**/__pycache__
+.pytest_cache
+.ruff_cache
+screenshots
+docs
+mockups
+tests
+integration
+kitten
+*.env.local
+secrets.env

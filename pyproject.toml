@@ -1,0 +1,36 @@
+# persianPerch - tool settings only (perch is run from source in its container, not installed).
+[project]
+name = "persian-perch"
+version = "0.0.1"
+description = "persianPerch: the purrBrews fleet's unified watcher"
+requires-python = ">=3.12"
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+extend-exclude = [".cache", "mockups"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "S", "PL"]
+ignore = [
+  "N",        # purrBrews names are camelCase on purpose (04 build prompt 3)
+  "PLR0913",  # keyword-only settings are clearer than bundling them
+  "PLR2004",  # magic numbers are fine in a watcher's rules
+  "S603",     # subprocess without shell: only fixed git argv
+  "S607",     # git resolved from PATH on purpose
+  "UP037",    # quoted annotations kept for readability
+  "B008",     # FastAPI's Query() defaults
+  "PLC0415",  # local imports in tests
+  "PLR0915",  # createApp registers every route in one place
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "S105", "S106", "S108", "PLR0915"]
+"kitten/**" = ["UP"]  # kitten keeps 3.13-compatible syntax, checked by S8
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+norecursedirs = ["tests/kitten", "tests/ui", ".cache"]
+addopts = "-q"
+pythonpath = ["."]
+filterwarnings = ["error"]

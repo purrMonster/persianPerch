@@ -1,0 +1,35 @@
+# UI check: build perch's real image, seed sample events, then let Playwright load
+# every page (tests/ui/shoot.py). Run from the project root:
+#   docker compose -f tests/ui/compose.yml up --build --abort-on-container-exit --exit-code-from playwright
+# Screenshots land in ./screenshots (gitignored).
+name: persian-perch-ui
+services:
+  perch:
+    build: ../..
+    image: persian-perch:ui-test
+    environment:
+      PERCH_REPO_DIR: /fleet
+      PERCH_TRAIL_DB: /tmp/scentTrail.db
+      PERCH_TZ: Asia/Kolkata
+    volumes:
+      - ../../.cache/purrbrews-containers:/fleet:ro
+      - ./seed.py:/app/seed.py:ro
+    command: ["sh", "-c", "python /app/seed.py && exec python -m perch"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/healthz', timeout=4)"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+  playwright:
+    build: .                  # tests/ui/Dockerfile: the pinned Playwright image + its Python package
+    image: persian-perch:ui-playwright
+    depends_on:
+      perch:
+        condition: service_healthy
+    environment:
+      PERCH_URL: http://perch:8080
+      OUT_DIR: /out
+    volumes:
+      - ./shoot.py:/shoot.py:ro
+      - ../../screenshots:/out
+    command: ["python3", "/shoot.py"]

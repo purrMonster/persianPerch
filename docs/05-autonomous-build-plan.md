@@ -100,7 +100,10 @@ git clone https://github.com/purrMonster/purrbrews-containers .cache/purrbrews-c
 git -C .cache/purrbrews-containers checkout f94efdfb1995d7217ec2be33e45b33720a0a0b3b
 ```
 
-**Tests** (images pinned by tag and digest in M0; the digests go in the runbook):
+**Tests** (images pinned by tag and digest in M0; the digests go in the runbook). *Since M0
+(2026-09-30) these run as `scripts/test.ps1`; perch's step uses a test image built from
+`tests/Dockerfile` (the 3.12 base plus `git`, which catTree and S5/S6/S8 need), so the first
+line below became `docker build -f tests/Dockerfile ...` + `docker run ... ruff check . && pytest -q`.*
 
 ```powershell
 docker run --rm -v "${PWD}:/src" -w /src python:3.12-slim sh -c "pip install -q -r requirements-dev.txt && ruff check . && pytest -q"

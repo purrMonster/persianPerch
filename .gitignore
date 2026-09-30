@@ -1,0 +1,11 @@
+# persianPerch - never commit caches, local secrets or test output.
+.cache/
+*.env.local
+secrets.env.local
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.venv/
+screenshots/
+/data/

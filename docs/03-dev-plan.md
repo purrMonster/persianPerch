@@ -10,13 +10,13 @@
 |---|---|---|
 | Language | **Python 3.12** | the fleet repo's tooling is already Python + bash; one language for perch and kitten |
 | Web | **FastAPI** + **Jinja2** + **htmx** + SSE | server-rendered, no JS build step, fast on a phone |
-| Store | **SQLite** (WAL, `aiosqlite`) | one file, backed up by groom like any app; enough for 90 days of events |
+| Store | **SQLite** (WAL, stdlib `sqlite3` behind a lock) | one file, backed up by groom like any app; enough for 90 days of events. *2026-09-30 (M0): `aiosqlite` dropped: a few writes per second don't need an async driver (runbook).* |
 | Scheduling | `asyncio` tasks per sense with jittered rhythms | no Celery/cron inside the container |
 | HTTP clients | `httpx` (async) | Komodo, Gatus, Scrutiny, HA REST |
 | HA | `websockets` | whiskers' `state_changed` subscription |
-| Files (kitten) | `watchfiles` (Rust `notify` under the hood) | fsnotify without writing C |
+| Files (kitten) | `inotifywait` (Debian `inotify-tools`) on Linux, polling on Windows; kitten is stdlib-only | *2026-09-30: was `watchfiles`, a compiled extension a zipapp can't carry ([ADR 0001](adr/0001-kitten-stdlib-zipapp.md), 05 plan C11, A5).* |
 | Packaging | one container image for perch; kitten as a zipapp + systemd unit | kitten needs no Docker, so it runs on roastery-style hosts too |
-| Tests | `pytest`, `respx` (HTTP fakes), recorded fixtures of real API responses | every sense testable offline |
+| Tests | `pytest`, FastAPI's `TestClient` (`httpx2`), `respx`-style HTTP fakes, recorded fixtures shaped from public API docs; Playwright for the UI; all in containers (`scripts/test.ps1`) | every sense testable offline |
 
 ## 2. Repository layout (`persianPerch/`)
 
@@ -58,15 +58,25 @@ persianPerch/
 | `PERCH_TRAIL_DAYS` | `90` | event retention; daily rollups kept 400 days |
 | `PERCH_PURR_URL` / `_KEY` / `_SECRET` | — | Komodo Core read API |
 | `PERCH_PURR_EVERY` | `30s` | purr rhythm |
-| `PERCH_GLARE_URL` / `_USER` / `_PASSWORD` | `https://gatus.${DOMAIN}` | Gatus on sieve, through its Traefik; a service account on Authelia's basic-auth endpoint (Gatus publishes no port) |
+| `PERCH_GLARE_URL` / `_USER` / `_PASSWORD` | `https://gatus-api.${DOMAIN}` | Gatus on sieve through a `gatus-api` router with `forward-auth-basic` (05 plan Q12 = A); LLDAP service account `perch-svc` |
 | `PERCH_WHISKERS_URL` / `_TOKEN` | — | Home Assistant on mochaPot, read-only user |
 | `PERCH_WHISKERS_ENTITIES` | `whiskers.yml` | entity allow-list → bodyLanguage map |
-| `PERCH_KITTEN_TOKENS` | — | `node:token` pairs, one per node |
+| `PERCH_KITTEN_TOKEN_<NODE>` | — | one push token per node, roastery included (05 plan C10, A5); replaces `PERCH_KITTEN_TOKENS` |
 | `PERCH_MEOW_NTFY_URL` / `_TOKEN` | — | ntfy topic on sieve |
 | `PERCH_MEOW_QUIET` | `23:00-07:00` | quiet hours (hiss ignores them) |
 | `PERCH_NINELIVES_URL` | — | healthchecks.io ping URL |
+| `PERCH_ROLLUP_DAYS` | `400` | days of daily rollups (05 plan C10) |
+| `PERCH_TZ` | `${TZ}` from `fleet.env` | how times are shown (05 plan C10) |
+| `PERCH_DISKS_URL` | `http://scrutiny:8080` | Scrutiny on `cellar_net` (05 plan C6) |
+| `PERCH_BINOCS_SPEEDTEST_URL` / `_TOKEN` | — | speedtest-tracker on grinder (05 plan C8) |
+| `PERCH_BINOCS_RELEASES_EVERY` | `7d` | upstream release check |
+| `PERCH_GROOM_DIR` | `/var/lib/purrbrews/groom` | cellar's own groom records, read-only (05 plan A10) |
+| `PERCH_MEOW_CRITICAL_URL` | — | public ntfy.sh critical topic, hiss only (05 plan A7) |
+| `PERCH_ACK_SECRET` | — | HMAC key for one-time acknowledge links (05 plan A11) |
 
-Kitten: `KITTEN_PERCH_URL`, `KITTEN_TOKEN`, `KITTEN_POUNCE_PATHS`, `KITTEN_GROOM_DIR`.
+The full list, with where each value comes from, is [`../secrets.env`](../secrets.env) (names only).
+
+Kitten: `KITTEN_PERCH_URL`, `KITTEN_TOKEN`, `KITTEN_POUNCE_PATHS` (several separated by `;`, since Windows paths contain `:`), `KITTEN_GROOM_DIR`, `KITTEN_NODE` (defaults to the host name).
 
 ## 4. Milestones
 
