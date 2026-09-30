@@ -10,6 +10,8 @@ and keep going. Stop and ask only for the cases listed under "When to stop".
   `C:\Users\jyotirmoyc\Desktop\Projects\persianPerch` on the Windows workstation
   **roastery**. It already contains:
   - `README.md`: names at a glance
+  - `CLAUDE.md`: project context · `AGENTS.md`: rules for every agent, **including how to
+    keep `runbook.md`** · `runbook.md`: dated decisions and the Backlog
   - `docs/01-ideation.md`: purpose, senses, names, principles, parked ideas
   - `docs/02-design-plan.md`: architecture, data model, each sense, alerts, UI, security
   - `docs/03-dev-plan.md`: stack, layout, `PERCH_*` settings, milestones M0–M6, tests, risks
@@ -127,9 +129,10 @@ as the starting stylesheet.
 - **Run everything.** Don't claim a milestone is done until its tests pass and you've
   started perch locally (Docker Desktop on roastery, or plain Python 3.12+) and loaded the
   pages. Paste real command output into the progress log, not a summary of it.
-- **Keep a progress log** at `docs/progress.md`: dated entries, newest first, per
-  milestone: what was built, what was verified and how, what's left, decisions made and
-  why. This is the owner's runbook for this project.
+- **Keep `runbook.md` current, as `AGENTS.md` §4 describes:** claim your work under
+  *In progress*, and add a dated entry (newest first) at every step that changes
+  something: what was built, what was verified and how (real output), what's left,
+  decisions and why. Tick Backlog items only on evidence.
 - **Record design decisions** as short ADRs in `docs/adr/NNNN-title.md` when you choose
   between real alternatives (library, schema, protocol).
 - **Update the plans** when reality differs: if the design plan is wrong, fix the doc in
@@ -150,7 +153,7 @@ Otherwise decide, record it, and continue.
 
 ## 8. When you finish
 
-Finish with M5 green and M6 prepared, then report in `docs/progress.md` and in your final
+Finish with M5 green and M6 prepared, then report in `runbook.md` and in your final
 message:
 
 1. what works, per milestone, with the test counts and the commands that proved it;

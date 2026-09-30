@@ -12,6 +12,9 @@ Status: **planning** (2026-09-29). Nothing here runs yet.
 
 | Doc | What it's for |
 |---|---|
+| [runbook.md](runbook.md) | Dated decisions and progress, newest first; the Backlog is the live status |
+| [AGENTS.md](AGENTS.md) | Rules for every AI agent working here, including how to update the runbook |
+| [CLAUDE.md](CLAUDE.md) | Project context: the owner, the fleet, the names, where things are |
 | [docs/01-ideation.md](docs/01-ideation.md) | Why it exists, the senses, the names, principles, parked ideas, open questions |
 | [docs/02-design-plan.md](docs/02-design-plan.md) | Architecture, data model, each sense in detail, alerts, UI, security, failure modes |
 | [docs/03-dev-plan.md](docs/03-dev-plan.md) | Stack, layout, `PERCH_*` settings, milestones M0–M6, tests, risks, decisions needed |
