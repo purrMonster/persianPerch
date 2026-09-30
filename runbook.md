@@ -144,6 +144,14 @@ secrets.env**, added by name, before any M0 code.
   `docker stats --no-stream` → `perch-budget mem=39.22MiB cpu=0.09%`; healthcheck `healthy`;
   `/healthz` → `{"ok":true,"schemaVersion":1,"journalMode":"wal","commit":"f94efdfb1995"}`.
 
+**Pushed (A2), 18:40.** Pre-push checks on `4c02312..42c97fe`: `git log origin/main..HEAD
+--format='%ae %ce'` → only `jyotirmoy.github@jyotirmoy.cc` (both commits); the diff read
+through, plus a scan of its 3,736 added lines → no host outside the S6 allow-list, and the
+only secret-shaped strings are the deliberate fakes in `tests/` (`tk_fakefake…`,
+`Bearer abcdefghijklmnop`, a JWT header); tests green (above, and `86 passed` again with
+everything staged). `git push origin main` → `2f6fafc..42c97fe  main -> main`;
+`git ls-remote origin refs/heads/main` → `42c97fe4…`. This note is the follow-up commit.
+
 **Surprises for the next agent.**
 - **Cowork's file bridge stamps a C2PA provenance manifest into SVG files it writes**
   (`perch.svg` arrived as 8 KB with a C2PA metadata block). It was rewritten byte-exact from
