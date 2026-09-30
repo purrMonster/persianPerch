@@ -27,6 +27,35 @@ changes can be made later without re-deriving the reasoning. How to write entrie
 
 ---
 
+## 2026-09-30 — Builder changes from Cowork to Claude Code, from M1
+
+**Context.** After M0 was built, pushed (`82a01bc`) and stopped at its gate, the owner
+changed the builder for the rest of the build (05 plan Q4).
+
+**Decided.**
+- **Claude Code on roastery builds M1 onward** (05 plan Q4 = A, A3 rewritten): PowerShell,
+  working directory = this folder, so `CLAUDE.md` loads by itself. Everything else in the
+  05 plan stands: pre-flight with the A3 checks every session, A2 (push at a green gate,
+  then stop for the go-ahead), containers-only tests via `scripts\test.ps1`, quiet hours.
+- Claude Code never runs with permission prompts skipped, and asks before any command
+  outside this folder (AGENTS.md rule 1).
+- M0 stays as Cowork built it; nothing is redone. The CI Backlog item stays the owner's
+  call: `.github/` was only blocked for Cowork's file tools, but switching Actions on for
+  a public repo is still a decision for the owner, not the builder.
+
+**Done.** `docs/05-autonomous-build-plan.md`: Q4 answer and A3 row (2 lines; checked with
+`git diff`, no other change to the file).
+
+**Verified.** `git status`: `main` level with `origin/main` at `82a01bc`; the only change is
+the 05 plan's two lines plus this entry.
+
+**Not done / next.**
+- [ ] Owner's go-ahead for M1, then Claude Code runs the pre-flight and starts M1 (owner, agent)
+
+— Claude (chat, Opus 5.5), for the owner
+
+---
+
 ## 2026-09-30 — M0 Litter: catTree, scentTrail, windowsill skeleton; gate green
 
 **Context.** The owner asked Cowork to build persianPerch: read the rules and the spec, run
