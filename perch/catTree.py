@@ -25,6 +25,10 @@ READ_LIMIT = 256 * 1024
 
 _APPS = re.compile(r"^\s*APPS=\((?P<apps>[^)]*)\)", re.MULTILINE)
 _IMAGE = re.compile(r"^\s*image:\s*[\"']?(?P<image>[^\s\"'#]+)", re.MULTILINE)
+# A literal container_name only: a ${VARIABLE} can't be known without rendering the file.
+_CONTAINER = re.compile(
+    r"^\s*container_name:\s*[\"']?(?P<name>[A-Za-z0-9][A-Za-z0-9_.-]*)[\"']?\s*(?:#.*)?$", re.MULTILINE
+)
 _LAN_IP = re.compile(r"^(?P<node>[A-Z0-9_]+)_LAN_IP=(?P<ip>[0-9.]+)\s*$", re.MULTILINE)
 
 
@@ -64,6 +68,7 @@ class App:
     files: list[str] = field(default_factory=list)
     summary: str = ""
     images: list[str] = field(default_factory=list)
+    containers: list[str] = field(default_factory=list)  # container_name, in compose order
     backup: list[str] = field(default_factory=list)
     hasSecretsConf: bool = False
 
@@ -213,7 +218,9 @@ class CatTree:
         base = f"stacks/{node}/{name}"
         app = App(node=node, name=name, inApps=inApps, files=sorted(files))
         app.summary = _summary(text(f"{base}/README.md"))
-        app.images = _IMAGE.findall(text(f"{base}/docker-compose.yml"))
+        compose = text(f"{base}/docker-compose.yml")
+        app.images = _IMAGE.findall(compose)
+        app.containers = [m["name"] for m in _CONTAINER.finditer(compose)]
         app.backup = [
             line.strip()
             for line in text(f"{base}/backup").splitlines()
