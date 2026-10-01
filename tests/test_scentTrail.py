@@ -107,8 +107,10 @@ def test_migration_2_adds_state_detail_to_a_version_1_database(tmp_path, clock):
     path = tmp_path / "old.db"
     db = sqlite3.connect(path)
     db.executescript(MIGRATIONS[0])
-    db.execute("INSERT INTO state VALUES ('app:sieve/pihole','slowBlink','2026-09-29T00:00:00.000Z',"
-               "'2026-09-29T00:00:00.000Z','ok',NULL,NULL)")
+    db.execute(
+        "INSERT INTO state VALUES ('app:sieve/pihole','slowBlink','2026-09-29T00:00:00.000Z',"
+        "'2026-09-29T00:00:00.000Z','ok',NULL,NULL)"
+    )
     db.execute("PRAGMA user_version=1")
     db.commit()
     db.close()
