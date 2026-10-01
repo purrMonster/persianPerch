@@ -58,6 +58,7 @@ persianPerch/
 | `PERCH_TRAIL_DAYS` | `90` | event retention; daily rollups kept 400 days |
 | `PERCH_PURR_URL` / `_KEY` / `_SECRET` | — | Komodo Core read API |
 | `PERCH_PURR_EVERY` | `30s` | purr rhythm |
+| `PERCH_SLEEPERS` | `roastery` | nodes that sleep between their wake windows: unreachable outside the window is slowBlink, not hiss (05 plan C5; the window itself is read from the fleet repo) |
 | `PERCH_GLARE_URL` / `_USER` / `_PASSWORD` | `https://gatus-api.${DOMAIN}` | Gatus on sieve through a `gatus-api` router with `forward-auth-basic` (05 plan Q12 = A); LLDAP service account `perch-svc` |
 | `PERCH_WHISKERS_URL` / `_TOKEN` | — | Home Assistant on mochaPot, read-only user |
 | `PERCH_WHISKERS_ENTITIES` | `whiskers.yml` | entity allow-list → bodyLanguage map |

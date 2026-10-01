@@ -42,6 +42,7 @@ class Settings:
     purrKey: str = _secret()
     purrSecret: str = _secret()
     purrEvery: int = 30
+    sleepers: tuple[str, ...] = ("roastery",)  # nodes that sleep between wake windows (05 plan C5)
 
     glareUrl: str = ""
     glareUser: str = ""
@@ -101,6 +102,7 @@ class Settings:
             purrKey=get("PERCH_PURR_KEY"),
             purrSecret=get("PERCH_PURR_SECRET"),
             purrEvery=parseDuration(get("PERCH_PURR_EVERY", "30s")),
+            sleepers=tuple(n.strip() for n in get("PERCH_SLEEPERS", "roastery").split(",") if n.strip()),
             glareUrl=get("PERCH_GLARE_URL"),
             glareUser=get("PERCH_GLARE_USER"),
             glarePassword=get("PERCH_GLARE_PASSWORD"),

@@ -7,7 +7,10 @@ test S7 checks the route table. M0 has none.
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
 from collections.abc import Callable
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -19,6 +22,7 @@ from fastapi.templating import Jinja2Templates
 
 from ..bodyLanguage import LEVELS, BodyLanguage
 from ..catTree import CatTree, CatTreeError, Fleet
+from ..collectors import Runner, buildCollectors
 from ..rollup import Status
 from ..scentTrail import SENSES, ScentTrail, utcNow
 from ..settings import Settings
@@ -42,6 +46,7 @@ def createApp(
     trail: "ScentTrail | None" = None,
     tree: "CatTree | None" = None,
     clock: Callable[[], datetime] = utcNow,
+    collectors: "list | None" = None,
 ) -> FastAPI:
     settings = settings or Settings.fromEnv()
     trail = trail or ScentTrail(
@@ -53,11 +58,28 @@ def createApp(
     )
     tree = tree or CatTree(settings.repoDir)
     tz = ZoneInfo(settings.tz)
+    if collectors is None:
+        collectors = buildCollectors(settings, trail, tree, clock)
+    runner = Runner(trail, collectors, clock=clock, secrets=settings.secretValues())
 
-    app = FastAPI(title="persianPerch", docs_url=None, redoc_url=None, openapi_url=None)
+    @asynccontextmanager
+    async def lifespan(_app: FastAPI):
+        task = asyncio.create_task(runner.run()) if collectors else None
+        try:
+            yield
+        finally:
+            if task:
+                task.cancel()
+                await asyncio.gather(task, return_exceptions=True)
+            for collector in collectors:
+                with contextlib.suppress(Exception):
+                    await collector.aclose()
+
+    app = FastAPI(title="persianPerch", docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
     app.state.settings = settings
     app.state.trail = trail
     app.state.tree = tree
+    app.state.runner = runner
     app.mount("/static", StaticFiles(directory=HERE / "static"), name="static")
 
     templates = Jinja2Templates(directory=HERE / "templates")
@@ -147,7 +169,12 @@ def createApp(
 
     @app.get("/healthz")
     def healthz():
-        body = {"ok": True, "schemaVersion": trail.schemaVersion, "journalMode": trail.journalMode}
+        body = {
+            "ok": True,
+            "schemaVersion": trail.schemaVersion,
+            "journalMode": trail.journalMode,
+            "collectors": runner.report(),
+        }
         try:
             body["commit"] = tree.fleet().commit[:12]
         except CatTreeError as exc:
