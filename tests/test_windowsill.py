@@ -52,14 +52,14 @@ def test_tree_lists_every_node_and_app(client, fleetRepo):
 def test_no_data_yet_means_unknown_not_ok(client):
     html = client.get("/").text
     assert "bl-unknown" in html
-    assert "slowBlink · fleet" not in html
+    assert "fleet: slowBlink" not in html
 
 
 def test_state_rolls_up_to_node_and_fleet(client):
     client.trail.setState("app:grinder/n8n", B.hiss, title="exited")
     html = client.get("/tree/grinder").text
     assert 'title="hiss: critical: needs barista"' in html
-    assert "hiss · fleet" in client.get("/").text
+    assert "fleet: hiss" in client.get("/").text
 
 
 def test_events_show_on_trail_and_app_page(client):

@@ -27,6 +27,67 @@ changes can be made later without re-deriving the reasoning. How to write entrie
 
 ---
 
+## 2026-10-01 — Design rework: design-analysis look, taste discipline, Web Interface Guidelines
+
+**Context.** The owner asked for the design to be reworked with three skills:
+design-analysis (the visual language), design-taste-frontend (anti-default discipline) and
+web-design-guidelines (Vercel's Web Interface Guidelines, fetched fresh 2026-10-01). The
+owner had already started on 2026-09-30 18:46 (uncommitted: `perch.css` and seven
+templates, moving to cream canvas, coral and a serif display face; it pointed to a
+`docs/06-design-system.md` that didn't exist yet). The owner confirmed it was theirs and to
+build on it.
+
+**Decided** (full reasoning in [docs/06-design-system.md](docs/06-design-system.md) §2).
+- **Design read:** a private, read-only ops dashboard for one owner, calm editorial
+  language, design-analysis tokens. Dials: variance 3, motion 2, density 6.
+- **Serif only for page titles and the wordmark.** design-taste-frontend discourages serif
+  for dashboards; its own override applies because the owner named design-analysis.
+  **Counts are tabular sans**: the serif's old-style figures bob in a column.
+- **Coral is scarce: on this page colour means state.** persianPerch is read-only, and coral
+  sits between tailFlick amber and hiss red, so it reads as a third alarm. It stays on the
+  brand mark, the active-nav bar and the one future action (M3's Ack, `--accent-fill`).
+  Links are ink.
+- **Repo content in a dark code window** (design-analysis' dark product surface), in both
+  themes: READMEs and repo files. "The repo says" never looks like "perch says".
+- **No glass:** solid header (taste: no glassmorphism on dashboards; no transparency
+  fallback needed).
+- design-analysis is Anthropic's own brand: its logic is borrowed, never the spike mark, the
+  Claude wordmark or the licensed fonts.
+
+**Done.**
+- `perch.css`: new tokens `--control` (3:1 edges), `--accent-fill`, `--code-*`; `--faint`
+  darkened; ink links; solid header; coral active-nav bar; sans tabular counts; `.codewin`;
+  pressable chips and inputs on `--control`; `.dayhead`, `h1.path`; tab rule scoped to
+  direct children.
+- Templates: fleet badge `fleet: <level>` (one middle dot per line); trail day headings
+  `h2` (were `h3` under `h1`), `Apply Filters`, `<select>` styled by CSS instead of a
+  transparent inline style; app page's inert ARIA "tabs" replaced by a sentence; README and
+  doc pages in `.codewin`; doc page breadcrumb is a `<nav>`, `↗` hidden from screen readers.
+- `tests/test_windowsill.py`: the two assertions on the badge text follow the copy change.
+- Mockups: each one's own `<style>` (identical in all five) replaced by a link to
+  `perch.css` plus the mockup-only `.mockflag` rule; every `var()` they use is defined.
+- `docs/06-design-system.md`: design read, the reconciliation, tokens, measured contrast,
+  type, components and a 14-point checklist for future changes.
+
+**Verified.**
+- Contrast measured with the WCAG formula, both themes (table in docs/06 §4). Three
+  light-mode failures fixed: white on coral 3.28 → 4.8 (`--accent-fill`), control edges
+  1.34 → 3.6 (`--control`), `--faint` on `--panel2` 4.21 → 4.8.
+- `scripts\test.ps1` on roastery, 2026-10-01 13:14: ruff all checks passed; pytest 86
+  passed; kitten 4 + 4 OK (3.13, 3.14); Playwright 21 passed, 0 failed (7 pages × 1400 dark,
+  1400 light, 390 dark; no horizontal scroll, no console errors). Summary ok × 6.
+- Screenshots of the overview and an app page (1400, light) looked at by eye.
+- `git diff --check` clean; changed files stay LF.
+
+**Not done / next.**
+- [ ] Owner: look at the screenshots (`screenshots/`) or the mockups and say if the look is
+  right before M1 builds on it (owner)
+- [ ] Builder (M1 onward): follow docs/06 §7 for every UI change (agent)
+
+— Claude (chat, Opus 5.5), with the owner's 2026-09-30 rework as the base
+
+---
+
 ## 2026-09-30 — Builder changes from Cowork to Claude Code, from M1
 
 **Context.** After M0 was built, pushed (`82a01bc`) and stopped at its gate, the owner

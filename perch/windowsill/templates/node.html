@@ -2,26 +2,26 @@
 {% from "_macros.html" import badge, dot %}
 {% block title %}{{ node.name }}{% endblock %}
 {% block main %}
-<div class="grid cols-tree">
+<div class="grid cols-tree" style="gap:24px">
   {% set current_node = node %}{% set current_app = None %}{% include "_treeNav.html" %}
   <section>
-    <div class="muted mono crumbs"><a href="/tree">fleet</a> / {{ node.name }}</div>
-    <div class="row between" style="flex-wrap:wrap;gap:10px;margin:6px 0 16px">
-      <div><h1>{{ node.name }}</h1><div class="muted">{{ node.role }}{% if node.ip %} · <span class="mono">{{ node.ip }}</span>{% endif %}</div></div>
+    <nav class="muted mono crumbs" aria-label="Breadcrumb" translate="no"><a href="/tree">fleet</a> / {{ node.name }}</nav>
+    <div class="pagehead">
+      <div><h1 translate="no">{{ node.name }}</h1><div class="muted">{{ node.role }}{% if node.ip %}, <span class="mono">{{ node.ip }}</span>{% endif %}</div></div>
       {{ badge(status.node(node.name)) }}
     </div>
     <div class="grid cols-2">
-      <div class="card"><h2>Apps <span class="faint" style="font-weight:400">· node.conf order</span></h2>
-        <div class="tablewrap"><table><thead><tr><th></th><th>app</th><th class="hide-sm">images</th></tr></thead><tbody>
-        {%- for a in node.apps %}<tr><td style="width:22px">{{ dot(status.app(node.name, a.name)) }}</td><td class="mono"><a href="/tree/{{ node.name }}/{{ a.name }}">{{ a.name }}/</a></td><td class="mono muted hide-sm">{{ a.images|join(', ') or '—' }}</td></tr>{% endfor %}
+      <div class="card"><h2>Apps <span class="faint">node.conf order</span></h2>
+        <div class="tablewrap"><table><thead><tr><th><span class="sr">bodyLanguage</span></th><th>app</th><th class="hide-sm">images</th></tr></thead><tbody translate="no">
+        {%- for a in node.apps %}<tr><td style="width:22px">{{ dot(status.app(node.name, a.name)) }}</td><td class="mono"><a href="/tree/{{ node.name }}/{{ a.name }}">{{ a.name }}/</a></td><td class="mono muted hide-sm">{{ a.images|join(', ') or 'none' }}</td></tr>{% endfor %}
         </tbody></table></div></div>
-      <div class="card"><h2>Files <span class="faint" style="font-weight:400">· git-tracked only</span></h2>
-        <table><tbody>{% for f in node.files %}<tr><td class="mono">{{ f }}</td></tr>{% endfor %}</tbody></table>
-        {%- if node.extras %}<h3 style="margin-top:14px">also in the repo, not in node.conf</h3>
-        <div class="mono small">{% for a in node.extras %}<a href="/tree/{{ node.name }}/{{ a.name }}">{{ a.name }}/</a>{{ ', ' if not loop.last }}{% endfor %}</div>{% endif %}
+      <div class="card"><h2>Files <span class="faint">git-tracked only</span></h2>
+        <table><tbody translate="no">{% for f in node.files %}<tr><td class="mono">{{ f }}</td></tr>{% endfor %}</tbody></table>
+        {%- if node.extras %}<h3 style="margin-top:16px">Also in the repo, not in node.conf</h3>
+        <div class="mono small" translate="no">{% for a in node.extras %}<a href="/tree/{{ node.name }}/{{ a.name }}">{{ a.name }}/</a>{{ ', ' if not loop.last }}{% endfor %}</div>{% endif %}
       </div>
     </div>
-    {%- if readme %}<div class="card" style="margin-top:16px"><h2>README.md</h2><pre class="readme">{{ readme }}</pre></div>{% endif %}
+    {%- if readme %}<div class="card codewin" style="margin-top:16px"><h2 translate="no">README.md</h2><pre class="readme">{{ readme }}</pre></div>{% endif %}
   </section>
 </div>
 {% endblock %}

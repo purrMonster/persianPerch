@@ -1,30 +1,33 @@
 {% from "_macros.html" import badge, dot, legend %}
 <!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="color-scheme" content="dark light">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#faf9f5" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#181715" media="(prefers-color-scheme: dark)">
 <title>persianPerch · {% block title %}{{ page }}{% endblock %}</title>
 <link rel="stylesheet" href="/static/perch.css">
 <link rel="icon" href="/static/perch.svg" type="image/svg+xml">
 </head><body>
+<a class="skip" href="#main">Skip to content</a>
 {%- set fleetLevel = status.fleetLevel() %}
 <header class="top"><div class="wrap">
-  <a class="brand" href="/" style="color:inherit;text-decoration:none"><svg viewBox="0 0 32 32" aria-hidden="true"><rect x="2" y="27" width="28" height="2.5" rx="1.2" fill="var(--accent)"/>
+  <a class="brand" href="/" translate="no"><svg viewBox="0 0 32 32" aria-hidden="true"><rect x="2" y="27" width="28" height="2.5" rx="1.2" fill="var(--accent)"/>
 <path d="M11 27c-2-3-2.5-7-1-10.5L9 11l3.2 2.4c1.2-.5 2.6-.6 3.8-.4L19 10.5l.3 4.2c2.8 2.1 3.6 6.3 2.2 9.6-.4 1-1 1.9-1.7 2.7z" fill="var(--text)"/>
 <path d="M21 26.5c3 0 5.5-1.6 5.5-4.2 0-1.6-1.3-2.4-2.3-1.7" fill="none" stroke="var(--text)" stroke-width="1.8" stroke-linecap="round"/>
 <circle cx="13.6" cy="17.2" r=".9" fill="var(--bg)"/><circle cx="17" cy="17" r=".9" fill="var(--bg)"/></svg><span>persianPerch <small>unified watcher</small></span></a>
-  <nav class="main" aria-label="main">
+  <nav class="main" aria-label="Main" translate="no">
     {%- for key, href, hint in [('perch','/','overview'),('catTree','/tree','the fleet, shaped like its repo'),('groom','/groom','backups'),('scentTrail','/trail','everything that happened')] -%}
     <a href="{{ href }}" title="{{ hint }}" class="{{ 'on' if page == key else '' }}"{% if page == key %} aria-current="page"{% endif %}>{{ key }}</a>
     {%- endfor -%}
   </nav><div class="spacer"></div>
   <span class="pill hide-sm" title="purr (containers, node vitals) arrives in M1">{{ dot(BodyLanguage.unknown) }}purr: not watching yet</span>
-  {{ badge(fleetLevel, fleetLevel.value ~ ' · fleet') }}
+  {{ badge(fleetLevel, 'fleet: ' ~ fleetLevel.value) }}
 </div></header>
-<main><div class="wrap">
+<main id="main" tabindex="-1"><div class="wrap">
 {% block main %}{% endblock %}
 </div></main>
 <footer class="foot"><div class="wrap row between" style="flex-wrap:wrap;gap:12px">
   {{ legend() }}
-  <div>catTree at <span class="mono" title="{{ fleet.subject }}">{{ fleet.commit[:8] }}</span> · nineLives {{ dot(BodyLanguage.unknown) }} not yet</div>
+  <div>catTree at <span class="mono" translate="no" title="{{ fleet.subject }}">{{ fleet.commit[:8] }}</span>, nineLives not yet {{ dot(BodyLanguage.unknown) }}</div>
 </div></footer>
 </body></html>

@@ -3,34 +3,34 @@
 {% block title %}perch overview{% endblock %}
 {% block main %}
 {%- set counts = status.counts() %}
-<div class="row between" style="flex-wrap:wrap;gap:12px;margin-bottom:18px">
-  <div><h1>{{ greeting }}, barista</h1><div class="muted">{{ local.strftime('%A %d %b · %H:%M') }} · {{ fleet.nodes|length }} nodes · {{ fleet.appCount }} apps · no sense is watching yet</div></div>
-  <div class="row" style="gap:8px">{{ badge(status.fleetLevel(), status.fleetLevel().value ~ ' · fleet') }}</div>
+<div class="pagehead">
+  <div><h1>{{ greeting }}, barista</h1><div class="muted"><time>{{ local.strftime('%A %d %b, %H:%M') }}</time>. {{ fleet.nodes|length }} nodes and {{ fleet.appCount }} apps; no sense is watching yet.</div></div>
+  {{ badge(status.fleetLevel(), 'fleet: ' ~ status.fleetLevel().value) }}
 </div>
-<div class="grid cols-4" style="margin-bottom:16px">
-{%- for lv in LEVELS %}<div class="card tile"><div class="row">{{ dot(lv) }}<span class="muted">{{ lv.value }}</span></div><div class="n">{{ counts[lv] }}</div></div>{% endfor -%}
+<div class="strip" role="list" aria-label="Apps by bodyLanguage" translate="no">
+{%- for lv in LEVELS %}<div role="listitem"><div class="row small">{{ dot(lv) }}<span class="muted">{{ lv.value }}</span></div><div class="n">{{ counts[lv] }}</div></div>{% endfor -%}
 </div>
-{%- if counts[BodyLanguage.unknown] %}<p class="muted small" style="margin:-6px 0 16px">{{ dot(BodyLanguage.unknown) }} {{ counts[BodyLanguage.unknown] }} apps unknown: purr (containers) starts watching in M1.</p>{% endif %}
-<div class="grid cols-main">
-  <section>
-    <h2>Nodes <span class="faint" style="font-weight:400">· purr</span></h2>
+{%- if counts[BodyLanguage.unknown] %}<p class="muted small" style="margin:-12px 0 24px">{{ dot(BodyLanguage.unknown) }} {{ counts[BodyLanguage.unknown] }} apps unknown: purr (containers) starts watching in M1.</p>{% endif %}
+<div class="grid cols-main" style="gap:24px">
+  <section aria-labelledby="h-nodes">
+    <h2 id="h-nodes">Nodes <span class="faint" translate="no">purr</span></h2>
     <div class="grid cols-nodes">
     {%- for node in fleet.nodes %}{% set lv = status.node(node.name) %}
       <a class="card nodecard" href="/tree/{{ node.name }}">
-        <div class="row between"><div class="row">{{ dot(lv) }}<strong style="font-size:15px">{{ node.name }}</strong></div>{{ badge(lv) }}</div>
-        <div class="muted small" style="margin:4px 0 12px">{{ node.role }}{% if node.ip %} · <span class="mono">{{ node.ip }}</span>{% endif %}</div>
-        <div class="row between small"><span><strong>{{ node.apps|length }}</strong> <span class="muted">apps in node.conf</span></span><span class="muted">vitals arrive with purr</span></div>
+        <div class="row between"><strong translate="no">{{ node.name }}</strong>{{ badge(lv) }}</div>
+        <div class="muted small" style="margin:6px 0 14px">{{ node.role }}{% if node.ip %}, <span class="mono">{{ node.ip }}</span>{% endif %}</div>
+        <div class="row between small"><span><strong class="num">{{ node.apps|length }}</strong> <span class="muted">apps in node.conf</span></span><span class="faint">vitals arrive with purr</span></div>
       </a>
     {%- endfor %}
     </div>
   </section>
-  <aside class="grid">
-    <div class="card"><div class="row between"><h2>Overnight grooming</h2><a class="small" href="/groom">all nights →</a></div>
+  <aside class="grid" aria-label="Recent">
+    <div class="card"><div class="section-title"><h2>Overnight grooming</h2><a class="small" href="/groom">All nights</a></div>
       <p class="empty">groom (backups) starts watching in M2.</p></div>
-    <div class="card"><div class="row between"><h2>scentTrail</h2><a class="small" href="/trail">everything →</a></div>
+    <div class="card"><div class="section-title"><h2 translate="no">scentTrail</h2><a class="small" href="/trail">Everything</a></div>
       {%- if recent %}<div class="grid" style="gap:2px">{% for s in recent %}{{ event(s, fleet) }}{% endfor %}</div>
       {%- else %}<p class="empty">Nothing on the trail yet.</p>{% endif %}</div>
-    <div class="card"><h2>Endpoints <span class="faint" style="font-weight:400">· glare</span></h2>
+    <div class="card"><h2>Endpoints <span class="faint" translate="no">glare</span></h2>
       <p class="empty">glare (Gatus) starts watching in M4.</p></div>
   </aside>
 </div>
