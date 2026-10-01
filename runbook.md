@@ -6,7 +6,7 @@ changes can be made later without re-deriving the reasoning. How to write entrie
 
 ## In progress
 
-- (nobody)
+- Claude Code (Sonnet 5.5) · M1 First purr, to its 05 plan §5 gate (worktree branch `claude/m1-autonomous-build-788b18`) · since 2026-10-01 14:00
 
 ## Backlog / open items
 
