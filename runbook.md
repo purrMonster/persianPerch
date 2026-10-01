@@ -16,7 +16,7 @@ changes can be made later without re-deriving the reasoning. How to write entrie
 - [x] The build (Cowork): pre-flight incl. A3 and the baseline commit `4c02312` (05 plan A1) (2026-09-30, M0 entry)
 - [ ] Restore roastery's sleep setting after M6-prep (owner; 05 plan A4)
 - [x] M0 Litter: scaffolding, scentTrail, catTree, windowsill skeleton (2026-09-30, gate green on roastery, M0 entry)
-- [ ] Owner's go-ahead for M1 (05 plan A2)
+- [x] Owner's go-ahead for M1 (05 plan A2): given in chat 2026-10-01, after approving the design rework's screenshots and mockups
 - [ ] CI: `ci/github-actions-ci.yml` is ready but inactive; move it to `.github/workflows/ci.yml` if you want GitHub Actions on the public repo (owner; M0 entry)
 - [ ] M1 First purr: containers and vitals via Komodo's read API (faked), rollups, overview and catTree pages
 - [ ] M2 Grooming: groom records, kitten v0, the backup grid; fleet-script change prepared in `integration/`
@@ -80,8 +80,7 @@ build on it.
 - `git diff --check` clean; changed files stay LF.
 
 **Not done / next.**
-- [ ] Owner: look at the screenshots (`screenshots/`) or the mockups and say if the look is
-  right before M1 builds on it (owner)
+- [x] Owner: looked at the screenshots and mockups; "they look perfect" (2026-10-01)
 - [ ] Builder (M1 onward): follow docs/06 §7 for every UI change (agent)
 
 — Claude (chat, Opus 5.5), with the owner's 2026-09-30 rework as the base
