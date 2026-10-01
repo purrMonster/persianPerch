@@ -64,6 +64,11 @@ MIGRATIONS: tuple[str, ...] = (
         PRIMARY KEY (day, subject)
     );
     """,
+    # 2: what a sense knows about a subject right now (a container's image and uptime,
+    # a node's vitals), kept as JSON next to the level so the pages need no second store
+    """
+    ALTER TABLE state ADD COLUMN detail TEXT;
+    """,
 )
 
 _CROCKFORD = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
@@ -116,6 +121,7 @@ class State:
     title: str | None
     expectedRhythm: int | None
     nextExpectedAt: datetime | None
+    detail: dict[str, Any] | None = None
 
 
 class ScentTrail:
@@ -329,28 +335,36 @@ class ScentTrail:
         title: "str | None" = None,
         seenAt: "datetime | None" = None,
         expectedRhythm: "int | None" = None,
+        detail: "dict[str, Any] | None" = None,
     ) -> State:
+        """The current state of a subject. ``since`` moves only when the level changes;
+        ``detail`` always replaces the previous one (a sense states what it sees now)."""
         level = BodyLanguage.parse(bodyLanguage)
         seenAt = seenAt or self.clock()
         nextExpected = seenAt + timedelta(seconds=expectedRhythm) if expectedRhythm else None
+        cleanTitle = scrub(title, self._secrets, limit=1024) if title else None
+        cleanDetail = json.loads(scrub(json.dumps(detail), self._secrets)) if detail else None
         with self._lock:
-            row = self._db.execute("SELECT * FROM state WHERE subject=?", (subject,)).fetchone()
+            row = self._db.execute("SELECT bodyLanguage, since FROM state WHERE subject=?", (subject,)).fetchone()
             since = seenAt if row is None or row["bodyLanguage"] != level.value else parseUtc(row["since"])
             self._db.execute(
-                "INSERT INTO state VALUES (?,?,?,?,?,?,?) ON CONFLICT(subject) DO UPDATE SET "
+                "INSERT INTO state (subject, bodyLanguage, since, lastSeenAt, title, expectedRhythm, "
+                "nextExpectedAt, detail) VALUES (?,?,?,?,?,?,?,?) ON CONFLICT(subject) DO UPDATE SET "
                 "bodyLanguage=excluded.bodyLanguage, since=excluded.since, lastSeenAt=excluded.lastSeenAt, "
-                "title=excluded.title, expectedRhythm=excluded.expectedRhythm, nextExpectedAt=excluded.nextExpectedAt",
+                "title=excluded.title, expectedRhythm=excluded.expectedRhythm, "
+                "nextExpectedAt=excluded.nextExpectedAt, detail=excluded.detail",
                 (
                     subject,
                     level.value,
                     isoUtc(since),
                     isoUtc(seenAt),
-                    scrub(title, self._secrets, limit=1024) if title else None,
+                    cleanTitle,
                     expectedRhythm,
                     isoUtc(nextExpected) if nextExpected else None,
+                    json.dumps(cleanDetail) if cleanDetail else None,
                 ),
             )
-        return State(subject, level, since, seenAt, title, expectedRhythm, nextExpected)
+        return State(subject, level, since, seenAt, cleanTitle, expectedRhythm, nextExpected, cleanDetail)
 
     def states(self) -> dict[str, State]:
         with self._lock:
@@ -364,9 +378,22 @@ class ScentTrail:
                 title=r["title"],
                 expectedRhythm=r["expectedRhythm"],
                 nextExpectedAt=parseUtc(r["nextExpectedAt"]) if r["nextExpectedAt"] else None,
+                detail=json.loads(r["detail"]) if r["detail"] else None,
             )
             for r in rows
         }
+
+    def forget(self, subjects: Iterable[str]) -> int:
+        """Drop the current state of subjects that no longer exist (a removed container).
+        Events and rollups stay: the history is still true."""
+        names = list(subjects)
+        if not names:
+            return 0
+        with self._lock:
+            return self._db.execute(
+                f"DELETE FROM state WHERE subject IN ({','.join('?' * len(names))})",  # noqa: S608 - placeholders only
+                names,
+            ).rowcount
 
     # -- rollups, retention ---------------------------------------------------
 
