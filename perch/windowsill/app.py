@@ -17,8 +17,9 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from ..bodyLanguage import LEVELS, BodyLanguage, worstOf
+from ..bodyLanguage import LEVELS, BodyLanguage
 from ..catTree import CatTree, CatTreeError, Fleet
+from ..rollup import Status
 from ..scentTrail import SENSES, ScentTrail, utcNow
 from ..settings import Settings
 
@@ -33,36 +34,6 @@ SENSE_MEANING = {
     "groom": "backups",
     "perch": "perch itself",
 }
-
-
-class Status:
-    """Current bodyLanguage per subject, rolled up worst-of: app -> node -> fleet."""
-
-    def __init__(self, fleet: Fleet, trail: ScentTrail) -> None:
-        self.fleet = fleet
-        self.states = trail.states()
-
-    def app(self, node: str, app: str) -> BodyLanguage:
-        state = self.states.get(f"app:{node}/{app}")
-        return state.bodyLanguage if state else BodyLanguage.unknown
-
-    def node(self, name: str) -> BodyLanguage:
-        node = self.fleet.node(name)
-        own = self.states.get(f"node:{name}")
-        levels = [self.app(name, a.name) for a in (node.apps if node else [])]
-        if own:
-            levels.append(own.bodyLanguage)
-        return worstOf(levels)
-
-    def fleetLevel(self) -> BodyLanguage:
-        return worstOf(self.node(n.name) for n in self.fleet.nodes)
-
-    def counts(self) -> dict[BodyLanguage, int]:
-        counts = {level: 0 for level in (*LEVELS, BodyLanguage.unknown)}
-        for node in self.fleet.nodes:
-            for app in node.apps:
-                counts[self.app(node.name, app.name)] += 1
-        return counts
 
 
 def createApp(

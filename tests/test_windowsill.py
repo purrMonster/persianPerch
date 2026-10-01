@@ -17,10 +17,10 @@ ALLOWED_WRITES = {("POST", "/api/kitten"), ("POST", "/ack/{litterId}"), ("POST",
 
 
 @pytest.fixture
-def client(fleetRepo, tmp_path, clock):
+def client(fleetRepo, fleetTree, tmp_path, clock):
     settings = Settings(repoDir=fleetRepo, trailDb=tmp_path / "trail.db")
     trail = ScentTrail(settings.trailDb, clock=clock)
-    app = createApp(settings, trail=trail, clock=clock)
+    app = createApp(settings, trail=trail, tree=fleetTree, clock=clock)
     with TestClient(app) as c:
         c.trail = trail
         yield c

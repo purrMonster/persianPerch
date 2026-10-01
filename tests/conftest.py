@@ -39,6 +39,17 @@ def fleetRepo() -> Path:
     return repo
 
 
+@pytest.fixture(scope="session")
+def fleetTree(fleetRepo):
+    """One catTree over the pinned repo for the whole run. Building it reads ~100 files, which
+    is slow on a Docker Desktop bind mount; it only reads, and rebuilds when HEAD moves."""
+    from perch.catTree import CatTree
+
+    tree = CatTree(fleetRepo)
+    tree.fleet()
+    return tree
+
+
 class FakeClock:
     def __init__(self, start: datetime) -> None:
         self.now = start
