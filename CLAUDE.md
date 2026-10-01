@@ -70,6 +70,10 @@ it never changes anything.
    (a test run, a command's output, a screenshot).
 7. Git: commits as `jyotirmoyc <jyotirmoy.github@jyotirmoy.cc>`; no history rewrites or
    force-pushes without the owner's go-ahead. PowerShell files stay ASCII-only.
+8. **UI work follows three skills** in `.claude/skills/`: `design-analysis`,
+   `design-taste-frontend`, `web-design-guidelines`, under `docs/06-design-system.md`, which
+   wins where they disagree. Review every changed UI file with web-design-guidelines before
+   a gate. Details: AGENTS.md §3.1.
 
 ## Status
 

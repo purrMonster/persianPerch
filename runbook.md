@@ -27,6 +27,48 @@ changes can be made later without re-deriving the reasoning. How to write entrie
 
 ---
 
+## 2026-10-01 — The three design skills become a rule for every UI change
+
+**Context.** The owner asked that the builder (Claude Code, from M1) be held to the three
+skills the design rework used. Claude Code on roastery didn't have them: its only skills
+were the official marketplace plugins.
+
+**Decided.**
+- **Installed as Claude Code project skills** in `.claude/skills/<name>/SKILL.md`, which
+  Claude Code loads for this folder. Each file is byte-identical to the copy the rework
+  used (SHA-256 checked):
+  - `design-taste-frontend`, from `github.com/Leonxlnx/taste-skill`
+    (`skills/taste-skill/SKILL.md`), `aa194351…`;
+  - `web-design-guidelines`, from `github.com/vercel-labs/agent-skills`
+    (`skills/web-design-guidelines/SKILL.md`), `f4647ca8…`;
+  - `design-analysis`, carried over from the chat session (no public source found),
+    `26fac9ce…`.
+- **Gitignored** (`.claude/skills/`, plus `.claude/settings.local.json`): third-party texts
+  whose licences aren't ours to redistribute, in a public repo. The copies live on roastery
+  only. `design-analysis` has no public source; if roastery loses it, ask the owner to
+  re-provide it.
+- **The rule** is AGENTS.md §3.1 (with a short form as CLAUDE.md rule 8): every change to
+  `perch/windowsill/` or `mockups/` follows all three, under `docs/06-design-system.md`,
+  which wins where they disagree (it records where the skills were overruled and why).
+  `design-taste-frontend`'s stack defaults (React, Tailwind, Motion, icon libraries, web
+  fonts) never apply. A missing skill is a stop, not a guess.
+- **Enforced at the gate:** the 05 plan §4 step 7 now requires the web-design-guidelines
+  review of every changed UI file, pasted into the milestone's runbook entry.
+
+**Done.** `.claude/skills/` (3 files, local), `.gitignore`, `AGENTS.md` §3.1, `CLAUDE.md`
+rule 8, `docs/05-autonomous-build-plan.md` §4 step 7.
+
+**Verified.** SHA-256 of all three installed files matched (PowerShell `Get-FileHash`,
+roastery, 2026-10-01); `git status` shows `.claude/` untracked-and-ignored, not listed.
+
+**Not done / next.**
+- [ ] Claude Code: confirm at session start that it lists the three skills (`/skills`) before
+  any UI work in M1 (agent)
+
+— Claude (chat, Opus 5.5), for the owner
+
+---
+
 ## 2026-10-01 — Design rework: design-analysis look, taste discipline, Web Interface Guidelines
 
 **Context.** The owner asked for the design to be reworked with three skills:

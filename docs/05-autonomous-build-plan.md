@@ -125,7 +125,10 @@ docker compose -f tests/ui/compose.yml up --abort-on-container-exit --exit-code-
 5. Commit only when green: `<area>: <what>`, a why line, the `Co-Authored-By` trailer.
    Never commit red. Never `git add -A`: add the files you changed by name.
 6. At each milestone gate and each decision: a runbook entry with the real command output.
-7. At a green gate: A2 (pre-push checks, push, report, stop for the go-ahead).
+7. At a green gate: A2 (pre-push checks, push, report, stop for the go-ahead). If the
+   milestone touched `perch/windowsill/` or `mockups/`, the gate also needs the
+   web-design-guidelines review of every changed UI file, pasted into the runbook entry
+   with each finding fixed or explained (AGENTS.md §3.1, `docs/06-design-system.md` §7).
 8. Before stopping (session end, context running low, a stop case): commit green work,
    write the handoff entry (AGENTS.md §6), remove the claim, commit.
 9. At each gate, check the budget: `docker stats --no-stream` shows perch ≤ 300 MB.
