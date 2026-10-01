@@ -18,6 +18,21 @@ $py314 = 'python:3.14-slim@sha256:51dafde81dbdb6ebde285137a295cf18a47ca95234fe38
 $fleetCommit = 'f94efdfb1995d7217ec2be33e45b33720a0a0b3b'
 $fleetDir = Join-Path $root '.cache\purrbrews-containers'
 
+# In a git worktree, .git is a file that points at the main repo's .git by a host path
+# the container can't see, so tests S5/S6/S8 (git ls-files) would fail with exit 128.
+# Mount the main .git read-only and tell the tests where this worktree's own git directory
+# is (PERCH_TEST_GIT_DIR, used only for this project's repo by tests/conftest.py).
+$gitArgs = @()
+$dotGit = Join-Path $root '.git'
+if (Test-Path $dotGit -PathType Leaf) {
+    $pointer = (Get-Content $dotGit -TotalCount 1)
+    if ($pointer -match '^gitdir:\s*(.+)$') {
+        $worktreeGitDir = $Matches[1].Trim().Replace('\', '/')
+        $mainGitDir = Split-Path (Split-Path $worktreeGitDir)
+        $gitArgs = @('-v', "${mainGitDir}:/gitmain:ro", '-e', "PERCH_TEST_GIT_DIR=/gitmain/worktrees/$(Split-Path $worktreeGitDir -Leaf)")
+    }
+}
+
 # roastery holds the restic repository; cellar wakes it for the nightly backups.
 $now = Get-Date
 $minutes = $now.Hour * 60 + $now.Minute
@@ -55,7 +70,7 @@ Step 'fleet repo pinned' {
 Step 'build test image' { docker build --quiet -f tests/Dockerfile -t persian-perch-test:dev . }
 
 Step 'perch: ruff + pytest (3.12)' {
-    docker run --rm -v "${root}:/src" -w /src persian-perch-test:dev sh -c 'ruff check . && pytest'
+    docker run --rm @gitArgs -v "${root}:/src" -w /src persian-perch-test:dev sh -c 'ruff check . && pytest'
 }
 
 Step 'kitten: unittest (3.13)' {
