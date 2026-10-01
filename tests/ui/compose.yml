@@ -14,7 +14,8 @@ services:
     volumes:
       - ../../.cache/purrbrews-containers:/fleet:ro
       - ./seed.py:/app/seed.py:ro
-    command: ["sh", "-c", "python /app/seed.py && exec python -m perch"]
+      - ../komodoFake.py:/app/komodoFake.py:ro   # the fake Komodo the seed runs purr against
+    command: ["sh", "-c", "cd /app && python seed.py && exec python -m perch"]
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/healthz', timeout=4)"]
       interval: 2s

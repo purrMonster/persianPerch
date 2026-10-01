@@ -172,6 +172,22 @@ form.filters label.chip:has(input:focus-visible){outline:2px solid var(--text);o
 .crumbs{font-size:12px} .crumbs a{color:var(--muted)}
 .sticky{position:sticky;top:calc(var(--header-h) + 16px)}
 
+/* ---- live state (M1): what needs a look, node vitals, a line about what is off ---- */
+.attention{border-color:color-mix(in srgb,var(--c) 45%,var(--line));margin-bottom:16px}
+.attention h2{margin-bottom:10px}
+.attn{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.attn li{align-items:flex-start;flex-wrap:wrap;gap:4px 12px}
+.attn .body{flex:1 1 220px;min-width:0;overflow-wrap:anywhere}
+.calm{margin:0 0 16px;color:var(--muted)}
+.blindnote{display:flex;align-items:flex-start;gap:8px;margin:-12px 0 24px}
+.blindnote .dot{margin-top:6px}
+.vitals{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.vitals .bar{margin-top:5px}
+.nodesum{margin-top:12px}
+.note{display:flex;align-items:baseline;gap:8px;margin-top:10px;font-size:12.5px;color:var(--text);overflow-wrap:anywhere}
+.note.muted{color:var(--muted)}
+.note i{font-style:normal;font-weight:700;color:var(--c)}
+
 /* ---- scentTrail -------------------------------------------------------------- */
 .event{align-items:flex-start;gap:12px;padding:10px 12px;border-radius:var(--r-md)}
 .event .when{width:64px;flex:none;padding-top:2px}

@@ -1,20 +1,30 @@
-"""Seed a throwaway scentTrail with sample events so the screenshots show real rows.
+"""Seed a throwaway scentTrail so the screenshots show real pages: sample events from the senses
+that don't exist yet, and the live state of a small incident that the real purr and collector
+runner produce from a fake Komodo (tests/komodoFake.py).
 
-Run inside the perch container before perch starts (tests/ui/compose.yml). Sample
-data only: fake titles, no secrets, no hostnames.
+Run inside the perch container before perch starts (tests/ui/compose.yml). Sample data only:
+fake names, no secrets, no hostnames.
 """
 
+import asyncio
 from datetime import UTC, datetime, timedelta
+from zoneinfo import ZoneInfo
+
+from komodoFake import FleetFake
 
 from perch.bodyLanguage import BodyLanguage as B
+from perch.catTree import CatTree
+from perch.collectors import Runner
 from perch.scentTrail import ScentTrail
+from perch.senses.purr import Purr
 from perch.settings import Settings
 
 settings = Settings.fromEnv()
 trail = ScentTrail(settings.trailDb)
 now = datetime.now(UTC)
+
+# events from senses that arrive in later milestones (the trail page needs rows to show)
 samples = [
-    (0.2, "purr", "app:grinder/n8n", B.tailFlick, "restarted (exit 137, out of memory) · 2nd in 15 min", "L7"),
     (0.4, "pounce", "app:percolator/paperless", B.earTwitch, "2 files dropped into consume/", None),
     (0.9, "whiskers", "app:mochaPot/homeassistant", B.earTwitch, 'automation "morning lights" ran', None),
     (3.0, "groom", "app:cellar/komodo", B.slowBlink, "freshness: every copy under 26 h", None),
@@ -24,5 +34,44 @@ samples = [
 ]
 for hoursAgo, sense, subject, level, title, litter in samples:
     trail.addEvent(sense, subject, level, title, litterId=litter, seenAt=now - timedelta(hours=hoursAgo))
+
+
+class Clock:
+    """Time that moves only when told, so eight minutes of purr cycles take no time at all."""
+
+    def __init__(self, start):
+        self.now = start
+
+    def __call__(self):
+        return self.now
+
+    def advance(self, **delta):
+        self.now += timedelta(**delta)
+
+
+clock = Clock(now - timedelta(minutes=8))
+tree = CatTree(settings.repoDir)
+fake = FleetFake(tree.fleet(), clock)
+purr = Purr(fake.client(), trail, tree, clock=clock, every=30, tz=ZoneInfo(settings.tz))
+runner = Runner(trail, [purr], clock=clock)
+loop = asyncio.new_event_loop()
+
+
+def look(cycles):
+    for _ in range(cycles):
+        loop.run_until_complete(runner.runOnce(purr))
+        clock.advance(seconds=30)
+
+
+look(8)  # four quiet minutes
+fake.exit("grinder", "n8n", 137)  # the incident
+fake.crashloop("grinder", "traccar")
+fake.vitals("grinder", cpu=63.0, mem=91.0)
+fake.vitals("cellar", disk=88.0)
+fake.nodeDown("roastery")  # asleep, or a hiss, depending on the hour the check runs
+fake.add("grinder", "stray-test", project=None)
+look(8)
+loop.run_until_complete(purr.aclose())
+loop.close()
 trail.close()
-print(f"seeded {len(samples)} sample events into {settings.trailDb}")
+print(f"seeded {len(samples)} sample events and 16 purr cycles into {settings.trailDb}")

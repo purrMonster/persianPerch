@@ -70,6 +70,8 @@ Checked with the WCAG relative-luminance formula on 2026-10-01; recheck when a t
 | `--control` edge on `--bg` / `--panel` | 3.6 / 3.3 | 3.8 / 3.5 | 3 (1.4.11) |
 | each bodyLanguage colour on its 10 % badge tint | 5.0–5.9 | 5.0–7.5 | 4.5 |
 | `--code-text` / `--code-muted` on `--code-bg` | 17.0 / 8.2 | 15.8 / 7.6 | 4.5 |
+| `.note` text (`--text`) and `.note.muted` (`--muted`) on `--panel` | 16.2 / 5.8 | 15.8 / 7.2 | 4.5 |
+| a `.note` icon (a bodyLanguage colour) on `--panel` | decorative: `aria-hidden`, the sr-only word carries it; at least the badge ratios above | same | none |
 
 Fixed in the 2026-10-01 rework (were failing): white on coral 3.28 → `--accent-fill` 4.8;
 control edges on `--line` 1.34 → `--control` 3.6; `--faint` on `--panel2` 4.21 → 4.8.
@@ -106,6 +108,19 @@ renders the same with no network.
 - **Tabs:** real links only. A view that doesn't exist yet is a sentence, not a disabled tab.
 - **Event row (scentTrail):** time (mono, tabular), a 3 px state stripe, badge, sense chip,
   subject link, title.
+- **Header pill (purr):** how stale purr's last look is, in words: `purr 12 s ago`, `purr late, 2 min
+  ago`, `purr missing, 6 min ago`, `purr starting`, `purr off`. The dot repeats the level; the words
+  carry it. Hidden under 700 px, where the fleet badge says the same.
+- **Attention card (`.card.attention`):** "Needs a look" on the overview, only when something is at
+  tailFlick or worse: hairline tinted 45 % by the worst level, one row per item (badge, link, what is
+  wrong, how long). When nothing is, one calm sentence replaces it, and only if purr can see.
+- **Vitals (`.vitals`, `meter`):** CPU, RAM and disk of a node. The number is the information; the bar
+  is its shape and is `aria-hidden`. Bars are muted; the disk bar takes a level colour only when
+  purr's own rule fired (85 % tailFlick, 95 % hiss), so colour still means state.
+- **Note (`.note`):** one line about what is off, under a node or app: the level icon, an sr-only
+  level word, then the sentence. `no data yet` is the muted variant.
+- **Unknown is a state with a reason.** Grey never stands alone: the overview says why
+  ("purr isn't configured", "waiting for purr's first look", "purr can't see them. <why>").
 
 ## 7. Rules for every change (the checklist)
 
@@ -123,9 +138,12 @@ From web-design-guidelines, applied to this product; a reviewer checks these.
 8. Native `<select>` and inputs set `background-color` and `color` explicitly.
 9. Filters live in the URL (GET form), so every view of the trail is a link.
 10. Buttons say what they do in Title Case (`Apply Filters`, later `Acknowledge`).
-11. Copy: active voice, numerals for counts, the middle dot at most once per line, `…` not `...`.
+11. Copy: active voice, numerals for counts, the middle dot at most once per line, `…` not `...`,
+    no em or en dash in perch's own copy (design-taste-frontend §9.G; a test checks every page).
 12. Empty states say what will fill them and when; long text wraps (`overflow-wrap: anywhere`),
     flex children get `min-width: 0`.
 13. No hex outside the token block; no new radius; no second accent.
-14. Before a milestone gate: `scripts\test.ps1` passes, including the Playwright layout check
+14. A page that shows state says how old it is and never shows green by default: with no data, or
+    when purr can't see, it says unknown and why (M1).
+15. Before a milestone gate: `scripts\test.ps1` passes, including the Playwright layout check
     at 1400 px dark/light and 390 px (no horizontal scroll, no console errors).

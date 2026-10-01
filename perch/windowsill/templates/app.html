@@ -1,26 +1,33 @@
 {% extends "base.html" %}
-{% from "_macros.html" import badge, dot, event %}
+{% from "_macros.html" import badge, dot, event, note %}
 {% block title %}{{ node.name }}/{{ app.name }}{% endblock %}
 {% block main %}
 {%- set lv = status.app(node.name, app.name) %}
+{%- set st = status.appState(node.name, app.name) %}
+{%- set boxes = status.containers(node.name, app) %}
 <div class="grid cols-tree" style="gap:24px">
   {% set current_node = node %}{% set current_app = app %}{% include "_treeNav.html" %}
   <section>
     <nav class="muted mono crumbs" aria-label="Breadcrumb" translate="no"><a href="/tree">fleet</a> / <a href="/tree/{{ node.name }}">{{ node.name }}</a> / {{ app.name }}</nav>
     <div class="pagehead" style="margin-bottom:0">
       <div><h1 translate="no">{{ app.name }}</h1><div class="muted">{{ app.summary or 'No README summary.' }}</div></div>
-      <div class="row" style="flex-wrap:wrap">{{ badge(lv) }}{% if not app.inApps %}<span class="chip static" title="a folder in stacks/{{ node.name }}/ that node.conf's APPS doesn't list">not in node.conf</span>{% endif %}<a class="chip" href="https://github.com/purrMonster/purrbrews-containers/tree/{{ fleet.commit }}/{{ app.path }}" rel="noopener">GitHub <span aria-hidden="true">↗</span></a></div>
+      <div class="row" style="flex-wrap:wrap">{{ badge(lv, lv.value ~ (' for ' ~ (st.since|ago) if st and lv != BodyLanguage.unknown else '')) }}{% if not app.inApps %}<span class="chip static" title="a folder in stacks/{{ node.name }}/ that node.conf's APPS doesn't list">not in node.conf</span>{% endif %}<a class="chip" href="https://github.com/purrMonster/purrbrews-containers/tree/{{ fleet.commit }}/{{ app.path }}" rel="noopener">GitHub <span aria-hidden="true">↗</span></a></div>
     </div>
+    {%- if st and st.bodyLanguage.rank >= BodyLanguage.tailFlick.rank %}{{ note(st.bodyLanguage, st.title) }}{% endif %}
     <div class="tabs">
       <span class="on">overview</span>
-      <span class="off">this app's <span translate="no">scentTrail</span>, config and <span translate="no">groom</span> views arrive with M1 and M2</span>
+      <span class="off">this app's config and <span translate="no">groom</span> views arrive with M2</span>
     </div>
     <div class="grid cols-cards">
       <div class="card"><h2>Containers <span class="faint" translate="no">purr</span></h2>
-        {%- if app.images %}<div class="tablewrap"><table><thead><tr><th>image</th><th>state</th></tr></thead><tbody>
+        {%- if boxes %}<div class="tablewrap"><table><thead><tr><th>name</th><th>state</th><th class="hide-sm">image</th><th class="hide-sm">up</th></tr></thead><tbody translate="no">
+        {%- for b in boxes %}{% set d = b.detail or {} %}<tr><td class="mono">{{ b.subject.partition('/')[2] }}</td><td>{{ badge(b.bodyLanguage, d.get('label')) }}{% if d.get('restarts15m') %} <span class="faint small">{{ d.get('restarts15m') }} in 15 min</span>{% endif %}</td><td class="mono muted hide-sm">{{ d.get('image') or '-' }}</td><td class="num muted hide-sm">{{ d.get('uptimeSeconds')|span }}</td></tr>{% endfor %}
+        </tbody></table></div>
+        <p class="muted small" style="margin-bottom:0">Seen by purr {{ boxes[0].lastSeenAt|ago }} ago. The names a healthy app should have come from <span class="mono">docker-compose.yml</span>.</p>
+        {%- elif app.images %}<div class="tablewrap"><table><thead><tr><th>image</th><th>state</th></tr></thead><tbody>
         {%- for img in app.images %}<tr><td class="mono" translate="no">{{ img }}</td><td>{{ badge(BodyLanguage.unknown) }}</td></tr>{% endfor %}
         </tbody></table></div>
-        <p class="muted small" style="margin-bottom:0">Images from <span class="mono">docker-compose.yml</span>; live state arrives with purr (M1).</p>
+        <p class="muted small" style="margin-bottom:0">{% if st %}{{ st.title }}{% else %}purr hasn't seen this app's containers yet{% endif %}. Images are from <span class="mono">docker-compose.yml</span>.</p>
         {%- else %}<p class="empty">No <span class="mono">docker-compose.yml</span> images: not a container app.</p>{% endif %}
       </div>
       <div class="card"><h2>Backups <span class="faint" translate="no">groom</span></h2>

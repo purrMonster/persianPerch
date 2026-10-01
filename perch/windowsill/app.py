@@ -1,8 +1,10 @@
-"""windowsill: perch's web UI (server-rendered Jinja2; htmx and SSE arrive with live data).
+"""windowsill: perch's web UI (server-rendered Jinja2). Pages show the state at the moment they
+are loaded, with how old purr's last look is; live refresh (htmx, SSE) comes with the milestones
+that need it (runbook 2026-10-01).
 
 Read-only by design (04 rule 4, amended by 05 A11): the only write routes perch will
 ever have are ``POST /api/kitten``, ``POST /ack/{litterId}`` and ``POST /ack/t/{token}``;
-test S7 checks the route table. M0 has none.
+test S7 checks the route table. M1 has none.
 """
 
 from __future__ import annotations
@@ -24,8 +26,10 @@ from ..bodyLanguage import LEVELS, BodyLanguage
 from ..catTree import CatTree, CatTreeError, Fleet
 from ..collectors import Runner, buildCollectors
 from ..rollup import Status
-from ..scentTrail import SENSES, ScentTrail, utcNow
+from ..scentTrail import SENSES, ScentTrail, parseUtc, utcNow
+from ..senses.purr import DISK_CRIT, DISK_WARN
 from ..settings import Settings
+from ..words import duration
 
 HERE = Path(__file__).parent
 
@@ -85,8 +89,59 @@ def createApp(
     templates = Jinja2Templates(directory=HERE / "templates")
     env = templates.env
     env.globals.update(BodyLanguage=BodyLanguage, LEVELS=LEVELS, SENSES=SENSES, SENSE_MEANING=SENSE_MEANING)
-    env.filters["local"] = lambda moment, fmt="%H:%M": moment.astimezone(tz).strftime(fmt) if moment else "—"
+    env.filters["local"] = lambda moment, fmt="%H:%M": moment.astimezone(tz).strftime(fmt) if moment else "-"
     env.filters["bl"] = BodyLanguage.parse
+    env.filters["ago"] = lambda moment: duration((clock() - moment).total_seconds()) if moment else "never"
+    env.filters["span"] = lambda seconds: duration(seconds) if seconds is not None else "-"
+
+    def purrPill(status: Status) -> dict:
+        """The header's "purr 12 s ago": what purr is doing, how stale its last look is, and a
+        sentence for the overview. Words carry the severity; the dot only repeats it."""
+        state = status.collectors().get("purr")
+        if state is None:
+            why = "PERCH_PURR_URL, PERCH_PURR_KEY and PERCH_PURR_SECRET aren't all set"
+            return {
+                "level": BodyLanguage.unknown,
+                "text": "purr off",
+                "title": f"purr isn't watching: {why}",
+                "summary": "purr isn't watching yet",
+            }
+        last = (state.detail or {}).get("lastOkAt")
+        if not last:
+            return {
+                "level": state.bodyLanguage,
+                "text": "purr starting",
+                "title": "waiting for purr's first look at Komodo",
+                "summary": "waiting for purr's first look",
+            }
+        age = duration((clock() - parseUtc(last)).total_seconds())
+        word = {BodyLanguage.tailFlick: "late, ", BodyLanguage.hiss: "missing, "}.get(state.bodyLanguage, "")
+        return {
+            "level": state.bodyLanguage,
+            "text": f"purr {word}{age} ago",
+            "title": state.title or "",
+            "summary": f"purr looked {age} ago",
+        }
+
+    def unknownNote(status: Status, unknown: int) -> str | None:
+        """Why some apps are grey, in a sentence; None when none are."""
+        if not unknown:
+            return None
+        pill = purrPill(status)
+        state = status.collectors().get("purr")
+        if state is None:
+            return f"{unknown} apps unknown: purr isn't configured (set PERCH_PURR_URL)."
+        if pill["text"] == "purr starting":
+            return f"{unknown} apps unknown: waiting for purr's first look."
+        if state.bodyLanguage.rank >= BodyLanguage.tailFlick.rank:
+            return f"{unknown} apps unknown: purr can't see them. {state.title}"
+        return f"{unknown} apps unknown: Komodo doesn't list their containers."
+
+    def diskLevel(disk: float) -> BodyLanguage | None:
+        """The level a full disk earns (purr's own thresholds), for tinting its bar."""
+        return BodyLanguage.hiss if disk >= DISK_CRIT else BodyLanguage.tailFlick if disk >= DISK_WARN else None
+
+    env.globals.update(purrPill=purrPill, unknownNote=unknownNote, diskLevel=diskLevel)
 
     def fleetOr503() -> Fleet:
         try:

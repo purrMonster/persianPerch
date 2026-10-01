@@ -106,6 +106,23 @@ class Status:
     def _item(state: State, label: str, href: str | None) -> Attention:
         return Attention(state.subject, label, state.bodyLanguage, state.title or "", state.since, href)
 
+    def nodeNote(self, nodeName: str) -> tuple[BodyLanguage, str] | None:
+        """The one line a node's card shows when something is off: the node's own trouble, or
+        its worst app's; or that it is asleep. None when there is nothing to say."""
+        own = self.nodeState(nodeName)
+        found: list[tuple[BodyLanguage, str]] = []
+        if own and own.bodyLanguage.rank >= BodyLanguage.tailFlick.rank:
+            found.append((own.bodyLanguage, own.title or ""))
+        for app in self._watchedApps(nodeName):
+            state = self.appState(nodeName, app.name)
+            if state and state.bodyLanguage.rank >= BodyLanguage.tailFlick.rank:
+                found.append((state.bodyLanguage, f"{app.name}: {state.title or ''}"))
+        if found:
+            return max(found, key=lambda item: item[0].rank)  # max keeps the first of equals: the node's own
+        if own and (own.detail or {}).get("mode") == "asleep":
+            return own.bodyLanguage, own.title or ""
+        return None
+
     # -- what purr saw inside an app or node ------------------------------------------
 
     def vitals(self, nodeName: str) -> dict | None:

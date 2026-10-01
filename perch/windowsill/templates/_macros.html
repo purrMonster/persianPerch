@@ -7,6 +7,16 @@
 {%- set bl = level|bl -%}
 <span class="dot bl-{{ bl.value }}" title="{{ bl.value }}: {{ bl.meaning }}" role="img" aria-label="{{ bl.value }}"></span>
 {%- endmacro %}
+{# a line about something that is off: the word is for screen readers, the icon and colour repeat it #}
+{% macro note(level, text) -%}
+{%- set bl = level|bl -%}
+<div class="note bl-{{ bl.value }}"><i aria-hidden="true">{{ bl.icon }}</i><span><span class="sr">{{ bl.value }}: </span>{{ text }}</span></div>
+{%- endmacro %}
+{# a vitals bar: the number is the information, the bar is only its shape (aria-hidden) #}
+{% macro meter(label, value, level=None) -%}
+<div><div class="row between small"><span class="muted">{{ label }}</span><span class="num">{{ value|round|int }} %</span></div>
+<div class="bar{{ ' bl-' ~ level.value if level else '' }}" aria-hidden="true"><b style="width:{{ [value, 100]|min|round|int }}%"></b></div></div>
+{%- endmacro %}
 {% macro legend() -%}
 <div class="legend" translate="no">
 {%- for lv in LEVELS %}<span class="row">{{ badge(lv) }}<span>{{ lv.meaning }}</span></span>{% endfor -%}

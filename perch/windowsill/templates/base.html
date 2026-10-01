@@ -20,7 +20,8 @@
     <a href="{{ href }}" title="{{ hint }}" class="{{ 'on' if page == key else '' }}"{% if page == key %} aria-current="page"{% endif %}>{{ key }}</a>
     {%- endfor -%}
   </nav><div class="spacer"></div>
-  <span class="pill hide-sm" title="purr (containers, node vitals) arrives in M1">{{ dot(BodyLanguage.unknown) }}purr: not watching yet</span>
+  {%- set pill = purrPill(status) %}
+  <span class="pill hide-sm" title="{{ pill.title }}">{{ dot(pill.level) }}{{ pill.text }}</span>
   {{ badge(fleetLevel, 'fleet: ' ~ fleetLevel.value) }}
 </div></header>
 <main id="main" tabindex="-1"><div class="wrap">

@@ -1,7 +1,11 @@
 {% extends "base.html" %}
-{% from "_macros.html" import badge, dot %}
+{% from "_macros.html" import badge, dot, note, meter %}
 {% block title %}{{ node.name }}{% endblock %}
 {% block main %}
+{%- set own = status.nodeState(node.name) %}
+{%- set v = status.vitals(node.name) %}
+{%- set flag = status.nodeNote(node.name) %}
+{%- set strays = status.strays(node.name) %}
 <div class="grid cols-tree" style="gap:24px">
   {% set current_node = node %}{% set current_app = None %}{% include "_treeNav.html" %}
   <section>
@@ -10,16 +14,32 @@
       <div><h1 translate="no">{{ node.name }}</h1><div class="muted">{{ node.role }}{% if node.ip %}, <span class="mono">{{ node.ip }}</span>{% endif %}</div></div>
       {{ badge(status.node(node.name)) }}
     </div>
-    <div class="grid cols-2">
-      <div class="card"><h2>Apps <span class="faint">node.conf order</span></h2>
-        <div class="tablewrap"><table><thead><tr><th><span class="sr">bodyLanguage</span></th><th>app</th><th class="hide-sm">images</th></tr></thead><tbody translate="no">
-        {%- for a in node.apps %}<tr><td style="width:22px">{{ dot(status.app(node.name, a.name)) }}</td><td class="mono"><a href="/tree/{{ node.name }}/{{ a.name }}">{{ a.name }}/</a></td><td class="mono muted hide-sm">{{ a.images|join(', ') or 'none' }}</td></tr>{% endfor %}
-        </tbody></table></div></div>
+    <div class="card" style="margin-bottom:16px"><h2>Vitals <span class="faint" translate="no">purr</span></h2>
+      {%- if v and v.cpu is defined %}
+      <div class="vitals" role="group" aria-label="{{ node.name }} vitals">{{ meter('CPU', v.cpu) }}{{ meter('RAM', v.mem) }}{{ meter('disk', v.disk, diskLevel(v.disk)) }}</div>
+      <dl class="kv" style="margin-top:14px"><dt>memory</dt><dd class="num">{{ v.memUsedGb }} of {{ v.memTotalGb }} GB</dd><dt>disk</dt><dd class="num">{{ v.diskUsedGb }} of {{ v.diskTotalGb }} GB</dd>{% if v.version %}<dt>Komodo agent</dt><dd class="mono" translate="no">{{ v.version }}</dd>{% endif %}<dt>last look</dt><dd>{{ own.lastSeenAt|ago }} ago</dd></dl>
+      {%- elif own and v and v.mode == 'asleep' %}<p class="empty">{{ own.title }}. Vitals return when it wakes.</p>
+      {%- else %}<p class="empty">purr hasn't read vitals for <span class="mono" translate="no">{{ node.name }}</span> yet.</p>{% endif %}
+      {%- if flag %}{{ note(flag[0], flag[1]) }}{% endif %}
+    </div>
+    <div class="card" style="margin-bottom:16px"><h2>Apps <span class="faint">node.conf order</span></h2>
+      <div class="tablewrap"><table><thead><tr><th><span class="sr">bodyLanguage</span></th><th>app</th><th>state</th><th class="hide-sm">images</th></tr></thead><tbody translate="no">
+      {%- for a in node.apps %}{% set st = status.appState(node.name, a.name) %}<tr><td style="width:22px">{{ dot(status.app(node.name, a.name)) }}</td><td class="mono"><a href="/tree/{{ node.name }}/{{ a.name }}">{{ a.name }}/</a></td><td class="muted">{% if not status.watched(a) %}no containers{% elif st %}{{ st.title }}{% else %}no data yet{% endif %}</td><td class="mono muted hide-sm">{{ a.images|join(', ') or 'none' }}</td></tr>{% endfor %}
+      </tbody></table></div></div>
+    <div class="grid cols-cards">
       <div class="card"><h2>Files <span class="faint">git-tracked only</span></h2>
         <table><tbody translate="no">{% for f in node.files %}<tr><td class="mono">{{ f }}</td></tr>{% endfor %}</tbody></table>
         {%- if node.extras %}<h3 style="margin-top:16px">Also in the repo, not in node.conf</h3>
         <div class="mono small" translate="no">{% for a in node.extras %}<a href="/tree/{{ node.name }}/{{ a.name }}">{{ a.name }}/</a>{{ ', ' if not loop.last }}{% endfor %}</div>{% endif %}
       </div>
+      {%- if strays %}
+      <div class="card"><h2>Other containers <span class="faint">on {{ node.name }}, owned by no app in node.conf</span></h2>
+        <div class="tablewrap"><table><thead><tr><th>name</th><th>state</th><th class="hide-sm">image</th></tr></thead><tbody translate="no">
+        {%- for s in strays %}<tr><td class="mono">{{ s.subject.partition('/')[2] }}</td><td>{{ badge(s.bodyLanguage, (s.detail or {}).get('label')) }}</td><td class="mono muted hide-sm">{{ (s.detail or {}).get('image') or '-' }}</td></tr>{% endfor %}
+        </tbody></table></div>
+        <p class="muted small" style="margin-bottom:0">Shown for information; they don't count toward the node's state.</p>
+      </div>
+      {%- endif %}
     </div>
     {%- if readme %}<div class="card codewin" style="margin-top:16px"><h2 translate="no">README.md</h2><pre class="readme">{{ readme }}</pre></div>{% endif %}
   </section>
