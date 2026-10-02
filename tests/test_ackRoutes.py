@@ -81,7 +81,8 @@ def test_the_page_acknowledges_with_its_csrf_token_and_a_same_origin_post(rig):
 def test_with_htmx_the_answer_is_one_line_not_a_page(rig):
     lt = hiss(rig)
     r = rig.post(f"/ack/{lt.litterId}", data=form(rig, lt), headers={**SAME, "HX-Request": "true"})
-    assert r.status_code == 200 and r.text.startswith('<span class="acked small">Acknowledged at 07:00')
+    assert r.status_code == 200 and 'hx-swap-oob="innerHTML"' in r.text
+    assert r.text.startswith('<span class="acked small" tabindex="-1" autofocus>Acknowledged at 07:00')
 
 
 def test_acknowledging_twice_is_harmless_and_said_once(rig):

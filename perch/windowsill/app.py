@@ -593,7 +593,12 @@ def createApp(
         if found.ackedAt is None:
             meow.acknowledged(found, "from the page", now)
         if request.headers.get("hx-request"):
-            return HTMLResponse(f'<span class="acked small">Acknowledged at {now.astimezone(tz):%H:%M}</span>')
+            when = f"{now.astimezone(tz):%H:%M}"
+            # tabindex and autofocus: the button that had focus is gone, htmx moves focus to the line that replaced it
+            return HTMLResponse(
+                f'<span class="acked small" tabindex="-1" autofocus>Acknowledged at {when}</span>'
+                f'<div id="announce" hx-swap-oob="innerHTML">Acknowledged {found.name} at {when}.</div>'
+            )
         return RedirectResponse("/", status_code=303)
 
     pushHits: deque[datetime] = deque()

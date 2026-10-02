@@ -29,10 +29,181 @@ changes can be made later without re-deriving the reasoning. How to write entrie
 - [x] M2 Grooming: htmx 2.0.11 vendored with 30 s live regions, groom records and grid, kitten v0, `/api/kitten`, the recorder prepared in `integration/groom/` (2026-10-02, gate green on roastery, M2 entry; pull request to open)
 - [ ] Owner: review and merge the M2 pull request (merge commit), then `git pull` the main checkout (M2 entry)
 - [ ] M6: apply `integration/groom/` and install kitten on the nodes; `KITTEN_NODE` spelling per node (M2 entry)
-- [ ] M3 meow + nineLives: alerts, litters, quiet hours, outside heartbeat
+- [x] M3 meow + nineLives: alerts, litters, quiet hours, Acknowledge (page and push), outside heartbeat (2026-10-02, gate green on roastery, M3 entry; pull request to open)
+- [ ] Owner: review and merge the M3 pull request (merge commit), then `git pull` the main checkout (M3 entry)
+- [ ] M6: Traefik router for `/ack/t/` only, around Authelia; `PERCH_PUBLIC_URL`, `PERCH_ACK_SECRET`, the ntfy token, the critical URL and the ping URL entered on cellar (M3 entry)
 - [ ] M4 glare + binocs + disks + vitals: Gatus, Scrutiny, tunnel, speedtest, upstream releases, vitals history and sparklines (A13)
 - [ ] M5 pounce + whiskers: kitten file events, Home Assistant, the scentTrail view
 - [ ] M6 Into the fleet: prepared in `integration/` with `ROLLOUT.md`; deployed by the owner
+
+---
+
+## 2026-10-02 — M3 meow + nineLives: litters, pushes, Acknowledge, the outside heartbeat; gate green
+
+**Context.** The owner gave M3 its go-ahead (see the M2 entry's "next"), plus a first task: the grooming grid
+relied on colour alone (his M2 check). Built by Claude Code (Sonnet 5.5) on roastery in a git worktree (branch
+`claude/m3-meow-ninelives-cb0aa7`), 2026-10-02 20:25 to 23:15 IST, outside the quiet hours.
+
+**Pre-flight (05 plan 3, A3), 20:25 IST, all passed:** `docker info` 29.7.2; `main` at `5e9d681` (M2's merge),
+clean; `user.email` `jyotirmoy.github@jyotirmoy.cc`; `git ls-remote origin` answered; the three design skills in the
+session's list and in `.claude/skills/`. The worktree had no `.cache`; I cloned the pinned fleet repo from the main
+checkout's local copy (no network) and checked out `f94efdfb`.
+
+**Docs read fresh before the code (2026-10-02).** ntfy (docs.ntfy.sh/publish; the fleet runs v2.28.0, the docs are
+current): `Authorization: Bearer tk_...`; JSON publishing (`topic`, `title`, `message`, `priority` 1 to 5, `tags`,
+`actions`); an `http` action has `label`, `url`, `method` (default POST), `headers`, `body`, `clear`, up to three per
+message. That is enough for A11 (a POST with the token in the path), so no stop was needed. healthchecks.io
+(healthchecks.io/docs/http_api, configuring_checks): a GET (also HEAD/POST) to the ping URL answers `200 OK`;
+`/fail` and `/start` exist (not used); a missed ping makes the check "late" after its period and an alert after its
+grace time; more than 5 pings a minute may be rate limited. Everything is tested against fakes
+(`tests/pushFakes.py`: fake ntfy, fake critical topic, fake healthchecks); the real services were never contacted.
+
+**Decided** (reasons; losing alternatives in brackets). Choices between alternatives are ADRs
+[0004](docs/adr/0004-litters-and-node-absorption.md), [0005](docs/adr/0005-page-acknowledge-csrf.md),
+[0006](docs/adr/0006-push-ack-token.md).
+- **Task 1, colour alone.** Each grid cell is a 22 px disc with the badge glyph on it (`--bg` on the fill: 6.1 to 8.9:1,
+  measured with the WCAG formula and added to docs/06 section 4); the glyph is `aria-hidden`, the label keeps all the
+  words. [a coloured glyph with no fill: loses the red-at-a-glance a failed night should have; kept for lists.] The
+  audit found five places where a state was a bare dot with no level word (tree, tree sidebar, node page app rows,
+  overview last-night rows, copies panel): they use a new `.mark` (coloured glyph, no fill, 5.1 to 8.9:1). A dot beside
+  a word (strip, chips, notes, header pill, footer) stays. docs/06 section 6 (Dot, Mark, grid) and section 7 rule 2
+  updated.
+- **meow reads states, not events** and keeps **litters** in scentTrail's database (migration 4: `litters`, `pushes`,
+  `ackSpent`), so a restart forgets nothing and what is due, held or acknowledged is derived every cycle (ADR 0004).
+  A node purr marks unreachable (`detail.mode = "unreachable"`, a one-line change in `purr.py`) is one litter that
+  absorbs its apps, backups and kitten. purr leaves a dead node's apps `unknown`, not `hiss` (M1's rule: perch not
+  seeing is not the thing being down), so "12 apps affected" counts the node's watched apps.
+- **A subject that turns `unknown` keeps its litter**: Komodo going blind is not a recovery.
+- **Routing as the plan says:** hiss to ntfy and the critical topic, both priority 4 (the design says "high" and leaves the
+  critical topic's priority open), at once, repeated every 30 min until acknowledged, quiet hours ignored; tailFlick to
+  ntfy only, held 5 min and batched (several at once are one push without a button), reminded at most every 6 h while
+  open; earTwitch only in the 07:30 digest; every title starts `perch:`. A digest goes only in the 4 hours after 07:30, so
+  a perch that was down in the morning doesn't send it at midnight. Recoveries of tailFlicks wait out quiet hours;
+  hiss recoveries don't; several recoveries at once are one push.
+- **Rate limit:** per channel, 10 per 10 min counted from a `pushes` table. A hiss may use 9, everything else 7, the 10th
+  is the "N alerts held back" summary. What is held keeps `heldAt`, stays a litter, stays on the page and goes out as the
+  limit allows; each held litter gets one event. [dropping or merging the overflow: breaks "never silently dropped".]
+- **Acknowledge, page** (ADR 0005): same-origin check (`Sec-Fetch-Site` / `Origin` against `Host`; neither header means
+  refuse) plus an HMAC form token bound to the litter, 6 h, key `PERCH_ACK_SECRET` (random per process when unset).
+  [a session cookie: new state for one button; Origin alone: one check is the whole defence.] Parsed without
+  python-multipart (`parse_qs`), so no new dependency. **Push** (ADR 0006): the token is signed over litter id and expiry,
+  single use (`ackSpent`, `INSERT OR IGNORE`), 24 h or until the litter clears, 10 requests a minute on the path, one
+  identical 403 for every refusal, the button only on the self-hosted copy and only on a push about one litter. All token
+  routes are under `/ack/t/`.
+- **nineLives** pings (GET) every 5 min only while every collector is on time (the runner's own levels, re-checked at
+  each look), never `/fail`. A late or still-starting collector holds the ping back; its state `ninelives` (not rolled up
+  into the fleet) feeds the footer: "nineLives pinged 2 min ago" or "holding its ping back: purr not on time" or "off".
+- **Secrets:** `PERCH_MEOW_NTFY_URL` and `PERCH_PUBLIC_URL` are now treated as secret values (they carry the domain), so
+  `scrub.py` masks them; it also masks the shape of an ack token, `/ack/t/...` links and hc-ping URLs. New settings
+  `PERCH_MEOW_DIGEST` and `PERCH_PUBLIC_URL` are in `secrets.env` as empty keys (S5). No new dependency.
+
+**Done.** `perch/{ack,litters,meow,ntfy,nineLives}.py`, scentTrail migration 4, `settings.py`, `scrub.py`,
+`senses/purr.py` (one detail), `windowsill/app.py` (the two ack routes, the Alerts view, the footer line),
+templates (`mark`, `ackForm`, the Alerts card, grid glyphs), `perch.css`, docs 02 section 5 and 06, ADRs 0004 to 0006,
+`secrets.env`, CLAUDE.md status. Tests: `test_ack` (7), `test_meow` (28), `test_nineLives` (8), `test_ackRoutes` (29),
+more in `test_scrub`, `test_groomPage`; `tests/ui/{seed,live,budget}.py` extended.
+
+**Verified** (roastery, 2026-10-02 22:50 to 23:10, `powershell -ExecutionPolicy Bypass -File scripts\test.ps1`, after
+the last code change, then pytest and the drill once more after renaming the fake tokens):
+```
+=== perch: ruff + pytest (3.12)  All checks passed!   479 passed in 174.99s
+=== kitten: unittest (3.13)      Ran 14 tests ... OK
+=== kitten: unittest (3.14)      Ran 14 tests ... OK
+=== windowsill: Playwright       30 passed, 0 failed ; live: all ok
+=== summary                      ok x6
+```
+- **Gate, in `tests/test_meow.py`:** `test_GATE_grinder_down_is_one_push_per_channel_then_one_recovery` (one push on the
+  fake ntfy and one on the fake critical topic, "perch: grinder unreachable: 12 apps affected", priority 4; ten more minutes
+  of outage send nothing; recovery is exactly one more push each, "grinder back, was down ..."; an hour later nothing
+  else); `test_the_hiss_repeats_every_30_minutes_until_acknowledged`; `test_GATE_a_50_event_storm_...` (50 hisses in one
+  tick: 10 pushes per channel, 9 hisses and the summary "41 alerts held back"; 9 pushed + 41 held = 50 open litters;
+  no 10-minute window ever holds more than 10 per channel; after 90 more minutes every one of the 50 has been pushed at
+  least once); `test_a_hiss_is_never_held_while_a_lower_level_could_be`.
+- **S9, in `tests/test_ackRoutes.py`:** a tampered, expired, replayed, wrong-secret, closed-litter or never-existed push
+  token is 403 and changes nothing (also `ackSpent` stays empty for tampered ones); a page ack without a CSRF token,
+  with another litter's, an expired or a forged one, or without provable same origin (7 header cases) is 403; the 11th
+  request a minute on `/ack/t/` is 429; `test_the_button_is_on_the_self_hosted_push_only_and_is_a_signed_post`: the
+  critical copy has no actions. S7 (`test_windowsill`) still passes with exactly `/api/kitten`, `POST /ack/{litterId}`,
+  `POST /ack/t/{token}`.
+- **perch stopped, nobody pings:** `test_GATE_perch_stopped_means_the_endpoint_hears_nothing` and
+  `test_GATE_a_late_collector_stops_the_pings_and_a_recovery_resumes_them` (`tests/test_nineLives.py`).
+- **Task 1 in a real browser (`tests/ui/live.py`)**, 1400 dark, 1400 light, 390: "every judged cell has a visible glyph
+  (shape, not only colour)" and "each glyph is at least 4.5:1 against its fill (lowest 6.2 / 6.6 / 6.2)", measured from
+  computed styles. Also: the Alerts card's Acknowledge button clicked in Chromium: replaced by one line without a reload,
+  one litter fewer waiting, acknowledged after a reload (htmx, CSRF token and same-origin headers all really worked).
+- **The real-socket drill** (`tests/ui/budget.py` in `persian-perch:ui-test`, now with a fake ntfy, a fake critical topic
+  and a fake healthchecks endpoint on loopback, `PERCH_ACK_SECRET`, `PERCH_PUBLIC_URL`):
+  ```
+  ok    grinder not answering: hiss
+  ok    meow pushed grinder unreachable to the fake ntfy and the fake critical topic
+  ok    the ntfy push carries one Acknowledge button (POST)
+  ok    the critical copy carries none
+  ok    tampered 403, button 200, replay 403 (want 403 200 403)
+  ok    nineLives pinged the fake healthchecks endpoint
+  ok    meow announced the recovery once
+  perch memory: VmRSS 60.0 MB, peak 60.0 MB (budget 300 MB)
+  leak check: looked in 12 places (4291 KB): nothing found      <- now also the ack token and secret, the ntfy token,
+  budget, drill and leak check: ok                                 both topic URLs and the ping id
+  ```
+- **Screenshots looked at by eye**, both themes and 390 px: the Alerts card (coral Acknowledge buttons, 3 litters, the
+  "not pushing yet" note), the groom grid with a "!" on a red disc and the "?" marks in Copies, the phone overview. Looking
+  found nothing to fix beyond the review below.
+
+**web-design-guidelines review** (AGENTS 3.1; guidelines fetched fresh 2026-10-02; **one pass, no sub-agents**, over
+`_macros.html`, `base.html`, `groom.html`, `live/overview.html`, `live/node.html`, `tree.html`, `_treeNav.html`,
+`perch.css`, and the two ack responses). Findings and what happened:
+- `perch.css` `button.primary`: no `touch-action` → **fixed**: `touch-action: manipulation`.
+- ack response: after the swap the focused button is gone and nothing announces it → **fixed**: the replacing line has
+  `tabindex="-1" autofocus` (htmx focuses it) and an out-of-band sentence for the polite live region `#announce`.
+- `.alerts` rows: long titles could overflow → **fixed**: `overflow-wrap: anywhere`.
+- Passed: `<button>` for the action (not a link), `aria-label` starts with the visible word, hover and active states,
+  decorative glyphs `aria-hidden`, the marks `role="img"` with a label, empty states (not configured, nothing pushed),
+  `translate="no"` on identifiers, no `transition: all`, headings in order, no hex outside the token block, error pages for
+  a refused ack. Title Case on the button ("Acknowledge").
+- Not applied, with reasons: *confirm destructive actions* (acknowledging only stops repeats of an alert the owner has
+  seen; reversible by the next hiss); *disable the button during the request* (one local POST, then the button is
+  replaced; `includeIndicatorStyles` is off by ADR 0003); *`Intl` dates and curly quotes* (docs/06 section 2);
+  *sticky header and focus* (existing; `scroll-margin-top` not needed on this page's controls).
+
+**Pre-push checks** (run before the push, 2026-10-02):
+```
+$ git log origin/main..HEAD --format="%ae %ce" | sort | uniq -c
+      3 jyotirmoy.github@jyotirmoy.cc jyotirmoy.github@jyotirmoy.cc
+      (the commit holding this entry is the fourth, same identity; git config user.email = jyotirmoy.github@jyotirmoy.cc)
+$ git diff origin/main | grep '^+' | grep -ciE 'C:\Users|jyotirmoyc|192\.168\.[0-9]|@[a-z0-9-]+\.(cc|com|io|net)|tk_[A-Za-z0-9]{20,}|BEGIN .*KEY'
+1       <- the owner's allowed commit address, quoted in the pre-flight line above (S6 allows the full address only)
+```
+No domain, secret, token, local path or LAN address in the diff: the only token-like strings are made up
+(`tk_fakefakefake`, `fake-ack-secret-not-real-...`, `fake-*` topics, `example.home.arpa`, `192.0.2.x`). Runtime files
+were re-read as I wrote them; the tests include S5 (secrets.env empty), S6 (no hostnames), S8 (ASCII-only .ps1).
+pytest in the full run: 479 passed (output above).
+
+**Surprises for the next agent.**
+- **I stopped every running container by mistake** while killing a hung test run (`docker ps -q | xargs docker kill`
+  hit three unrelated containers: `purrbrews-bootstrap`, `komodo-periphery` (roastery's, a fleet service) and
+  `immich-machine-learning`). I started the same three again within about 30 seconds (`docker start`); all were
+  `Up` afterwards (they have `restart: unless-stopped`). Komodo may have seen roastery's periphery blink once. Lesson:
+  kill by container id from the run I started, never all.
+- The Bash tool fails to parse heredocs that contain apostrophes; Python edit scripts went through the Write tool.
+- A long scenario test is slow on a purr-per-step world (about 80 ms a step); `MeowWorld.wait` steps only meow when the
+  fleet isn't changing.
+- Setting a unit-test fake clock backwards works because meow keeps no in-memory time.
+- The ntfy fake token is shorter than a real one (`tk_` + 12) so a secret scanner won't mistake it for one.
+- Not built: Gatus-side or healthchecks-side setup (owner, M6); the Traefik router for `/ack/t/` (M6-prep); a
+  "meow's own events" filter on the scentTrail page (the trail already lists them under sense `perch`).
+
+**Not done / next.**
+- [ ] Owner: open the pull request from the link below, verify it, merge with a merge commit, then `git pull` the main
+  checkout (owner)
+- [ ] M4 glare + binocs + disks + vitals, on the owner's go-ahead (agent)
+- [ ] M6 `ROLLOUT.md` (owner): create the ntfy user and token for perch, enter `PERCH_MEOW_NTFY_URL`, `_TOKEN`,
+  `PERCH_MEOW_CRITICAL_URL`, `PERCH_ACK_SECRET`, `PERCH_PUBLIC_URL`, `PERCH_NINELIVES_URL` on cellar; a Traefik router for
+  the `/ack/t/` prefix only, bypassing Authelia; the healthchecks.io check (period 5 min, grace 10 min); run old and new
+  alerts side by side for a week (A6); the phone must reach `perch.${DOMAIN}` for the button (LAN or tailnet)
+- [ ] Owner decisions M3 left open (all with a default in ADR 0004): critical topic priority (4 now), the 6 h reading
+  of "once per litter per 6 h" (reminder), no acknowledge button on a batched tailFlick push
+
+— Claude (Claude Code, Sonnet 5.5); the whole of M3 by the agent, decisions as the owner's earlier ones allowed
 
 ---
 

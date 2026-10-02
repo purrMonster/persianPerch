@@ -12,7 +12,7 @@ import httpx2
 from perch.ntfy import Ntfy
 
 NTFY_URL = "https://ntfy.example.home.arpa/fake-alerts-topic"
-NTFY_TOKEN = "tk_fakefakefakefakefakefakefake0"
+NTFY_TOKEN = "tk_fakefakefake"
 CRITICAL_URL = "https://ntfy.example.home.arpa/fake-critical-topic-not-real"  # stands in for ntfy.sh
 PING_URL = "https://hc-ping.example.home.arpa/00000000-fake-uuid-not-real-000000000000"
 

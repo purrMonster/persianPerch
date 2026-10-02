@@ -39,7 +39,7 @@ LEAKY = {"on": False}  # Komodo answering 500 with the credentials in the body
 
 # M3: fake ntfy (self-hosted), a fake critical topic, a fake healthchecks endpoint, on loopback ports
 NTFY_PORT, CRIT_PORT, HC_PORT = 9201, 9202, 9203
-NTFY_TOKEN = "tk_budgetfaketokenfaketoken0000"
+NTFY_TOKEN = "tk_budgetfake1234"
 ACK_SECRET = "fake-budget-ack-secret-not-real-0123456789"
 NTFY_TOPIC, CRIT_TOPIC, PING_ID = "budget-fake-topic", "budget-fake-critical", "00000000-budget-fake-uuid"
 pushes = {"ntfy": [], "critical": []}
