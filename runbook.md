@@ -6,7 +6,7 @@ changes can be made later without re-deriving the reasoning. How to write entrie
 
 ## In progress
 
-- Claude (Claude Code, Sonnet 5.5) · M2 Grooming (htmx first, then groom, kitten v0, the grid) · branch `claude/m2-grooming-htmx-bdeb90` · since 2026-10-02 17:30
+- (nobody)
 
 ## Backlog / open items
 
@@ -26,11 +26,168 @@ changes can be made later without re-deriving the reasoning. How to write entrie
 - [x] Owner's go-ahead for M2 (2026-10-02), effective once the pull request with these decisions is merged
 - [x] Owner: is the domain of the commit email (`jyotirmoy.github@jyotirmoy.cc`) also the fleet's real domain? **No**: it is the owner's personal domain, not the fleet's (owner, 2026-10-02). Nothing is exposed; the commit identity stays as it is. S6 keeps allowing only the full address, never the bare domain, so the rule "no domains in files" stays simple.
 - [ ] M6 `ROLLOUT.md` drills: stop a container on grinder, hiss within 60 s; `ListServers {}` and `ServerState` spelling against the real Komodo 2.3.2; roastery in and out of its window (M1 entry)
-- [ ] M2 Grooming: **htmx first** (A12), then groom records, kitten v0, the backup grid; fleet-script change prepared in `integration/`
+- [x] M2 Grooming: htmx 2.0.11 vendored with 30 s live regions, groom records and grid, kitten v0, `/api/kitten`, the recorder prepared in `integration/groom/` (2026-10-02, gate green on roastery, M2 entry; pull request to open)
+- [ ] Owner: review and merge the M2 pull request (merge commit), then `git pull` the main checkout (M2 entry)
+- [ ] M6: apply `integration/groom/` and install kitten on the nodes; `KITTEN_NODE` spelling per node (M2 entry)
 - [ ] M3 meow + nineLives: alerts, litters, quiet hours, outside heartbeat
 - [ ] M4 glare + binocs + disks + vitals: Gatus, Scrutiny, tunnel, speedtest, upstream releases, vitals history and sparklines (A13)
 - [ ] M5 pounce + whiskers: kitten file events, Home Assistant, the scentTrail view
 - [ ] M6 Into the fleet: prepared in `integration/` with `ROLLOUT.md`; deployed by the owner
+
+---
+
+## 2026-10-02 — M2 Grooming: htmx live regions, groom, kitten v0, the grid; gate green
+
+**Context.** The owner gave M2 its go-ahead (2026-10-02) and asked for htmx first (A12, ADR 0003), then the
+rest of 05 plan §5's M2: groom records, the recorder (prepared only), kitten v0, `/api/kitten`, rhythms
+from the repo, the grid and the copies panel. Built by Claude Code on roastery in a git worktree (branch
+`claude/m2-grooming-htmx-bdeb90`), 2026-10-02 17:30 to about 18:30 IST, outside the quiet hours.
+
+**Pre-flight (05 plan §3, A3), 17:30 IST, all passed:** `docker info` 29.7.2; `main` at `86c65dc`, clean;
+`user.email` `jyotirmoy.github@jyotirmoy.cc`; `git ls-remote origin` answered; the three design skills in the
+session's skill list and in `.claude/skills/`.
+
+**Decided** (reasons; losing alternatives in brackets).
+- **htmx, byte-exact.** The npm tarball's sha512 matched npm's `integrity` before extracting; `dist/htmx.min.js`
+  is 52,182 bytes with SHA-256 `d6fdc75f…f717`; the blob committed in git hashes the same
+  (`git cat-file blob`). `.gitattributes` marks `static/vendor/*` as `-text` so no line-ending conversion can
+  change it. A test pins hash and size.
+- **One poller per page, on a region, not the body.** `#live` does `hx-get` + `every 30s` + `hx-include="#seen"`
+  against `GET /live/overview`, `/live/node/{n}`, `/live/app/{n}/{a}`. The fragment is the region plus the
+  header's purr pill and fleet badge (out-of-band swaps). The page's HTML and the fragment's are the same
+  template, so JavaScript off shows the state as of load. No new write endpoint: S7 passes unchanged.
+- **"Announced once" without any JavaScript of our own.** The region carries a hidden `seen` (a 12-character
+  digest of the levels a person would be told about). The poll sends it back; only if it differs does the
+  fragment include one sentence for the polite live region `#announce` (`hx-swap-oob="innerHTML"`, so the
+  live-region node itself is never replaced). A quiet poll sends no sentence. [announce on every swap: re-reads
+  the page every 30 s; client-side diffing: needs our own JS; `204` on "unchanged": would freeze the ages.]
+- **htmx configured for a read-only watcher:** `allowEval:false`, `allowScriptTags:false`,
+  `includeIndicatorStyles:false`, `historyEnabled:false`, via a `<meta name="htmx-config">`. A consequence:
+  no `hx-on` and no trigger filters like `[!document.hidden]`, so a hidden tab keeps polling (one small GET
+  per 30 s; accepted). A failed poll leaves the old state on screen; every region says "State as of
+  HH:MM:SS" so a stalled page shows its age.
+- **Focus survives the swap by `id`.** htmx restores focus to a replaced element with an `id`; node cards,
+  attention links, app links and the "All nights" / "Everything" links have stable ids (Playwright proves it).
+- **groom judges a night with one function** (`judge` in `perch/senses/groom.py`) used by the grid and by the
+  state it writes (`groom:<node>/<job>`): a good run is slowBlink; a good run that started later than the late
+  limit is earTwitch ("ran 52 min late", the mockup's own example); a failed run is hiss; no record is slowBlink
+  until the late limit, tailFlick after it, hiss at the missing limit. Design §3.4 gives nightly +45 min/+3 h,
+  store +45 min/+3 h, Drive +2 h/+8 h. **My own calls for the jobs the plan didn't list** (C3): wake-roastery
+  45 min/3 h (as strict as the nightly it serves), morning check 1 h/3 h, prune and restore check 3 h/12 h
+  (they read the whole repository). Marked as an addendum in design §3.4.
+- **Schedules come from the repo (C4).** `OnCalendar` of `purrbrews-backup@.timer` and cellar's six restic
+  timers, parsed with the M1 parser; backup nodes = nodes with any `<app>/backup` file (cellar, grinder, mochaPot,
+  percolator, sieve; roastery has none). A timer that can't be parsed means no expectation, never a guess.
+- **A run counts for the latest slot it started at or after, give or take 15 min of clock skew, within 12 h.** An
+  afternoon manual run isn't last night's backup; a `Persistent=true` run at boot still is. [nearest slot: a run
+  at 14:00 would silently satisfy tomorrow's.]
+- **No false hiss on a fresh deploy:** nights before perch first looked (`meta.groomStartedAt`) aren't judged,
+  and **a node is judged only once it has a kitten token** (or, for cellar, when its records are mounted). The grid
+  shows a faint dash and says why. [judge everything from day one: the first night after deploy would hiss five
+  nodes.]
+- **Groom and kitten states roll up** into the node and the fleet (and into "Needs a look"): a backup that
+  didn't run, or an agent that went quiet, is a problem the node has. Kitten heartbeat: late 3 min, missing
+  10 min; **roastery asleep outside its window is slowBlink** (the M1 `SleepWindow`, C5). A node with a token
+  that never spoke is `unknown`, not ok.
+- **`/api/kitten`:** bearer token compared against every node's token in constant time; none or unknown 401;
+  another node's token, or a record for another node, 403 (S3); malformed 422; over 1 MiB 413; at most 100
+  records. Records stored idempotently (`INSERT OR IGNORE`), log tail scrubbed, judged at once (so a failed
+  backup shows on the next 30 s poll). The one write endpoint; S7 still passes.
+- **Drive copy age from `drive-sync.ok`:** kitten sends the mtimes of `*.ok` files in `KITTEN_STATE_DIR` in its
+  heartbeat; perch reads `drive-sync.ok` from cellar's. Without it, cellar's `drive` record stands in.
+- **The recorder is Python, not shell** (`integration/groom/groom-record.py`, stdlib): JSON from bash is easy to
+  get wrong, and every node has python3. It never fails the job (exits 0, drop-ins use `ExecStopPost=-`), writes
+  atomically, 0644 in 0755. [patch `backup.sh` (Q13 = B): the owner chose A.] Drop-ins for the template and cellar's
+  six units; a test cross-checks them against every job the pinned repo schedules.
+- **kitten v0:** report every 60 s (jittered); a record is re-sent until a 200, ignored once older than 72 h; a
+  422 sets that batch aside (logged) and keeps the heartbeat going; an outage is logged once, not every minute.
+  Zipapp built by `kitten/build.py`; a test builds it and runs it on 3.13 and 3.14. New settings
+  `KITTEN_STATE_DIR` and `KITTEN_NODE` added to `secrets.env` as empty keys (S5).
+- **No new dependency.**
+
+**Done.** `perch/windowsill/static/vendor/htmx-2.0.11.{min.js,LICENSE}`, `templates/live/*`, `app.py` (fragments,
+`/api/kitten`, grid route), `perch/senses/groom.py`, scentTrail migration 3 (`groomRuns`, `meta`), `rollup.py`,
+`groom.html`, `kitten/{kitten,build}.py`, `integration/groom/` (recorder, 7 drop-ins, README), docs 02 §3.4/§4.2,
+docs 06 §6/§7, `secrets.env`, README and CLAUDE.md status. Tests: `test_htmx` (29), `test_groom` (33),
+`test_kittenApi` (18), `test_groomPage` (16), `test_integrationGroom` (10), kitten 14 on each Python,
+`tests/ui/live.py`.
+
+**Verified** (roastery, 2026-10-02, `powershell -ExecutionPolicy Bypass -File scripts\test.ps1`, last run after the
+final UI fix):
+```
+=== perch: ruff + pytest (3.12)  All checks passed!   402 passed
+=== kitten: unittest (3.13)      Ran 14 tests ... OK
+=== kitten: unittest (3.14)      Ran 14 tests ... OK
+=== windowsill: Playwright       30 passed, 0 failed  (shoot.py) ; live: all ok (live.py)
+=== summary                      ok x6
+```
+- **The gate, in `tests/test_groom.py`:** `test_GATE_a_missing_record_hisses_only_its_own_cell_at_0430` (a fixture
+  night, grinder's record missing, clock 04:30 IST: `groom:grinder/nightly` hiss, the seven other judged cells
+  slowBlink, grinder and the fleet hiss, sieve doesn't) and
+  `test_the_cell_is_tailFlick_until_0430_exactly_then_hiss` (slowBlink at +44 min, tailFlick at +45 min and at
+  04:29:59, hiss at 04:30:00).
+- **The vendored htmx:** `test_the_vendored_htmx_is_exactly_the_pinned_file` (SHA-256 and 52,182 bytes) and
+  `git cat-file blob HEAD:perch/windowsill/static/vendor/htmx-2.0.11.min.js | sha256sum` =
+  `d6fdc75f204e6bdefa99b69bf1e6d4ac69b8a364f77929f45c13476b4000f717`, 52182 bytes.
+- **Playwright, a real browser (`tests/ui/live.py`), `ok` on every line:** htmx 2.0.11 loaded from perch; the
+  overview refreshed on its own within 35 s, without a full reload (a `window` variable survived), by asking
+  `/live/overview`, **keeping focus** (the focused node card) **and scroll position**; nothing announced while
+  nothing changed; **a failed backup posted through `/api/kitten` showed on the open overview within 35 s, without
+  a reload, announced through the live region**, and a later quiet poll said nothing new; under
+  `prefers-reduced-motion` no element animates; no console errors; the grooming grid at 1400 dark, 1400 light and
+  390 px has no horizontal scroll and no console errors.
+- **The real-socket drill** (`tests/ui/budget.py` in `persian-perch:ui-test`): every step ok, **perch VmRSS 59.6 MB
+  of 300**, leak check "looked in 11 places (4238 KB): nothing found", exit 0. Kitten tokens are never in a
+  response, page or `/healthz` (`test_the_tokens_are_never_in_a_response_or_a_page`).
+- **Screenshots looked at by eye**, both themes and at 390 px. Looking found two real problems the layout check
+  passed: (1) the "Not watched yet" note broke into flex columns, and the lower grid squeezed to a narrow column at
+  390 px; (2) after fixing that, **today's column was pushed off the right edge at 390 px**, hidden behind the table's
+  horizontal scroll. Fixed (one text span; `cols-groom` collapses at 1000 px; the phone shows the last 5 nights;
+  minimum column width only on wide screens), looked at again.
+- **Pre-push checks:** see below.
+
+**web-design-guidelines review** (AGENTS §3.1; guidelines fetched fresh 2026-10-02; **one pass, no sub-agents**,
+over `base.html`, `_macros.html`, `overview/node/app/groom.html`, `live/*`, `perch.css`, and the htmx wiring).
+Findings and what happened:
+- `groom.html:` a "no data" dash was a `<span aria-label>` with no role (an `aria-label` on a generic element is
+  ignored) → **fixed**: `role="img"`.
+- `perch.css`: the grid's dot links had no `touch-action` → **fixed**: `touch-action: manipulation`.
+- Passed: async updates use `aria-live="polite"` (and only for a change); decorative glyphs `aria-hidden`; real `<a>`
+  for navigation; `:focus-visible` kept, hover state on the cells; reduced motion honoured (and tested); no
+  `transition: all`; numerals and `tabular-nums`; empty states for every new view; long text wraps; filters
+  (nights, selected run) live in the URL; `translate="no"` on identifiers; no hard-coded formats beyond the
+  server-side ones; headings in order.
+- Not applied, with reasons: *Title Case headings* (docs/06 §2: sentence case); *curly quotes / `Intl`* (docs/06
+  §2 and the M1 entry: server-rendered, searchable straight text); *the selected cell's ring looks like the focus
+  ring* (offset differs by 4 px and it is also `aria-current`; left, worth a look when someone uses the page by
+  keyboard); *polling while the tab is hidden* (needs `allowEval`; see Decided).
+
+**Surprises for the next agent.**
+- Shell here: the Bash tool choked on some heredocs containing apostrophes; Python written from PowerShell/bash in
+  text mode on Windows produced **CRLF** files (git warned; I normalised to LF before each commit). Use the Write
+  tool or `newline=''`.
+- Two tests failed for the same reason, worth knowing: events written in the same millisecond order randomly by
+  ULID; tests that read "the newest event" must advance the fake clock first.
+- A FastAPI route named `groom` shadowed a variable of the same name inside `createApp`; the route is now
+  `groomView`, the object `groomer`.
+- `kitten` on Windows: `KITTEN_STATE_DIR` defaults to empty there; the recorder is Linux only. Nothing of
+  Windows kitten's Scheduled Task is built (M6, `integration/roastery/`).
+- The copies panel has no roastery-repository size, snapshot age per host, or offline copy: they need restic data
+  kitten doesn't read. Mockup 03's "Repository size" and "Restore tests from Drive" panels are not built.
+- `/groom` is as-of-load (no polling): ADR 0003 names only the overview, node and app pages.
+- Nothing was applied to any node and no secret was read; the only token-shaped values are made-up test strings
+  (`fake-token-*`, `fake-ui-token-sieve-not-real`).
+
+**Not done / next.**
+- [ ] Owner: open the pull request from the link below, verify it, merge with a merge commit, then `git pull` the
+  main checkout (owner)
+- [ ] M3 meow + nineLives, on the owner's go-ahead (agent)
+- [ ] M6 `ROLLOUT.md`: apply `integration/groom/` (recorder at `stacks/_lib/groom-record.py`, drop-ins), install
+  kitten (zipapp, unit, `kitten` user, tokens), check `KITTEN_NODE` spelling per node, roastery's task (owner)
+- [ ] Optional: restic data for the copies panel (snapshot age per host, repository size) via kitten or a read of
+  the repository (owner decides)
+
+— Claude (Claude Code, Sonnet 5.5); the whole of M2 by the agent, decisions as the owner's earlier ones allowed
 
 ---
 
