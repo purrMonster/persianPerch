@@ -222,6 +222,15 @@ from (found in M1). It stays one SQLite file, not a time-series database (§2.3 
 - **Recovery** is announced once ("grinder back — was down 14 min").
 - Acknowledge from the page or by replying via ntfy action button.
 
+**M3 addendum (2026-10-02; the 05 plan's answers win where they differ).** There is no email channel: hiss
+goes to the self-hosted ntfy (priority high) **and** the ntfy.sh critical topic (A7). "Replying via ntfy
+action button" is A11's signed, single-use `POST /ack/t/{token}` button, on the self-hosted copy only
+([ADR 0006](adr/0006-push-ack-token.md)); the page's Acknowledge has CSRF protection
+([ADR 0005](adr/0005-page-acknowledge-csrf.md)). Litters, absorption of a down node's apps, the digest, the
+6 h reminder reading and the rate-limit reservation (a hiss may use 9 of the 10 slots, everything else 7, the
+10th is the "N alerts held back" summary) are in [ADR 0004](adr/0004-litters-and-node-absorption.md). Every
+meow title starts `perch:` (A6). nineLives pings only while every collector is on time (section 8).
+
 ## 6. windowsill (UI)
 
 Server-rendered pages (fast on a phone, no build step), htmx for partial refresh, SSE for

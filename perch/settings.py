@@ -62,9 +62,11 @@ class Settings:
 
     kittenTokens: dict[str, str] = field(default_factory=dict, metadata={"secret": True})
 
-    meowNtfyUrl: str = ""
+    meowNtfyUrl: str = _secret()  # carries the real domain, so it is never shown or logged
     meowNtfyToken: str = _secret()
     meowQuiet: str = "23:00-07:00"
+    meowDigest: str = "07:30"
+    publicUrl: str = _secret()  # perch's own address as a phone reaches it; the acknowledge button's link starts here
     meowCriticalUrl: str = _secret()
     ackSecret: str = _secret()
 
@@ -118,6 +120,8 @@ class Settings:
             meowNtfyUrl=get("PERCH_MEOW_NTFY_URL"),
             meowNtfyToken=get("PERCH_MEOW_NTFY_TOKEN"),
             meowQuiet=get("PERCH_MEOW_QUIET", "23:00-07:00"),
+            meowDigest=get("PERCH_MEOW_DIGEST", "07:30"),
+            publicUrl=get("PERCH_PUBLIC_URL").rstrip("/"),
             meowCriticalUrl=get("PERCH_MEOW_CRITICAL_URL"),
             ackSecret=get("PERCH_ACK_SECRET"),
             nineLivesUrl=get("PERCH_NINELIVES_URL"),

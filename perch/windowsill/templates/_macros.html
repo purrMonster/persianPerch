@@ -7,6 +7,11 @@
 {%- set bl = level|bl -%}
 <span class="dot bl-{{ bl.value }}" title="{{ bl.value }}: {{ bl.meaning }}" role="img" aria-label="{{ bl.value }}"></span>
 {%- endmacro %}
+{# a state shown with no level word beside it: the level's glyph, coloured (never colour alone, docs/06 7 rule 2) #}
+{% macro mark(level) -%}
+{%- set bl = level|bl -%}
+<span class="mark bl-{{ bl.value }}" title="{{ bl.value }}: {{ bl.meaning }}" role="img" aria-label="{{ bl.value }}"><i aria-hidden="true">{{ bl.icon }}</i></span>
+{%- endmacro %}
 {# a line about something that is off: the word is for screen readers, the icon and colour repeat it #}
 {% macro note(level, text) -%}
 {%- set bl = level|bl -%}
@@ -40,6 +45,12 @@
 {%- for lv in LEVELS %}<span class="row">{{ badge(lv) }}<span>{{ lv.meaning }}</span></span>{% endfor -%}
 <span class="row">{{ badge(BodyLanguage.unknown) }}<span>{{ BodyLanguage.unknown.meaning }}</span></span>
 </div>
+{%- endmacro %}
+{# the one action perch has: Acknowledge stops a litter's repeats. Works without JavaScript (a plain form post);
+   with htmx the form is replaced by one line. The CSRF token is signed per litter (ADR 0005). #}
+{% macro ackForm(lt, csrf) -%}
+<form class="ack" method="post" action="/ack/{{ lt.litterId }}" hx-post="/ack/{{ lt.litterId }}" hx-swap="outerHTML">
+<input type="hidden" name="csrf" value="{{ csrf }}"><button type="submit" class="primary" id="ack-{{ lt.litterId }}" aria-label="Acknowledge {{ lt.name }}">Acknowledge</button></form>
 {%- endmacro %}
 {% macro event(scent, fleet) -%}
 {%- set bl = scent.bodyLanguage -%}

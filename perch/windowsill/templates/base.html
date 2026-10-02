@@ -31,6 +31,6 @@
 </div></main>
 <footer class="foot"><div class="wrap row between" style="flex-wrap:wrap;gap:12px">
   {{ legend() }}
-  <div>{% if fleet %}<span translate="no">catTree</span> at <span class="mono" translate="no" title="{{ fleet.subject }}">{{ fleet.commit[:8] }}</span>{% else %}<span translate="no">catTree</span> can't read the fleet repo{% endif %}, <span translate="no">nineLives</span> not yet {{ dot(BodyLanguage.unknown) }}</div>
+  <div>{% if fleet %}<span translate="no">catTree</span> at <span class="mono" translate="no" title="{{ fleet.subject }}">{{ fleet.commit[:8] }}</span>{% else %}<span translate="no">catTree</span> can't read the fleet repo{% endif %}, {% set nine = nineLivesLine(status) %}<span translate="no">{{ nine.text }}</span> {{ dot(nine.level) }}</div>
 </div></footer>
 </body></html>

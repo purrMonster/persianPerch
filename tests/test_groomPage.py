@@ -141,6 +141,29 @@ def test_the_grid_is_accessible_each_dot_names_its_job_night_and_state(groom):
     assert "<caption" in html and 'scope="col"' in html and 'scope="row"' in html
 
 
+def test_every_cell_carries_its_levels_glyph_so_colour_is_never_alone(groom):
+    """docs/06 section 7 rule 2, WCAG 1.4.1: a red-green colour-blind reader tells a failed night by its shape."""
+    groom.clock.now = at(4, 30)
+    groom.goodNight(skip=("grinder",))
+    html = page(groom, "/groom")
+    glyphs = re.findall(r'<span class="dot big bl-(\w+)"[^>]*><i aria-hidden="true">([^<]*)</i></span>', html)
+    assert len(glyphs) == len(cells(html)) > 0
+    icons = {"slowBlink": "·", "earTwitch": "◦", "tailFlick": "~", "hiss": "!", "unknown": "?"}
+    assert all(icons[level] == glyph for level, glyph in glyphs)
+    assert {"slowBlink", "hiss"} <= {level for level, _ in glyphs}
+
+
+def test_a_state_shown_as_a_lone_mark_has_its_glyph_not_just_a_colour(groom):
+    """The tree, node and overview lists show a state with no level word beside it: a glyph, not a dot."""
+    groom.clock.now = at(4, 30)
+    groom.goodNight(skip=("grinder",))
+    for path in ("/tree", "/tree/sieve", "/tree/sieve/pihole", "/", "/groom"):
+        html = page(groom, path)
+        assert 'class="mark bl-' in html, path
+        for level, body in re.findall(r'<span class="mark bl-(\w+)"[^>]*>(.*?)</span>', html):
+            assert "<i aria-hidden=\"true\">" in body, (path, level)
+
+
 def test_a_judged_cell_is_a_link_so_the_run_can_be_opened(groom):
     groom.clock.now = at(4, 30)
     groom.goodNight(skip=("grinder",))
