@@ -2,5 +2,8 @@
 # (PowerShell 5 is happiest with them) and stay ASCII-only (test S8).
 * text=auto eol=lf
 *.ps1 text eol=crlf
+# Vendored third-party files are committed byte-for-byte (ADR 0003): no line-ending
+# conversion, and a test pins the SHA-256 of the script.
+perch/windowsill/static/vendor/* -text
 *.png binary
 *.ico binary

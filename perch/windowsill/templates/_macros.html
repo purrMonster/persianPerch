@@ -17,6 +17,24 @@
 <div><div class="row between small"><span class="muted">{{ label }}</span><span class="num">{{ value|round|int }} %</span></div>
 <div class="bar{{ ' bl-' ~ level.value if level else '' }}" aria-hidden="true"><b style="width:{{ [value, 100]|min|round|int }}%"></b></div></div>
 {%- endmacro %}
+{# the two things in the header that follow the state: purr's age and the fleet badge. `oob` makes
+   them ride along in a fragment, so the header refreshes with the region (htmx out-of-band swap) #}
+{% macro headerPill(status, oob=False) -%}
+{%- if status %}{% set pill = purrPill(status) -%}
+<span id="purr-pill" class="pill hide-sm" translate="no" title="{{ pill.title }}"{% if oob %} hx-swap-oob="true"{% endif %}>{{ dot(pill.level) }}{{ pill.text }}</span>
+{%- endif %}
+{%- endmacro %}
+{% macro fleetBadge(status, oob=False) -%}
+{%- set level = status.fleetLevel() if status else BodyLanguage.unknown -%}
+<span id="fleet-badge"{% if oob %} hx-swap-oob="true"{% endif %}>{{ badge(level, 'fleet: ' ~ level.value) }}</span>
+{%- endmacro %}
+{# the foot of a live region: when the state shown is from, so a page that stopped refreshing says so #}
+{% macro asOf(now) -%}
+<p class="asof faint small">State as of {{ now|local('%H:%M:%S') }}. It refreshes every 30 s when JavaScript is on.</p>
+{%- endmacro %}
+{% macro liveSeen(signature) -%}
+<input type="hidden" id="seen" name="seen" value="{{ signature }}">
+{%- endmacro %}
 {% macro legend() -%}
 <div class="legend" translate="no">
 {%- for lv in LEVELS %}<span class="row">{{ badge(lv) }}<span>{{ lv.meaning }}</span></span>{% endfor -%}
@@ -37,6 +55,8 @@
 {%- set kind, _, rest = subject.partition(':') -%}
 {%- if kind == 'app' and '/' in rest -%}{%- set n, _, a = rest.partition('/') -%}
 {%- if fleet.node(n) and fleet.node(n).app(a) %}<a class="mono" translate="no" href="/tree/{{ n }}/{{ a }}">{{ rest }}</a>{% else %}<span class="mono" translate="no">{{ rest }}</span>{% endif -%}
+{%- elif kind == 'groom' %}<a class="mono" translate="no" href="/groom">{{ rest }}</a>
+{%- elif kind == 'kitten' and fleet.node(rest) %}<a class="mono" translate="no" href="/tree/{{ rest }}">kitten {{ rest }}</a>
 {%- elif kind == 'node' and fleet.node(rest) %}<a class="mono" translate="no" href="/tree/{{ rest }}">{{ rest }}</a>
 {%- else %}<span class="mono" translate="no">{{ rest or subject }}</span>{% endif -%}
 {%- endmacro %}

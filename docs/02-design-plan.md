@@ -111,6 +111,7 @@ Every watched thing declares when it's next expected. Missing it is an event:
 | groom nightly per node | daily 01:30 | +45 min | +3 h |
 | groom store (cellar) | daily 02:30 | +45 min | +3 h |
 | groom Drive sync | daily 03:30 | +2 h | +8 h |
+| groom wake-roastery, morning check, restic prune, restore check (M2 addendum) | from the repo's timers: 01:25, 06:00, Sun 03:00, the 1st 04:30 | +45 min, +1 h, +3 h, +3 h | +3 h, +3 h, +12 h, +12 h |
 | purr collector | every 30 s | 3 misses | 10 misses |
 | kitten heartbeat | every 60 s | 3 min | 10 min |
 | glare check | per Gatus interval | 2 fails | 5 fails |
@@ -156,6 +157,18 @@ from (found in M1). It stays one SQLite file, not a time-series database (§2.3 
 - **Source:** each job writes a record at the end of its run
   (`/var/lib/purrbrews/groom/<job>/<start>.json`: times, result, restic summary, log tail).
   kitten sends it to perch; cellar's own jobs are read directly.
+- **Record schema 1 (M2):** `{"schema":1,"job","node","unit","start","end","result","exitStatus","logTail"}`
+  with `job` one of `nightly|wake|store|drive|check|prune|verify` and `result` systemd's
+  `$SERVICE_RESULT`; defined by `parseRecord` in `perch/senses/groom.py`, written by
+  `integration/groom/groom-record.py` from each unit's `ExecStopPost=` (the log tail is the journal's
+  last 40 lines, at most 16 KB, scrubbed by perch). A run counts for the latest expected start it
+  began at or after (15 min of clock skew allowed) within 12 h, so an afternoon manual run is not
+  last night's backup; a good run later than the late limit is earTwitch, a failed one hiss.
+  Nights from before perch first looked, and nodes whose kitten has no token, aren't judged: no
+  false hiss on a fresh deploy.
+- **kitten's report (M2):** `POST /api/kitten` every 60 s with the node's bearer token: a heartbeat
+  (`version`, `sentAt`, and the mtimes of `*.ok` stamp files such as `drive-sync.ok`) and the
+  records it hasn't had acknowledged. The Drive copy's age comes from that stamp.
 - Expected jobs come from the repo (`backup` files + cellar's timers), so a new app's
   backup appears on the grid without configuration.
 - Also tracks the **copies**: newest snapshot per host, repo size, Drive copy age

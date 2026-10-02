@@ -1,8 +1,77 @@
 {% extends "base.html" %}
+{% from "_macros.html" import badge, dot, note %}
 {% block title %}groom{% endblock %}
 {% block main %}
-<div class="row between" style="flex-wrap:wrap;gap:12px;margin-bottom:18px">
-  <div><h1>groom</h1><div class="muted">Did every backup run, and where are the copies?</div></div>
+<div class="pagehead">
+  <div><h1>groom</h1><div class="muted">Did every backup run, and where are the copies? Silence is a hiss: a job that didn't run shows red, not blank.</div></div>
+  <div class="row" style="flex-wrap:wrap">
+    {%- if lastNight %}{{ badge(lastLevel, 'last night: ' ~ lastOk ~ ' of ' ~ lastNight|length) }}{% endif %}
+    <nav class="row" style="gap:6px" aria-label="Nights shown">
+    {%- for n in nightChoices %}<a class="chip{{ ' on' if n == nights else '' }}" href="/groom?nights={{ n }}"{% if n == nights %} aria-current="true"{% endif %}>{{ n }} nights</a>{% endfor %}
+    </nav>
+  </div>
 </div>
-<div class="card"><p class="empty" style="margin:0">groom starts watching in M2: the grooming grid (every node × the last nights), the copies panel and each run's details.</p></div>
+{%- if noJobs %}
+<div class="card"><p class="empty" style="margin:0">catTree finds no backup schedule in the fleet repo: groom reads <span class="mono" translate="no">purrbrews-backup@.timer</span> and cellar's restic timers, so there is nothing to expect yet.</p></div>
+{%- else %}
+{%- if unwatched %}
+<p class="muted small blindnote">{{ dot(BodyLanguage.unknown) }}<span>Not watched yet: <span class="mono" translate="no">{{ unwatched|join(', ') }}</span>. groom judges a node once its kitten has a token, so these show a dash, never a false hiss.</span></p>
+{%- endif %}
+<div class="card" style="margin-bottom:16px">
+  <div class="tablewrap"><table class="nights"><caption class="sr">Every backup job, one column per night, oldest to newest. Each dot is a link to that run.</caption>
+  <thead><tr><th scope="col" style="text-align:left">job</th>
+  {%- for d in days %}<th scope="col"{% if loop.revindex > 5 %} class="hide-sm"{% endif %}><span class="sr">{{ d.strftime('%d %b') }}</span><span aria-hidden="true" title="{{ d.strftime('%a %d %b') }}">{{ d.day }}</span></th>{% endfor %}</tr></thead>
+  <tbody translate="no">
+  {%- for job, cells in rows %}
+    <tr><th scope="row"><span class="mono">{{ job.node }}</span> <span class="muted">{{ job.name }}</span></th>
+    {%- for d in days %}{% set c = cells[loop.index0] %}
+      <td{% if loop.revindex > 5 %} class="hide-sm"{% endif %}>
+      {%- if c is none %}<span class="sr">not scheduled</span>
+      {%- elif c.level is none %}<span class="nodash" role="img" title="{{ c.text }}" aria-label="{{ job.node }} {{ job.name }} {{ d.strftime('%d %b') }}: {{ c.text }}">-</span>
+      {%- else %}<a class="cell" href="/groom?nights={{ nights }}&amp;cell={{ job.key }}@{{ d.isoformat() }}#run" title="{{ job.node }} {{ job.label }}, {{ d.strftime('%d %b') }}: {{ c.text }}"{% if picked and picked[0] is sameas job and picked[1] == d %} aria-current="true"{% endif %}><span class="dot big bl-{{ c.level.value }}" role="img" aria-label="{{ c.level.value }}: {{ job.node }} {{ job.label }}, {{ d.strftime('%d %b') }}, {{ c.text }}"></span></a>
+      {%- endif %}</td>
+    {%- endfor %}
+    </tr>
+  {%- endfor %}
+  </tbody></table></div>
+  <ul class="small muted" role="list" style="margin:10px 0 0;padding:0;list-style:none">
+  {%- for slot, job, c in problems %}
+    <li>{{ slot|local('%d %b') }}: <span translate="no">{{ job.node }} {{ job.label }}</span> {{ c.text }}</li>
+  {%- else %}
+    <li>No night in this range needed a look.</li>
+  {%- endfor %}
+  </ul>
+</div>
+<div class="grid cols-groom">
+  <div id="run">
+  {%- if picked %}{% set job, d, c = picked %}{% set run = c.run %}
+    <div class="card" style="margin-bottom:16px">
+      <div class="row between" style="flex-wrap:wrap"><h2 style="margin:0"><span translate="no">{{ job.node }}</span> {{ job.label }}, {{ d.strftime('%d %b') }}</h2>{{ badge(c.level, c.text) }}</div>
+      <dl class="kv" style="margin:12px 0 0">
+        <dt>started</dt><dd class="num">{{ run.start|local('%d %b %H:%M:%S') }}{% if c.slot %} <span class="faint">(due {{ c.slot|local('%H:%M') }})</span>{% endif %}</dd>
+        <dt>ended</dt><dd class="num">{{ run.end|local('%H:%M:%S') if run.end else 'not recorded' }}</dd>
+        <dt>took</dt><dd class="num">{{ ((run.end - run.start).total_seconds()|span) if run.end else '-' }}</dd>
+        <dt>result</dt><dd translate="no"><span class="mono">{{ run.result }}</span>{% if run.exitStatus not in ('', '0') %}, exit <span class="mono">{{ run.exitStatus }}</span>{% endif %}</dd>
+        <dt>unit</dt><dd class="mono" translate="no">{{ run.unit or '-' }}</dd>
+        {%- if c.runs > 1 %}<dt>tries</dt><dd>{{ c.runs }} that night; this is the last</dd>{% endif %}
+      </dl>
+    </div>
+    <div class="card codewin"><h2 translate="no">log tail</h2>
+      {%- if run.logTail %}<pre class="readme" translate="no">{{ run.logTail }}</pre>{% else %}<p class="empty">The recorder kept no log for this run.</p>{% endif %}</div>
+  {%- else %}
+    <div class="card"><p class="empty" style="margin:0">No run to show yet. When a node's recorder writes a record and its kitten ships it, pick its dot in the grid to read that run and its log.</p></div>
+  {%- endif %}
+  </div>
+  <div class="card"><h2>Copies</h2>
+    <ul class="copies" role="list" style="list-style:none;margin:0;padding:0">
+    {%- for c in copies %}
+      <li class="row" style="align-items:flex-start;padding:8px 0;border-top:1px solid var(--line)">{{ dot(c.level) }}
+        <div class="body"><strong>{{ c.name }}</strong><div class="muted small">{{ c.text }}</div><div class="faint small">{{ c.note }}</div></div></li>
+    {%- endfor %}
+    </ul>
+    <p class="faint small" style="margin:10px 0 0">The roastery repository's size and the offline copy arrive with a later milestone; kitten doesn't read restic yet.</p>
+  </div>
+</div>
+{%- endif %}
+<p class="asof faint small">State as of {{ now|local('%H:%M:%S') }}. Reload to refresh.</p>
 {% endblock %}

@@ -8,9 +8,10 @@ smart-home events (**whiskers**), endpoints and the outside web (**glare** / **b
 and every backup (**groom**). Severity speaks body language: **slowBlink**, **earTwitch**,
 **tailFlick**, **hiss**.
 
-Status: **building, M1 First purr** (2026-10-01): purr reads Komodo (faked in the tests), states
-roll up app, node, fleet, and the overview and catTree pages show live state; no other sense is
-watching yet. Live status: the runbook's Backlog.
+Status: **building, M2 Grooming** (2026-10-02): purr reads Komodo and groom judges the backups
+(both against fakes in the tests); states roll up app, node, fleet; the overview, node and app
+pages refresh themselves every 30 s (htmx, vendored); kitten v0 and the recorder exist but are
+not deployed. The other senses (meow, glare, pounce, whiskers) are not watching yet. Live status: the runbook's Backlog.
 
 Tests (containers only, on roastery): `powershell -ExecutionPolicy Bypass -File scripts\test.ps1`.
 
