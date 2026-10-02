@@ -6,7 +6,7 @@ changes can be made later without re-deriving the reasoning. How to write entrie
 
 ## In progress
 
-- (nobody)
+- Claude (Claude Code, Sonnet 5.5) · M4 glare + binocs + disks + vitals, branch `claude/m4-glare-binocs-disks-vitals-1a383e` · since 2026-10-03 00:45
 
 ## Backlog / open items
 

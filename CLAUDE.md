@@ -74,6 +74,8 @@ it never changes anything.
    `design-taste-frontend`, `web-design-guidelines`, under `docs/06-design-system.md`, which
    wins where they disagree. Review every changed UI file with web-design-guidelines before
    a gate. Details: AGENTS.md §3.1.
+9. **Containers: touch only this project's own** (label `com.purrbrews.project=persianperch` or the compose
+   project); never kill, stop or prune "all" or unnamed ones: roastery runs fleet services. AGENTS.md §2.8.
 
 ## Status
 

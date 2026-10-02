@@ -7,6 +7,8 @@ services:
   perch:
     build: ../..
     image: persian-perch:ui-test
+    labels:
+      com.purrbrews.project: persianperch   # the container-safety rule (AGENTS.md 2.8)
     environment:
       PERCH_REPO_DIR: /fleet
       PERCH_TRAIL_DB: /tmp/scentTrail.db
@@ -25,6 +27,8 @@ services:
   playwright:
     build: .                  # tests/ui/Dockerfile: the pinned Playwright image + its Python package
     image: persian-perch:ui-playwright
+    labels:
+      com.purrbrews.project: persianperch   # the container-safety rule (AGENTS.md 2.8)
     depends_on:
       perch:
         condition: service_healthy
