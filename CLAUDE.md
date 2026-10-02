@@ -77,6 +77,6 @@ it never changes anything.
 
 ## Status
 
-2026-10-01: M0 (litter) and M1 (first purr: purr, rollups, live overview and catTree pages)
-are built; the other senses (groom, meow, glare, pounce, whiskers) and M6 are not. The runbook's
-Backlog is the live status.
+2026-10-02: M0 (litter), M1 (first purr) and M2 (grooming: htmx live regions, groom, kitten v0,
+`/api/kitten`, the recorder prepared in `integration/groom/`) are built; the other senses (meow,
+glare, pounce, whiskers) and M6 are not. The runbook's Backlog is the live status.

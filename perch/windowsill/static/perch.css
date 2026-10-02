@@ -210,11 +210,12 @@ footer.foot{border-top:1px solid var(--line);padding:18px 0 24px;color:var(--mut
 /* ---- responsive -------------------------------------------------------------- */
 .cols-4{grid-template-columns:repeat(4,1fr)}
 .cols-main{grid-template-columns:minmax(0,2fr) minmax(0,1fr);align-items:start}
+.cols-groom{grid-template-columns:minmax(0,3fr) minmax(0,2fr);align-items:start}
 .cols-tree{grid-template-columns:280px minmax(0,1fr);align-items:start}
 .cols-2{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
 .cols-cards{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
 .cols-nodes{grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}
-@media (max-width:1000px){.cols-main{grid-template-columns:1fr}}
+@media (max-width:1000px){.cols-main,.cols-groom{grid-template-columns:1fr}}
 @media (max-width:900px){.cols-tree,.cols-2{grid-template-columns:1fr} .sticky{position:static;max-height:none} .treecard{display:none}}
 @media (max-width:700px){
   .wrap{padding:0 16px}
@@ -226,7 +227,7 @@ footer.foot{border-top:1px solid var(--line);padding:18px 0 24px;color:var(--mut
   .cols-4,.strip{grid-template-columns:1fr 1fr}
   .strip>*:nth-child(3){border-left:0}
   .strip>*:nth-child(n+3){border-top:1px solid var(--line)}
-  .cols-nodes,.cols-cards{grid-template-columns:1fr}
+  .cols-nodes,.cols-cards,.cols-groom{grid-template-columns:1fr}
   input.search{width:100%}
   html{scroll-padding-top:120px}
 }
@@ -235,10 +236,11 @@ footer.foot{border-top:1px solid var(--line);padding:18px 0 24px;color:var(--mut
 .nights th,.nights td{padding:4px 2px;text-align:center}
 .nights thead th{font-weight:500;color:var(--muted);font-variant-numeric:tabular-nums}
 .nights tbody th{text-align:left;white-space:nowrap;padding-right:14px;font-weight:400}
-a.cell{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:6px}
+a.cell{touch-action:manipulation;display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:6px}
 a.cell:hover{background:var(--panel2)}
 a.cell[aria-current="true"]{outline:2px solid var(--text);outline-offset:-2px}
 .dot.big{width:12px;height:12px}
+@media (min-width:701px){.nights thead th:not(:first-child),.nights td{min-width:30px}}
 .nodash{color:var(--faint)}
 @media (prefers-reduced-motion: reduce){
   *,*::before,*::after{transition:none!important;animation:none!important;scroll-behavior:auto!important}

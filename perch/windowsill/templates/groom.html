@@ -15,19 +15,19 @@
 <div class="card"><p class="empty" style="margin:0">catTree finds no backup schedule in the fleet repo: groom reads <span class="mono" translate="no">purrbrews-backup@.timer</span> and cellar's restic timers, so there is nothing to expect yet.</p></div>
 {%- else %}
 {%- if unwatched %}
-<p class="muted small blindnote">{{ dot(BodyLanguage.unknown) }} Not watched yet: <span class="mono" translate="no">{{ unwatched|join(', ') }}</span>. groom judges a node once its kitten has a token, so these show a dash, never a false hiss.</p>
+<p class="muted small blindnote">{{ dot(BodyLanguage.unknown) }}<span>Not watched yet: <span class="mono" translate="no">{{ unwatched|join(', ') }}</span>. groom judges a node once its kitten has a token, so these show a dash, never a false hiss.</span></p>
 {%- endif %}
 <div class="card" style="margin-bottom:16px">
   <div class="tablewrap"><table class="nights"><caption class="sr">Every backup job, one column per night, oldest to newest. Each dot is a link to that run.</caption>
   <thead><tr><th scope="col" style="text-align:left">job</th>
-  {%- for d in days %}<th scope="col"{% if loop.revindex > 7 %} class="hide-sm"{% endif %}><span class="sr">{{ d.strftime('%d %b') }}</span><span aria-hidden="true" title="{{ d.strftime('%a %d %b') }}">{{ d.day }}</span></th>{% endfor %}</tr></thead>
+  {%- for d in days %}<th scope="col"{% if loop.revindex > 5 %} class="hide-sm"{% endif %}><span class="sr">{{ d.strftime('%d %b') }}</span><span aria-hidden="true" title="{{ d.strftime('%a %d %b') }}">{{ d.day }}</span></th>{% endfor %}</tr></thead>
   <tbody translate="no">
   {%- for job, cells in rows %}
     <tr><th scope="row"><span class="mono">{{ job.node }}</span> <span class="muted">{{ job.name }}</span></th>
     {%- for d in days %}{% set c = cells[loop.index0] %}
-      <td{% if loop.revindex > 7 %} class="hide-sm"{% endif %}>
+      <td{% if loop.revindex > 5 %} class="hide-sm"{% endif %}>
       {%- if c is none %}<span class="sr">not scheduled</span>
-      {%- elif c.level is none %}<span class="nodash" title="{{ c.text }}" aria-label="{{ job.node }} {{ job.name }} {{ d.strftime('%d %b') }}: {{ c.text }}">-</span>
+      {%- elif c.level is none %}<span class="nodash" role="img" title="{{ c.text }}" aria-label="{{ job.node }} {{ job.name }} {{ d.strftime('%d %b') }}: {{ c.text }}">-</span>
       {%- else %}<a class="cell" href="/groom?nights={{ nights }}&amp;cell={{ job.key }}@{{ d.isoformat() }}#run" title="{{ job.node }} {{ job.label }}, {{ d.strftime('%d %b') }}: {{ c.text }}"{% if picked and picked[0] is sameas job and picked[1] == d %} aria-current="true"{% endif %}><span class="dot big bl-{{ c.level.value }}" role="img" aria-label="{{ c.level.value }}: {{ job.node }} {{ job.label }}, {{ d.strftime('%d %b') }}, {{ c.text }}"></span></a>
       {%- endif %}</td>
     {%- endfor %}
@@ -42,7 +42,7 @@
   {%- endfor %}
   </ul>
 </div>
-<div class="grid" style="grid-template-columns:minmax(0,3fr) minmax(0,2fr);align-items:start">
+<div class="grid cols-groom">
   <div id="run">
   {%- if picked %}{% set job, d, c = picked %}{% set run = c.run %}
     <div class="card" style="margin-bottom:16px">

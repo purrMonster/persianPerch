@@ -136,6 +136,13 @@ renders the same with no network.
   is said **once**, in one sentence, through the polite live region `#announce` (a poll with
   nothing new sends no sentence); the foot of the region says what time the state is from. Pages
   work with JavaScript off: they show the state as of load.
+- **Grooming grid (`table.nights`, M2):** one row per job (`node job`, row header), one column per night
+  (the day number, oldest to newest, the last 5 on a phone, so today is never off-screen), one dot per judged cell. The dot is a link
+  to that run (`a.cell`, 28 px, the dot is `role="img"` with the job, night and state in its label);
+  a night with nothing to judge is a faint dash (with its reason in the title and label), a night the
+  timer doesn't fire is empty. Problems are listed in words under the grid, so colour is never alone.
+  The chosen run shows below it (details, then its log in a code window); Copies sits beside it
+  (stacked under it on a phone).
 - **Unknown is a state with a reason.** Grey never stands alone: the overview says why
   ("purr isn't configured", "waiting for purr's first look", "purr can't see them. <why>").
 

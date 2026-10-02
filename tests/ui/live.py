@@ -23,6 +23,7 @@ from zoneinfo import ZoneInfo
 from playwright.sync_api import sync_playwright
 
 BASE = os.environ.get("PERCH_URL", "http://perch:8080")
+OUT = os.environ.get("OUT_DIR", "/out")
 TOKEN = os.environ.get("UI_KITTEN_TOKEN_SIEVE", "")
 STATE_CHANGE = os.environ.get("UI_STATE_CHANGE") == "1"
 WAIT_MS = 35_000
@@ -93,7 +94,7 @@ def main() -> int:
 
         # 2. a state change reaches the open page: sieve's nightly backup failed
         if not STATE_CHANGE:
-            print("skip the state-change check: UI_STATE_CHANGE is not set (kitten's endpoint comes later in M2)")
+            check("the state-change check is switched on (UI_STATE_CHANGE=1 in compose.yml)", False)
         elif not TOKEN:
             check("UI_KITTEN_TOKEN_SIEVE is set for the state-change check", False)
         else:
@@ -161,6 +162,31 @@ def main() -> int:
         reduced.close()
 
         check("no console errors", not errors, str(errors))
+
+        # 4. the grooming grid with a failed run selected: both themes, and a phone, no sideways scroll
+        if STATE_CHANGE and TOKEN:
+            night = lastNightlySlot().date().isoformat()
+            for view, width, scheme in (
+                ("1400-dark", 1400, "dark"),
+                ("1400-light", 1400, "light"),
+                ("390-dark", 390, "dark"),
+            ):
+                shot = browser.new_context(viewport={"width": width, "height": 900}, color_scheme=scheme)
+                groomPage = shot.new_page()
+                problems: list[str] = []
+                groomPage.on(
+                    "console", lambda m, problems=problems: problems.append(m.text) if m.type == "error" else None
+                )
+                groomPage.goto(f"{BASE}/groom?cell=sieve/nightly@{night}", wait_until="networkidle")
+                widths = groomPage.evaluate("[document.documentElement.scrollWidth, window.innerWidth]")
+                groomPage.screenshot(path=f"{OUT}/groom-run-{view}.png", full_page=True)
+                check(f"groom grid at {view}: no horizontal scroll", widths[0] <= widths[1], str(widths))
+                check(
+                    f"groom grid at {view}: the failed run is shown",
+                    "restic: repository unreachable" in groomPage.content(),
+                )
+                check(f"groom grid at {view}: no console errors", not problems, str(problems))
+                shot.close()
         browser.close()
     print(f"live: {'FAILED' if failures else 'all ok'}")
     return 1 if failures else 0

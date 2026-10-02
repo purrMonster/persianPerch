@@ -11,6 +11,7 @@ services:
       PERCH_REPO_DIR: /fleet
       PERCH_TRAIL_DB: /tmp/scentTrail.db
       PERCH_TZ: Asia/Kolkata
+      PERCH_KITTEN_TOKEN_SIEVE: fake-ui-token-sieve-not-real   # a made-up token, for the live check only
     volumes:
       - ../../.cache/purrbrews-containers:/fleet:ro
       - ./seed.py:/app/seed.py:ro
@@ -29,6 +30,8 @@ services:
         condition: service_healthy
     environment:
       PERCH_URL: http://perch:8080
+      UI_STATE_CHANGE: "1"
+      UI_KITTEN_TOKEN_SIEVE: fake-ui-token-sieve-not-real
       OUT_DIR: /out
     volumes:
       - ./shoot.py:/shoot.py:ro
