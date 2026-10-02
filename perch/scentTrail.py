@@ -87,6 +87,45 @@ MIGRATIONS: tuple[str, ...] = (
     CREATE INDEX groomRuns_start ON groomRuns (start);
     CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
     """,
+    # 4: meow (M3). A litter is one problem meow tells the owner about once (ADR 0004); a push row is
+    # one message sent, which is what the rate limit counts; a spent ack token can't be used again
+    """
+    CREATE TABLE litters (
+        litterId    TEXT PRIMARY KEY,
+        key         TEXT NOT NULL,
+        kind        TEXT NOT NULL,
+        level       TEXT NOT NULL,
+        peak        TEXT NOT NULL,
+        title       TEXT NOT NULL,
+        members     INTEGER NOT NULL DEFAULT 1,
+        openedAt    TEXT NOT NULL,
+        levelAt     TEXT NOT NULL,
+        closedAt    TEXT,
+        ackedAt     TEXT,
+        ackedVia    TEXT,
+        lastPushAt  TEXT,
+        pushes      INTEGER NOT NULL DEFAULT 0,
+        channels    TEXT NOT NULL DEFAULT '',
+        digest      INTEGER NOT NULL DEFAULT 0,
+        digestedAt  TEXT,
+        heldAt      TEXT,
+        recoveredAt TEXT
+    );
+    CREATE INDEX litters_open ON litters (closedAt);
+    CREATE INDEX litters_key ON litters (key);
+    CREATE TABLE pushes (
+        at       TEXT NOT NULL,
+        channel  TEXT NOT NULL,
+        litterId TEXT,
+        kind     TEXT NOT NULL
+    );
+    CREATE INDEX pushes_at ON pushes (channel, at);
+    CREATE TABLE ackSpent (
+        tokenId  TEXT PRIMARY KEY,
+        litterId TEXT NOT NULL,
+        spentAt  TEXT NOT NULL
+    );
+    """,
 )
 
 _CROCKFORD = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
@@ -501,6 +540,17 @@ class ScentTrail:
             ).fetchall()
         return {r["day"]: BodyLanguage(r["worst"]) for r in rows}
 
+    # -- plain SQL for meow's own tables (litters, pushes, ackSpent) -----------------------
+
+    def fetch(self, sql: str, args: "Iterable[Any]" = ()) -> list[sqlite3.Row]:
+        with self._lock:
+            return self._db.execute(sql, tuple(args)).fetchall()
+
+    def execute(self, sql: str, args: "Iterable[Any]" = ()) -> int:
+        """One statement under the lock; the number of rows it changed."""
+        with self._lock:
+            return self._db.execute(sql, tuple(args)).rowcount
+
     def retention(self, now: "datetime | None" = None) -> dict[str, int]:
         """Drop events older than trailDays and rollups older than rollupDays."""
         now = now or self.clock()
@@ -510,6 +560,9 @@ class ScentTrail:
             events = self._db.execute("DELETE FROM events WHERE seenAt < ?", (eventCut,)).rowcount
             rollups = self._db.execute("DELETE FROM rollups WHERE day < ?", (rollupCut,)).rowcount
             self._db.execute("DELETE FROM groomRuns WHERE start < ?", (eventCut,))  # same age as events
+            self._db.execute("DELETE FROM litters WHERE closedAt IS NOT NULL AND closedAt < ?", (eventCut,))
+            self._db.execute("DELETE FROM pushes WHERE at < ?", (eventCut,))
+            self._db.execute("DELETE FROM ackSpent WHERE spentAt < ?", (eventCut,))
         return {"events": events, "rollups": rollups}
 
     def counts(self) -> dict[str, int]:

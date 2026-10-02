@@ -241,7 +241,11 @@ class Purr:
             where = " inside its wake window" if sleeper else ""
             title = f"{node.name} isn't answering{where}: {server.err or 'not connected'}"
             self._announce(node.id, node.name, B.hiss, title, cy=cy)
-            self._unseen(node, watched, cy, nodeAs=(B.hiss, title), appsAs=(B.unknown, f"{node.name} isn't reporting"))
+            # mode "unreachable" is what meow reads: one litter for the node, absorbing its apps (ADR 0004)
+            self._unseen(
+                node, watched, cy, nodeAs=(B.hiss, title), appsAs=(B.unknown, f"{node.name} isn't reporting"),
+                nodeDetail={"mode": "unreachable"},
+            )  # fmt: skip
             return
 
         self._streak(key, False)
@@ -297,11 +301,12 @@ class Purr:
         *,
         nodeAs: tuple[B, str] | None,
         appsAs: tuple[B, str],
+        nodeDetail: dict | None = None,
     ) -> None:
         """The node, or its containers, can't be seen: it and its apps and containers turn what
         they are told (``nodeAs`` None leaves the node's own state alone)."""
         if nodeAs is not None:
-            self._write(node.id, nodeAs[0], nodeAs[1], None, cy)
+            self._write(node.id, nodeAs[0], nodeAs[1], nodeDetail, cy)
         for app in watched:
             self._write(app.id, appsAs[0], appsAs[1], None, cy)
         self._blindContainers(node, appsAs[1], cy)
