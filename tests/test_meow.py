@@ -433,3 +433,20 @@ def test_the_litter_id_is_a_single_path_segment(w):
     (lt,) = w.litters.open()
     assert lt.litterId.startswith("app.grinder.n8n@") and "/" not in lt.litterId
     assert w.clock() - lt.openedAt < timedelta(minutes=5)
+
+
+def test_buildMeow_uses_the_settings_and_a_bad_url_is_said_once_without_the_url(fleetTree, tmp_path, clock):
+    from perch.meow import buildMeow
+    from perch.scentTrail import ScentTrail
+    from perch.settings import Settings
+
+    trail = ScentTrail(tmp_path / "t.db", clock=clock)
+    good = Settings(meowNtfyUrl=NTFY_URL, meowNtfyToken=NTFY_TOKEN, meowCriticalUrl=CRITICAL_URL, ackSecret=SECRET)
+    meow = buildMeow(good, trail, fleetTree, clock, IST)
+    assert meow.configured and set(meow.clients) == {"ntfy", "critical"}
+    bad = Settings(meowNtfyUrl="https://ntfy.example.home.arpa", meowCriticalUrl="not a url")
+    meow = buildMeow(bad, trail, fleetTree, clock, IST)
+    assert not meow.configured
+    texts = [e.title for e in trail.events()]
+    assert len(texts) == 2 and all("isn't usable" in t and "example.home.arpa" not in t for t in texts)
+    trail.close()

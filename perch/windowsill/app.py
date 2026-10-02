@@ -16,22 +16,29 @@ import contextlib
 import hashlib
 import hmac
 import json
+import secrets
+from collections import deque
 from collections.abc import Callable
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 from pathlib import Path
+from urllib.parse import parse_qs, urlsplit
 from zoneinfo import ZoneInfo
 
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.exception_handlers import http_exception_handler
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from .. import ack as ackTokens
 from ..bodyLanguage import LEVELS, BodyLanguage, worstOf
 from ..catTree import CatTree, CatTreeError, Fleet
 from ..collectors import Runner, buildCollectors
+from ..litters import Litters
+from ..meow import Meow, buildMeow
+from ..nineLives import NineLives, footerLine
 from ..rollup import Status
 from ..scentTrail import SENSES, ScentTrail, parseUtc, utcNow
 from ..senses.groom import Groom, RecordError, parseRecord
@@ -60,6 +67,8 @@ def createApp(
     tree: "CatTree | None" = None,
     clock: Callable[[], datetime] = utcNow,
     collectors: "list | None" = None,
+    meow: "Meow | None" = None,
+    nineLives: "NineLives | None" = None,
 ) -> FastAPI:
     settings = settings or Settings.fromEnv()
     trail = trail or ScentTrail(
@@ -80,24 +89,38 @@ def createApp(
         groomDir=settings.groomDir,
         sleepers=settings.sleepers,
     )
+    meow = meow or buildMeow(settings, trail, tree, clock, tz)
     if collectors is None:
         collectors = buildCollectors(settings, trail, tree, clock)
         if groomer.watchedNodes():
             collectors.append(groomer)
+        if meow.configured:  # a meow with nowhere to push has nothing to run
+            collectors.append(meow)
     runner = Runner(trail, collectors, clock=clock, secrets=settings.secretValues())
+    if nineLives is None and settings.nineLivesUrl:
+        try:
+            nineLives = NineLives(settings.nineLivesUrl, runner, trail, clock=clock)
+        except ValueError as exc:
+            trail.addEvent("perch", "ninelives", BodyLanguage.tailFlick, f"nineLives is switched off: {exc}")
+    store = Litters(trail)
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
         task = asyncio.create_task(runner.run()) if collectors else None
+        beat = asyncio.create_task(nineLives.run()) if nineLives else None
         try:
             yield
         finally:
-            if task:
-                task.cancel()
-                await asyncio.gather(task, return_exceptions=True)
+            for running in (task, beat):
+                if running:
+                    running.cancel()
+                    await asyncio.gather(running, return_exceptions=True)
             for collector in collectors:
                 with contextlib.suppress(Exception):
                     await collector.aclose()
+            if nineLives:
+                with contextlib.suppress(Exception):
+                    await nineLives.aclose()
 
     app = FastAPI(title="persianPerch", docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
     app.state.settings = settings
@@ -105,6 +128,8 @@ def createApp(
     app.state.tree = tree
     app.state.runner = runner
     app.state.groom = groomer
+    app.state.meow = meow
+    app.state.nineLives = nineLives
     app.mount("/static", StaticFiles(directory=HERE / "static"), name="static")
 
     templates = Jinja2Templates(directory=HERE / "templates")
@@ -177,7 +202,42 @@ def createApp(
         """The level a full disk earns (purr's own thresholds), for tinting its bar."""
         return BodyLanguage.hiss if disk >= DISK_CRIT else BodyLanguage.tailFlick if disk >= DISK_WARN else None
 
-    env.globals.update(purrPill=purrPill, unknownNote=unknownNote, diskLevel=diskLevel)
+    def nineLivesLine(status: Status | None) -> dict:
+        """The footer's "nineLives pinged 2 min ago": words first, the dot only repeats them."""
+        state = status.states.get("ninelives") if status else None
+        level, text = footerLine(state, clock(), configured=nineLives is not None)
+        return {"level": level, "text": text}
+
+    csrfKey = settings.ackSecret or secrets.token_hex(32)  # the page's CSRF key (ADR 0005); per process if unset
+
+    def alertsView(now: datetime) -> dict:
+        """The overview's Alerts card: what meow is telling the owner about, and what it is holding."""
+        items = []
+        for lt in sorted(store.open(), key=lambda x: (-x.level.rank, x.openedAt)):
+            if lt.level.rank < BodyLanguage.tailFlick.rank:
+                continue
+            if lt.ackedAt:
+                how = f"acknowledged {lt.ackedAt.astimezone(tz):%H:%M} {lt.ackedVia or ''}".strip()
+            elif lt.heldAt:
+                how = "held back by the rate limit; it goes out as the limit allows"
+            elif lt.digest and not lt.digestedAt:
+                how = f"waiting for the {meow.digestAt:%H:%M} digest (quiet hours)"
+            elif lt.pushes and lt.lastPushAt:
+                ago = glue(duration((now - lt.lastPushAt).total_seconds()))
+                how = f"pushed {lt.pushes} {'time' if lt.pushes == 1 else 'times'}, last {ago} ago"
+            else:
+                how = "not pushed yet"
+            csrf = None if lt.ackedAt else ackTokens.csrfMint(csrfKey, lt.litterId, now)
+            items.append({"litter": lt, "how": how, "csrf": csrf})
+        return {
+            "configured": meow.configured,
+            "items": items,
+            "held": len(store.held()),
+            "digest": len(store.pendingDigest()),
+            "quiet": f"{meow.quiet[0]:%H:%M} to {meow.quiet[1]:%H:%M}",
+        }
+
+    env.globals.update(purrPill=purrPill, unknownNote=unknownNote, diskLevel=diskLevel, nineLivesLine=nineLivesLine)
 
     def fleetOr503() -> Fleet:
         try:
@@ -202,6 +262,7 @@ def createApp(
     errors = {
         404: ("Not found", "Check the address, or find it from the overview or catTree."),
         405: ("Not allowed", "perch only watches: no page here changes anything."),
+        403: ("Not allowed", "That request didn't come from perch's own page. Reload the page and try again."),
         503: (
             "perch can't read its source",
             "Check that PERCH_REPO_DIR points at the fleet repo checkout and that git can read it, then reload.",
@@ -211,6 +272,9 @@ def createApp(
         "no such node": "perch doesn't know a node with that name.",
         "no such app": "That node has no app with that name.",
         "no such doc": "That document isn't in the fleet repo's docs.",
+        "no such litter": "That alert has already cleared, or never existed.",
+        "cross-site": "A page on another address can't acknowledge an alert for you.",
+        "bad form token": "The form is too old or isn't perch's. Reload the page to get a fresh one.",
     }
 
     @app.exception_handler(StarletteHTTPException)
@@ -263,6 +327,7 @@ def createApp(
             "greeting": greeting,
             "local": now,
             "recent": trail.events(limit=8),
+            "alerts": alertsView(clock()),
             "lastNight": lastNight,
             "lastLevel": worstOf(c.level for _j, c in lastNight) if lastNight else BodyLanguage.unknown,
             "lastOk": sum(1 for _j, c in lastNight if c.level.rank <= BodyLanguage.earTwitch.rank),
@@ -498,6 +563,63 @@ def createApp(
             runs.append(run)
         stored = await asyncio.to_thread(groomer.ingest, node, heartbeat, runs)
         return {"ok": True, "stored": stored}
+
+    def sameOrigin(request: Request) -> bool:
+        """The request came from a page on perch's own address (ADR 0005). Browsers send Sec-Fetch-Site and
+        Origin on every POST; a request with neither can't prove where it came from and is refused."""
+        site = request.headers.get("sec-fetch-site")
+        origin = request.headers.get("origin")
+        if site is not None and site != "same-origin":
+            return False
+        if origin is not None:
+            return urlsplit(origin).netloc == request.headers.get("host", "-")
+        return site == "same-origin"
+
+    @app.post("/ack/{litterId}")
+    async def ackFromPage(request: Request, litterId: str):
+        """Acknowledge from the page: behind Authelia like every page, with the same-origin check and the
+        form's CSRF token. Writes only perch's own database (05 plan A11, test S9)."""
+        if not sameOrigin(request):
+            raise HTTPException(403, "cross-site")
+        raw = await request.body()
+        form = parse_qs(raw[:4096].decode("utf-8", errors="ignore"))
+        if not ackTokens.csrfOk(csrfKey, litterId, (form.get("csrf") or [""])[0], clock()):
+            raise HTTPException(403, "bad form token")
+        found = store.get(litterId)
+        if found is None or not found.isOpen:
+            raise HTTPException(404, "no such litter")
+        now = clock()
+        store.acknowledge(litterId, "from the page", now)
+        if found.ackedAt is None:
+            meow.acknowledged(found, "from the page", now)
+        if request.headers.get("hx-request"):
+            return HTMLResponse(f'<span class="acked small">Acknowledged at {now.astimezone(tz):%H:%M}</span>')
+        return RedirectResponse("/", status_code=303)
+
+    pushHits: deque[datetime] = deque()
+
+    @app.post("/ack/t/{token}")
+    async def ackFromPush(token: str):
+        """Acknowledge from a push's button (05 plan A11, S9). No login: the signed, single-use token is the
+        whole authority, and all it can do is stop the repeats of the one litter it names. 10 requests a
+        minute on this path; every refusal looks the same, so a token can't be probed."""
+        now = clock()
+        while pushHits and now - pushHits[0] > timedelta(minutes=1):
+            pushHits.popleft()
+        if len(pushHits) >= 10:
+            return JSONResponse({"ok": False}, status_code=429, headers={"Retry-After": "60"})
+        pushHits.append(now)
+        refused = JSONResponse({"ok": False}, status_code=403)
+        checked = ackTokens.verify(settings.ackSecret, token, now)
+        if checked is None:
+            return refused
+        found = store.get(checked.litterId)
+        if found is None or not found.isOpen or not store.spend(checked.tokenId, found.litterId, now):
+            return refused
+        store.acknowledge(found.litterId, "from the push", now)
+        if found.ackedAt is None:
+            meow.acknowledged(found, "from the push", now)
+        return {"ok": True}
 
     @app.get("/healthz")
     def healthz():

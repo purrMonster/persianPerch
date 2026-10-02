@@ -172,6 +172,35 @@ def main() -> int:
                 page.locator("#announce").inner_text().strip() == said,
             )
 
+        # 2b. Acknowledge, in a real browser: htmx posts the form (CSRF token, same-origin headers) and the
+        # button is replaced by one line; a reload shows the litter acknowledged
+        page.goto(BASE + "/", wait_until="networkidle")
+        button = page.locator("#alerts form.ack button")
+        check("the Alerts card has an Acknowledge button for the seeded hiss", button.count() >= 1)
+        if button.count():
+            shape = page.evaluate(
+                "() => { const b = document.querySelector('#alerts form.ack button'); const s = getComputedStyle(b);"
+                " return [b.textContent.trim(), s.backgroundColor, b.getBoundingClientRect().height]; }"
+            )
+            ok = shape[0] == "Acknowledge" and shape[2] >= 24
+            check("the button says Acknowledge and is at least 24 px tall", ok, str(shape))
+            page.screenshot(path=f"{OUT}/alerts-card-1400-dark.png", full_page=True)
+            before = button.count()
+            page.evaluate("window.__sameDocument = 'yes'")
+            button.first.click()
+            try:
+                page.wait_for_selector("#alerts .acked", timeout=10_000)
+                done = True
+            except Exception:
+                done = False
+            same = page.evaluate("window.__sameDocument") == "yes"
+            check("clicking Acknowledge replaced the button with a line, without a reload", done and same)
+            left = page.locator("#alerts form.ack button").count()
+            check("one litter fewer is waiting to be acknowledged", left == before - 1)
+            page.reload(wait_until="networkidle")
+            alerts = page.locator("#alerts").inner_text()
+            check("after a reload the litter shows as acknowledged", "acknowledged" in alerts)
+
         # 3. reduced motion: nothing animates
         reduced = browser.new_context(viewport={"width": 1400, "height": 900}, reduced_motion="reduce")
         quiet = reduced.new_page()

@@ -20,6 +20,7 @@ import subprocess
 import sys
 import threading
 import time
+import urllib.error
 import urllib.request
 from datetime import UTC, datetime
 from pathlib import Path
@@ -35,6 +36,14 @@ REPO = os.environ.get("PERCH_REPO_DIR", "/fleet")
 DB = "/tmp/budget-scentTrail.db"
 BEARER = "abcdefghijklmnopqrstuvwx"  # a token-shaped string nobody configured: the scrubber must catch its shape
 LEAKY = {"on": False}  # Komodo answering 500 with the credentials in the body
+
+# M3: fake ntfy (self-hosted), a fake critical topic, a fake healthchecks endpoint, on loopback ports
+NTFY_PORT, CRIT_PORT, HC_PORT = 9201, 9202, 9203
+NTFY_TOKEN = "tk_budgetfaketokenfaketoken0000"
+ACK_SECRET = "fake-budget-ack-secret-not-real-0123456789"
+NTFY_TOPIC, CRIT_TOPIC, PING_ID = "budget-fake-topic", "budget-fake-critical", "00000000-budget-fake-uuid"
+pushes = {"ntfy": [], "critical": []}
+pings: list[str] = []
 
 
 class Clock:
@@ -72,6 +81,56 @@ class Komodo(http.server.BaseHTTPRequestHandler):
         pass
 
 
+def pushServer(channel, port, token=""):
+    class Handler(http.server.BaseHTTPRequestHandler):
+        def do_POST(self):
+            body = self.rfile.read(int(self.headers.get("content-length", 0)))
+            if token and self.headers.get("authorization") != f"Bearer {token}":
+                self.send_response(401)
+                self.end_headers()
+                return
+            with lock:
+                pushes[channel].append(json.loads(body))
+            self.send_response(200)
+            self.send_header("content-type", "application/json")
+            self.end_headers()
+            self.wfile.write(b"{}")
+
+        def log_message(self, *_):
+            pass
+
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", port), Handler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    return server
+
+
+class Healthchecks(http.server.BaseHTTPRequestHandler):
+    def do_GET(self):
+        with lock:
+            pings.append(self.path)
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"OK")
+
+    def log_message(self, *_):
+        pass
+
+
+def post(path):
+    """A POST with no body to perch over a real socket, as an ntfy button sends it: the status code."""
+    request = urllib.request.Request(f"http://127.0.0.1:{PERCH_PORT}{path}", data=b"", method="POST")  # noqa: S310
+    try:
+        with urllib.request.urlopen(request, timeout=10) as response:  # noqa: S310
+            return response.status
+    except urllib.error.HTTPError as exc:
+        return exc.code
+
+
+def titles(channel):
+    with lock:
+        return [p["title"] for p in pushes[channel]]
+
+
 def get(path):
     with urllib.request.urlopen(f"http://127.0.0.1:{PERCH_PORT}{path}", timeout=10) as response:
         return response.read().decode()
@@ -101,11 +160,11 @@ def memory(pid):
     return out
 
 
-def leaks(places):
+def leaks(places, extra=()):
     """Which of the secrets turned up in which place."""
     found = []
     for place, content in places.items():
-        for name, needle in (("API key", KEY), ("API secret", SECRET), ("bearer token", BEARER)):
+        for name, needle in (("API key", KEY), ("API secret", SECRET), ("bearer token", BEARER), *extra):
             if needle.encode() in content:
                 found.append(f"{name} in {place}")
     return found
@@ -114,6 +173,12 @@ def leaks(places):
 def main() -> int:
     server = http.server.ThreadingHTTPServer(("127.0.0.1", PORT), Komodo)
     threading.Thread(target=server.serve_forever, daemon=True).start()
+    others = [
+        pushServer("ntfy", NTFY_PORT, NTFY_TOKEN),
+        pushServer("critical", CRIT_PORT),
+        http.server.ThreadingHTTPServer(("127.0.0.1", HC_PORT), Healthchecks),
+    ]
+    threading.Thread(target=others[2].serve_forever, daemon=True).start()
     env = {
         **os.environ,
         "PERCH_PURR_URL": f"http://127.0.0.1:{PORT}",
@@ -124,6 +189,12 @@ def main() -> int:
         "PERCH_TRAIL_DB": DB,
         "PERCH_PORT": str(PERCH_PORT),
         "PERCH_TZ": "Asia/Kolkata",
+        "PERCH_MEOW_NTFY_URL": f"http://127.0.0.1:{NTFY_PORT}/{NTFY_TOPIC}",
+        "PERCH_MEOW_NTFY_TOKEN": NTFY_TOKEN,
+        "PERCH_MEOW_CRITICAL_URL": f"http://127.0.0.1:{CRIT_PORT}/{CRIT_TOPIC}",
+        "PERCH_ACK_SECRET": ACK_SECRET,
+        "PERCH_PUBLIC_URL": f"http://127.0.0.1:{PERCH_PORT}",
+        "PERCH_NINELIVES_URL": f"http://127.0.0.1:{HC_PORT}/{PING_ID}",
     }
     perch = subprocess.Popen(  # noqa: S603
         [sys.executable, "-m", "perch"], env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
@@ -149,9 +220,38 @@ def main() -> int:
         with lock:
             fake.nodeDown("grinder")
         failed += not waitFor("grinder not answering: hiss", lambda: "isn&#39;t answering" in get("/"))
+
+        # M3: meow pushes it once to each channel, the button acknowledges once, a replay is refused
+        failed += not waitFor(
+            "meow pushed grinder unreachable to the fake ntfy and the fake critical topic",
+            lambda: any("grinder unreachable" in t for t in titles("ntfy"))
+            and any("grinder unreachable" in t for t in titles("critical")),
+            seconds=90,
+        )
+        with lock:
+            down = next(p for p in pushes["ntfy"] if "grinder unreachable" in p["title"])
+            downCritical = next(p for p in pushes["critical"] if "grinder unreachable" in p["title"])
+        buttons = down.get("actions", [])
+        buttonOk = len(buttons) == 1 and buttons[0]["label"] == "Acknowledge" and buttons[0]["method"] == "POST"
+        failed += not buttonOk
+        failed += bool(downCritical.get("actions"))  # never a button on the third-party copy
+        print(f"{'ok  ' if buttonOk else 'FAIL'}  the ntfy push carries one Acknowledge button (POST)")
+        print(f"{'ok  ' if not downCritical.get('actions') else 'FAIL'}  the critical copy carries none")
+        ackPath = buttons[0]["url"].removeprefix(f"http://127.0.0.1:{PERCH_PORT}") if buttons else "/ack/t/none"
+        tampered = post(ackPath[:-3] + "AAA")
+        first, replay = post(ackPath), post(ackPath)
+        good = (tampered, first, replay) == (403, 200, 403)
+        print(f"{'ok  ' if good else 'FAIL'}  tampered {tampered}, button {first}, replay {replay} (want 403 200 403)")
+        failed += not good
+        failed += not waitFor("nineLives pinged the fake healthchecks endpoint", lambda: bool(pings), seconds=90)
         with lock:
             fake.nodeUp("grinder")
         failed += not waitFor("grinder back: slowBlink", lambda: "fleet: slowBlink" in get("/"))
+        failed += not waitFor(
+            "meow announced the recovery once",
+            lambda: sum("grinder back" in t for t in titles("ntfy")) == 1,
+            seconds=90,
+        )
 
         LEAKY["on"] = True  # Komodo now answers 500 and echoes the credentials back
         failed += not waitFor(
@@ -184,7 +284,16 @@ def main() -> int:
         for suffix in ("", "-wal", "-shm"):
             if Path(DB + suffix).exists():
                 places[f"scentTrail {DB + suffix}"] = Path(DB + suffix).read_bytes()
-        found = leaks(places)
+        places["page /trail (meow events)"] = get("/trail?hours=1").encode()
+        extra = (
+            ("ack secret", ACK_SECRET),
+            ("ntfy token", NTFY_TOKEN),
+            ("ack token", ackPath.rsplit("/", 1)[-1]),
+            ("ntfy topic", NTFY_TOPIC),
+            ("critical topic", CRIT_TOPIC),
+            ("healthchecks ping id", PING_ID),
+        )
+        found = leaks(places, extra)
         print(
             f"leak check: looked in {len(places)} places ({sum(len(c) for c in places.values()) // 1024} KB): "
             + ("LEAKED " + "; ".join(found) if found else "nothing found")

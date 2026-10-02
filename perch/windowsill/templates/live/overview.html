@@ -1,4 +1,4 @@
-{% from "_macros.html" import badge, dot, mark, event, note, meter, asOf, liveSeen %}
+{% from "_macros.html" import badge, dot, mark, event, note, meter, asOf, liveSeen, subjectLink, ackForm %}
 {%- set counts = status.counts() %}
 {%- set attention = status.attention() %}
 {%- set pill = purrPill(status) %}
@@ -44,6 +44,28 @@
     </div>
   </section>
   <aside class="grid" aria-label="Recent">
+    <div class="card" id="alerts"><div class="section-title"><h2>Alerts <span class="faint" translate="no">meow</span></h2></div>
+      {%- if not alerts.configured %}
+      <p class="empty">meow isn't pushing yet: it needs <span class="mono" translate="no">PERCH_MEOW_NTFY_URL</span> and its token. Problems still show on this page.</p>
+      {%- endif %}
+      {%- if alerts['items'] %}
+      <ul class="feed alerts" role="list">
+      {%- for a in alerts['items'] %}{% set lt = a.litter %}
+        <li class="alert" id="alert-{{ lt.litterId }}">
+          <div class="row between" style="flex-wrap:wrap"><div class="row" style="flex-wrap:wrap;gap:8px">{{ badge(lt.level) }}{{ subjectLink(lt.subject, fleet) }}</div>
+          {%- if a.csrf %}{{ ackForm(lt, a.csrf) }}{% endif %}</div>
+          <div class="small" style="margin-top:6px">{{ lt.title }}</div>
+          <div class="faint small">{{ a.how }}</div>
+        </li>
+      {%- endfor %}
+      </ul>
+      {%- elif alerts.configured %}<p class="calm" style="margin:0">Nothing is being pushed.</p>{% endif %}
+      {%- if alerts.configured or alerts.held or alerts.digest %}
+      <p class="faint small" style="margin:10px 0 0">
+        {%- if alerts.held %}{{ alerts.held }} {{ 'alert is' if alerts.held == 1 else 'alerts are' }} held back by the rate limit and listed above. {% endif -%}
+        {%- if alerts.digest %}{{ alerts.digest }} {{ 'notice waits' if alerts.digest == 1 else 'notices wait' }} for the morning digest. {% endif -%}
+        hiss goes out at once and repeats every 30 min until acknowledged. Quiet hours are {{ alerts.quiet }}; hiss ignores them.</p>
+      {%- endif %}</div>
     <div class="card"><div class="section-title"><h2>Overnight grooming</h2><a class="small" id="all-nights" href="/groom">All nights</a></div>
       {%- if lastNight %}
       <p class="row small" style="margin:0 0 8px">{{ badge(lastLevel, 'last night: ' ~ lastOk ~ ' of ' ~ lastNight|length) }}</p>

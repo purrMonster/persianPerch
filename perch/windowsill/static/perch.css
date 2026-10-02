@@ -252,3 +252,9 @@ a.cell[aria-current="true"]{outline:2px solid var(--text);outline-offset:-2px}
   *,*::before,*::after{transition:none!important;animation:none!important;scroll-behavior:auto!important}
 }
 @media print{header.top{position:static}}
+
+/* meow's Alerts card (M3): the one coral button on the site is Acknowledge (--accent-fill, docs/06 section 2) */
+.alerts>li{padding:10px 0;border-top:1px solid var(--line)}
+.alerts>li:first-child{border-top:0;padding-top:0}
+form.ack{margin:0;flex:none}
+.acked{color:var(--muted);white-space:nowrap}

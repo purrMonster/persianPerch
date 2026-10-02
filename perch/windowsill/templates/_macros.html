@@ -46,6 +46,12 @@
 <span class="row">{{ badge(BodyLanguage.unknown) }}<span>{{ BodyLanguage.unknown.meaning }}</span></span>
 </div>
 {%- endmacro %}
+{# the one action perch has: Acknowledge stops a litter's repeats. Works without JavaScript (a plain form post);
+   with htmx the form is replaced by one line. The CSRF token is signed per litter (ADR 0005). #}
+{% macro ackForm(lt, csrf) -%}
+<form class="ack" method="post" action="/ack/{{ lt.litterId }}" hx-post="/ack/{{ lt.litterId }}" hx-swap="outerHTML">
+<input type="hidden" name="csrf" value="{{ csrf }}"><button type="submit" class="primary" id="ack-{{ lt.litterId }}" aria-label="Acknowledge {{ lt.name }}">Acknowledge</button></form>
+{%- endmacro %}
 {% macro event(scent, fleet) -%}
 {%- set bl = scent.bodyLanguage -%}
 <li class="row event bl-{{ bl.value }}">

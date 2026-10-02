@@ -454,4 +454,26 @@ class Meow:
         self._event(lt, B.slowBlink, f"acknowledged {via}: {lt.title}", now)
 
 
-__all__ = ["Found", "Meow", "Out", "Problem", "findProblems", "inQuiet", "label", "parseQuiet"]
+def buildMeow(settings: Any, trail: ScentTrail, tree: CatTree, clock: Any, tz: ZoneInfo) -> Meow:
+    """meow from the settings. A push URL that can't be used is said once on the trail and left out; it
+    never stops perch (nor puts the URL in the message)."""
+    clients: dict[str, Ntfy | None] = {"ntfy": None, "critical": None}
+    for channel, url, token in (
+        ("ntfy", settings.meowNtfyUrl, settings.meowNtfyToken),
+        ("critical", settings.meowCriticalUrl, ""),
+    ):
+        if not url:
+            continue
+        try:
+            clients[channel] = Ntfy(url, token)
+        except ValueError:
+            log.warning("meow's %s URL isn't usable: it must look like https://host/topic", channel)
+            trail.addEvent("perch", f"meow:{channel}", B.tailFlick, f"meow's {channel} URL isn't usable (https://host/topic)")
+    return Meow(
+        trail, tree, clock=clock, tz=tz, ntfy=clients["ntfy"], critical=clients["critical"],
+        ackSecret=settings.ackSecret, publicUrl=settings.publicUrl, quiet=settings.meowQuiet,
+        digestAt=settings.meowDigest, secrets=tuple(settings.secretValues()),
+    )  # fmt: skip
+
+
+__all__ = ["Found", "Meow", "Out", "Problem", "buildMeow", "findProblems", "inQuiet", "label", "parseQuiet"]

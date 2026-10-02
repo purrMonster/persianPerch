@@ -15,6 +15,7 @@ from komodoFake import FleetFake
 from perch.bodyLanguage import BodyLanguage as B
 from perch.catTree import CatTree
 from perch.collectors import Runner
+from perch.meow import Meow, findProblems
 from perch.scentTrail import ScentTrail
 from perch.senses.purr import Purr
 from perch.settings import Settings
@@ -71,6 +72,9 @@ fake.vitals("cellar", disk=88.0)
 fake.nodeDown("roastery")  # asleep, or a hiss, depending on the hour the check runs
 fake.add("grinder", "stray-test", project=None)
 look(8)
+# meow reads what purr wrote into litters (no push channel is set here: the Alerts card still lists them)
+meow = Meow(trail, tree, clock=clock, tz=ZoneInfo(settings.tz))
+meow.reconcile(clock(), findProblems(trail.states(), tree.fleet()))
 loop.run_until_complete(purr.aclose())
 loop.close()
 trail.close()
