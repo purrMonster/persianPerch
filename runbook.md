@@ -19,15 +19,76 @@ changes can be made later without re-deriving the reasoning. How to write entrie
 - [x] Owner's go-ahead for M1 (05 plan A2): given in chat 2026-10-01, after approving the design rework's screenshots and mockups
 - [ ] CI: `ci/github-actions-ci.yml` is ready but inactive; move it to `.github/workflows/ci.yml` if you want GitHub Actions on the public repo (owner; M0 entry)
 - [x] M1 First purr: containers and vitals via Komodo's read API (faked), rollups, overview and catTree pages (2026-10-02, gate green on roastery, M1 entry; pull request open)
-- [ ] Owner: review and merge the M1 pull request, then `git pull` the main checkout (M1 entry)
-- [ ] Owner: decide on vendoring htmx for live refresh; it needs a third-party file (M1 entry; needed by M3 and M5)
-- [ ] Vitals history and sparklines (mockup 01): needs a metrics table the design plan lacks (owner and agent; M1 entry)
+- [x] Owner: review and merge the M1 pull request, then `git pull` the main checkout (M1 entry): PR #1 merged 2026-10-02 as merge commit `ad87ef5` (hashes kept); main checkout pulled, fast-forward
+- [x] Owner: decide on vendoring htmx for live refresh: **yes, htmx 2.0.11, vendored, M2's first task** (2026-10-02; 05 plan A12, ADR 0003)
+- [x] Vitals history and sparklines (mockup 01): **yes, in M4** with the disks (2026-10-02; 05 plan A13, design plan §3.5)
+- [x] Agents open pull requests instead of pushing to `main`; the owner merges with a merge commit (2026-10-02; AGENTS.md §5, 05 plan A2)
+- [x] Owner's go-ahead for M2 (2026-10-02), effective once the pull request with these decisions is merged
+- [ ] Owner: is the domain of the commit email (`jyotirmoy.github@jyotirmoy.cc`) also the fleet's real domain? If so it is already public in every commit; consider GitHub's noreply address for future commits (owner; raised in the M0 entry)
 - [ ] M6 `ROLLOUT.md` drills: stop a container on grinder, hiss within 60 s; `ListServers {}` and `ServerState` spelling against the real Komodo 2.3.2; roastery in and out of its window (M1 entry)
-- [ ] M2 Grooming: groom records, kitten v0, the backup grid; fleet-script change prepared in `integration/`
+- [ ] M2 Grooming: **htmx first** (A12), then groom records, kitten v0, the backup grid; fleet-script change prepared in `integration/`
 - [ ] M3 meow + nineLives: alerts, litters, quiet hours, outside heartbeat
-- [ ] M4 glare + binocs + disks: Gatus, Scrutiny, tunnel, speedtest, upstream releases
+- [ ] M4 glare + binocs + disks + vitals: Gatus, Scrutiny, tunnel, speedtest, upstream releases, vitals history and sparklines (A13)
 - [ ] M5 pounce + whiskers: kitten file events, Home Assistant, the scentTrail view
 - [ ] M6 Into the fleet: prepared in `integration/` with `ROLLOUT.md`; deployed by the owner
+
+---
+
+## 2026-10-02 — Owner's decisions after M1: pull requests, htmx in M2, vitals in M4
+
+**Context.** M1's pull request (#1) was verified independently before the owner merged it, and
+left decisions for the owner. The owner asked what Claude would decide, then approved the
+recommendations below ("your decisions look good") after merging #1.
+
+**Verified before the merge** (Claude in chat, 2026-10-02, independent of the M1 entry's own
+evidence):
+- `scripts\test.ps1` on `ab311b0` in a separate clean checkout (`git worktree`, since removed):
+  ruff clean, **296 passed**, kitten 4 + 4 OK (3.13, 3.14), Playwright **30 passed, 0 failed**,
+  summary ok × 6. The real-socket drill (`tests/ui/budget.py` in `persian-perch:ui-test`): every
+  step ok, VmRSS 59.1 MB of 300, leak check "nothing found" in 11 places, exit 0.
+- gitleaks 8.30.1 (an independent scanner) over the PR's 17 commits: **no leaks**. Over the full
+  history and tree: one hit, a false positive: `tests/test_scrub.py` line 49, the scrubber's
+  deliberate fake `Authorization: Basic` value (decodes to `fake:fakefake`).
+- All 17 commits, as on GitHub: author and committer `jyotirmoy.github@jyotirmoy.cc`.
+- Komodo v2.3.2's own source (`moghtech/komodo`, tag `v2.3.2`): `ListContainers`,
+  `ListAllContainers` and `ListServers` exist, `ListDockerContainers` doesn't: the adapter's
+  reading is right. `httpx2` (ADR 0002) checked on PyPI and GitHub: `pydantic/httpx2`, Tom
+  Christie, ~200 M downloads a month.
+
+**Decided** (the owner's decisions, Claude's reasons).
+- **Merge with a merge commit, never squash or rebase.** Runbook entries cite commit hashes as
+  evidence (`4c02312`, `4ec6fb6`, `5342c65`, ...); both other methods rewrite them. The owner
+  merged #1 that way (`ad87ef5`).
+- **Pull requests are the rule** (AGENTS.md §5, 05 plan A2, step 7). The owner switched M1 to a
+  PR mid-run, but A2 still said `git push origin main`, so the next builder would have pushed to
+  `main`. Now: branch → gate → pre-push checks → push the branch → PR → stop; only the owner
+  merges. This change itself goes in by PR.
+- **htmx 2.0.11, vendored, as M2's first task** ([ADR 0003](docs/adr/0003-htmx-vendored.md),
+  05 plan A12). 0BSD, so it may be committed to the public repo; served by perch, never a CDN;
+  pinned by SHA-256 `d6fdc75f…f717` (checked against npm's integrity hash); 30 s polling of the
+  state regions; SSE waits for M5. Not 4.0: npm tags it `next`.
+- **Vitals history and sparklines in M4** with the disks (design plan §3.5 addendum, 05 plan
+  A13): `vitals5m` for 7 days, `vitalsHour` for 400; inline SVG drawn on the server, in
+  `--muted` (colour still means state). M4's gate grows to prove downsampling, retention and size.
+- **Komodo's unverified details** (`ListServers {}`, `ServerState` spelling) stay M6 drill items:
+  only the real Komodo can settle them, and a failure there shows `unknown`, never a false hiss.
+- **M2's go-ahead** is given, effective once this pull request is merged.
+
+**Done.** `AGENTS.md` §5; `docs/05-autonomous-build-plan.md` A2, A12, A13, §4 step 7, the M2 and
+M4 scope and gates; `docs/02-design-plan.md` §3.5; `docs/adr/0003-htmx-vendored.md`; this entry
+and the Backlog. On branch `docs/owner-decisions-m2`.
+
+**Verified (this change).** `scripts\test.ps1` on roastery, 2026-10-02: the first run failed
+S6 (`test_S6_no_unlisted_hostnames_in_tracked_files`) on this entry's own text, which named the
+commit email's bare domain; reworded to the full allowed address, not by loosening the test.
+Second run: ruff clean, 296 passed, kitten OK × 2, Playwright 30 passed, summary ok × 6.
+
+**Not done / next.**
+- [ ] Owner: merge the pull request for `docs/owner-decisions-m2` (merge commit) (owner)
+- [ ] Builder: M2, starting with htmx per ADR 0003, on its own branch (agent)
+- [ ] Owner: the commit-email domain question in the Backlog (owner)
+
+— Claude (chat, Opus 5.5), for the owner
 
 ---
 

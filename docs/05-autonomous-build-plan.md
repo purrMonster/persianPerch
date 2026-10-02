@@ -48,7 +48,7 @@ Answer in the last column (`A`, `yes`, or pasted output). ★ = recommended.
 | # | Change |
 |---|---|
 | A1 (Q1) | First commit of the build: the baseline (`README.md`, `docs/04-build-prompt.md`, `AGENTS.md`, `CLAUDE.md`, `runbook.md`, this plan, `secrets.env`), added by name, before any M0 code. |
-| A2 (Q2, Q3, Q6) | At each milestone: gate green → AGENTS.md §5 pre-push checks (author/committer emails, the diff read through for domain/secrets, tests) → `git push origin main` → runbook entry → **stop and wait for the owner's go-ahead**. 04 rule 5 is amended accordingly. Never force-push. |
+| A2 (Q2, Q3, Q6) | At each milestone, on its own branch: gate green → AGENTS.md §5 pre-push checks (author/committer emails, the diff read through for domain/secrets, tests) → runbook entry → **push the branch and open a pull request into `main`** → **stop and wait for the owner**, who merges with a merge commit and gives the next go-ahead. Never push to `main`, never force-push. *(Amended 2026-10-02: was "`git push origin main`"; the owner switched to pull requests during M1.)* 04 rule 5 is amended accordingly. |
 | A3 (Q4, Q5) | The builder is **Claude Code on roastery** (PowerShell, working dir = this folder, so `CLAUDE.md` loads automatically). Pre-flight adds two checks that must pass before M0, else stop and report (never work around them): `docker info` works (the toolchain is containers only), and `git ls-remote origin` works (push access over SSH). The agent never asks for, creates or copies SSH keys or tokens, never runs with permission prompts skipped, and asks before any command outside this folder (AGENTS.md rule 1). |
 | A4 (Q7) | roastery doesn't sleep during the build; the 01:20–04:00 quiet hours for heavy work still apply. The owner restores sleep after M6-prep (a Backlog item). |
 | A5 (Q9) | **A Windows kitten on roastery**, same zipapp as the Linux one, run by roastery's existing Python (3.14; no install) as a Scheduled Task at startup, restarted on wake. The kitten code is stdlib-only and must pass its tests on 3.13 **and** 3.14. On Windows, file events are polled (few paths, 10 s), not `inotifywait`. Heartbeat is sleep-aware (C5): silent outside the wake window = slowBlink. Default roastery pounce path: `C:\purrbrews\restic\snapshots` (a new snapshot arrived → earTwitch), not the whole repository (restic writes thousands of files). Install and task scripts are ASCII-only PowerShell, in `integration/roastery/`, following [roastery's scripts][FC-roastery]. Its token comes from roastery's own secrets flow ([setup-secrets.ps1][FC-rsecrets]). roastery's IP (`ROASTERY_LAN_IP` in fleet.env) joins the kitten router's allow-list (C1); fleet.env notes it has no DHCP reservation yet, so ROLLOUT.md checks it. |
@@ -58,6 +58,8 @@ Answer in the last column (`A`, `yes`, or pasted output). ★ = recommended.
 | A9 (Q15) | kitten targets Python 3.13 on Debian 13.7 (C11 confirmed). |
 | A10 (Q16) | `/var/lib/purrbrews/` holds only `drive-sync.ok`, so every groom record is new. The recorder (root) writes `/var/lib/purrbrews/groom/<job>/<start>.json` as `0644` in a `0755` directory, so kitten runs as an unprivileged `kitten` user with read access only. |
 | A11 (Q8) | **Acknowledge from the page and from the push.** Page: `POST /ack/{litterId}` behind Authelia, with a CSRF token. Push: meow adds an ntfy `http` action button that calls `POST /ack/t/{token}` on a separate Traefik router that bypasses Authelia for that one path only. The token is an HMAC-SHA256 (key `PERCH_ACK_SECRET`) over litterId + expiry; it is **single-use** (spent tokens stored in scentTrail), expires after 24 h or when its litter clears, and can do exactly one thing: mark that litter acknowledged (stop repeats). A new hiss still alerts. Rate limit on the path: 10 requests/min. The button goes only on pushes through the self-hosted ntfy, never on the ntfy.sh critical copy (a third party would see the link). It works only where the phone reaches `perch.${DOMAIN}`: on the LAN, or on the tailnet once the phone joins it (a fleet Backlog item; ROLLOUT.md says so). Amends 04 rule 4: the only write endpoints are `/api/kitten`, `POST /ack/{litterId}` and `POST /ack/t/{token}`, all writing to perch's own DB only. |
+| A12 (owner, 2026-10-02) | **htmx 2.0.11, vendored, as M2's first task** ([ADR 0003](adr/0003-htmx-vendored.md)). Served by perch from `perch/windowsill/static/vendor/htmx-2.0.11.min.js`, never a CDN; a test checks its SHA-256. Pages poll at purr's rhythm (30 s) with `hx-trigger="every 30s"` on the state regions, not whole-page reloads. The SSE extension waits for M5. Not htmx 4: npm still tags it `next`. |
+| A13 (owner, 2026-10-02) | **Vitals history and sparklines in M4**, with the disks (design plan §3.5): one `vitals` table, 5-minute averages for 7 days and hourly for 400 days; server-rendered inline SVG, no chart library. Until M4, the overview mockup's sparklines are spec for M4, not M2/M3 work. |
 
 ## 2. Corrections to the spec (apply without asking; record each)
 
@@ -125,7 +127,8 @@ docker compose -f tests/ui/compose.yml up --abort-on-container-exit --exit-code-
 5. Commit only when green: `<area>: <what>`, a why line, the `Co-Authored-By` trailer.
    Never commit red. Never `git add -A`: add the files you changed by name.
 6. At each milestone gate and each decision: a runbook entry with the real command output.
-7. At a green gate: A2 (pre-push checks, push, report, stop for the go-ahead). If the
+7. At a green gate: A2 (pre-push checks, push the branch, open the pull request, report,
+   stop for the owner). If the
    milestone touched `perch/windowsill/` or `mockups/`, the gate also needs the
    web-design-guidelines review of every changed UI file, pasted into the runbook entry
    with each finding fixed or explained (AGENTS.md §3.1, `docs/06-design-system.md` §7).
@@ -153,12 +156,16 @@ app → node → fleet, overview and catTree app pages with live state, rhythms 
 *Gate:* in a test with a fake clock, `grinder/n8n` exited → app, grinder and fleet hiss
 within two purr cycles; restored → slowBlink; roastery asleep outside its window → slowBlink.
 
-**M2 Grooming.** groom record schema (design §4.2 + C3), the recorder per A8 in
+**M2 Grooming.** *First:* htmx 2.0.11 vendored per A12 and ADR 0003 (the file, its SHA-256
+test, 30 s polling on the overview, node and app pages; the web-design-guidelines review
+covers it). Then: groom record schema (design §4.2 + C3), the recorder per A8 in
 `integration/groom/`, kitten v0 (heartbeat, record shipping, per-node token; Linux and
 Windows per A5), `/api/kitten` (S3), the grooming grid, copies panel (Drive copy age from
 `drive-sync.ok`, morning check, verify), rhythms from the repo (C4).
 *Gate:* a fixture night with one node's record missing → only that cell hisses at 04:30
-fake time; every other cell slowBlink.
+fake time; every other cell slowBlink. And: the vendored htmx matches its pinned SHA-256,
+and in Playwright a state change appears on an open overview within 35 s without a full
+page reload (focus and scroll position kept).
 
 **M3 meow + nineLives.** Routing per A6 and A7, litters, dedupe, quiet hours
 (23:00–07:00, hiss exempt), recovery messages, acknowledge per A11 (page and signed push
@@ -168,11 +175,15 @@ time.
 acknowledges once, and a replayed, expired or tampered token gets 403 (S9); perch stopped →
 the fake healthchecks endpoint receives no ping; a 50-event storm → ≤ 10 pushes.
 
-**M4 glare + binocs + disks.** Gatus statuses (auth per A8), Scrutiny summary with SMART
+**M4 glare + binocs + disks + vitals.** Gatus statuses (auth per A8), Scrutiny summary with SMART
 attribute 9 preferred over the summary's power-on hours, binocs: tunnel via Gatus (C7),
-speedtest (C8), upstream releases weekly (earTwitch only).
+speedtest (C8), upstream releases weekly (earTwitch only). Vitals history per A13 and design
+plan §3.5: the `vitals` table, its downsampling and retention, and the overview and node
+sparklines as server-rendered inline SVG (CPU, RAM, disk).
 *Gate:* the overview shows glare and disk state from fixtures; a test proves attribute 9
-wins when the summary disagrees.
+wins when the summary disagrees. And: with a fake clock, 8 days of 30 s samples leave
+exactly 7 days of 5-minute rows plus hourly rows; the database stays under 20 MB at 400
+days of 6 nodes; sparklines render with no console errors and have a text alternative.
 
 **M5 pounce + whiskers.** kitten pounce via `inotifywait` on Linux and polling on Windows
 (A5), 2 s debounce, 60 events/min per path then one storm tailFlick; default paths = design

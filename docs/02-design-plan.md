@@ -115,6 +115,29 @@ Every watched thing declares when it's next expected. Missing it is an event:
 | kitten heartbeat | every 60 s | 3 min | 10 min |
 | glare check | per Gatus interval | 2 fails | 5 fails |
 
+### 3.5 Vitals history (addendum, owner's decision 2026-10-02; built in M4)
+
+The first plan had no metrics store, so the overview mockup's sparklines had nowhere to come
+from (found in M1). It stays one SQLite file, not a time-series database (§2.3 still holds).
+
+| Table | Row | Kept |
+|---|---|---|
+| `vitals5m` | node, 5-minute bucket start, CPU %, RAM %, root-disk % (each the bucket's average, plus max for disk) | 7 days |
+| `vitalsHour` | node, hour start, the same averages and the hour's max | 400 days (same as event rollups) |
+
+- **Written by purr** from the `ListServers` stats it already reads every 30 s: samples are
+  averaged in memory and one row per node is written per 5 minutes; the hourly job rolls
+  5-minute rows up and deletes what has aged out. No raw 30 s rows are stored.
+- **Size:** at 6 nodes, at most ~12,100 five-minute rows and ~57,600 hourly rows: a few MB.
+- **Shown as** sparklines on the overview's node cards (24 h, from `vitals5m`) and on node
+  pages (7 days from `vitals5m`, 90 days from `vitalsHour`), drawn on the server as inline
+  SVG in `--muted`, with a text alternative ("RAM 24 h: 41-63 %, now 58 %"). Colour still
+  means state only (`docs/06-design-system.md` §2): a sparkline never turns red; a breached
+  threshold shows as the usual badge.
+- **Unlocks later:** "sustained" CPU/RAM rules (e.g. RAM > 90 % for 15 min), which M1 left
+  out because there was no history. Not part of M4 unless the owner asks.
+- A gap (Komodo down, perch stopped) is a gap in the line, never interpolated.
+
 ## 4. The senses in detail
 
 ### 4.1 purr (containers, node vitals)
