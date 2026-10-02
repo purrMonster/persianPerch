@@ -1,4 +1,4 @@
-{% from "_macros.html" import badge, dot, note, meter, asOf, liveSeen %}
+{% from "_macros.html" import badge, dot, mark, note, meter, asOf, liveSeen %}
 {%- set own = status.nodeState(node.name) %}
 {%- set v = status.vitals(node.name) %}
 {%- set flag = status.nodeNote(node.name) %}
@@ -19,7 +19,7 @@
 <div class="card" style="margin-bottom:16px"><h2>Apps <span class="faint">node.conf order</span></h2>
   {%- if node.apps %}
   <div class="tablewrap"><table><thead><tr><th><span class="sr">bodyLanguage</span></th><th>app</th><th>state</th><th class="hide-sm">images</th></tr></thead><tbody translate="no">
-  {%- for a in node.apps %}{% set st = status.appState(node.name, a.name) %}<tr><td style="width:22px">{{ dot(status.app(node.name, a.name)) }}</td><th scope="row" class="mono"><a id="app-{{ a.name }}" href="/tree/{{ node.name }}/{{ a.name }}">{{ a.name }}/</a></th><td class="muted">{% if not status.watched(a) %}no containers{% elif st %}{{ st.title }}{% else %}no data yet{% endif %}</td><td class="mono muted hide-sm">{{ a.images|join(', ') or 'none' }}</td></tr>{% endfor %}
+  {%- for a in node.apps %}{% set st = status.appState(node.name, a.name) %}<tr><td style="width:22px">{{ mark(status.app(node.name, a.name)) }}</td><th scope="row" class="mono"><a id="app-{{ a.name }}" href="/tree/{{ node.name }}/{{ a.name }}">{{ a.name }}/</a></th><td class="muted">{% if not status.watched(a) %}no containers{% elif st %}{{ st.title }}{% else %}no data yet{% endif %}</td><td class="mono muted hide-sm">{{ a.images|join(', ') or 'none' }}</td></tr>{% endfor %}
   </tbody></table></div>
   {%- else %}<p class="empty"><span class="mono" translate="no">node.conf</span> lists no apps for this node.</p>{% endif %}
 </div>

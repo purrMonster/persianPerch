@@ -30,6 +30,29 @@ WAIT_MS = 35_000
 failures: list[str] = []
 
 
+# In the page: for each judged cell in the grid, is its glyph really drawn (text, size, shown), and how
+# does its colour compare with the disc it sits on (the WCAG relative-luminance formula)?
+GLYPH_CHECK = r"""() => {
+  const rgb = c => c.match(/[\d.]+/g).slice(0, 3).map(Number);
+  const lum = c => { const [r, g, b] = rgb(c).map(v => {
+      v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; });
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+  const ratio = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
+  const hidden = []; let lowest = 99;
+  const cells = [...document.querySelectorAll('table.nights a.cell')].filter(a => a.offsetParent !== null);
+  for (const a of cells) {
+    const disc = a.querySelector('.dot'), glyph = a.querySelector('.dot i');
+    const box = glyph ? glyph.getBoundingClientRect() : null;
+    const shown = glyph && glyph.textContent.trim() !== '' && glyph.getAttribute('aria-hidden') === 'true'
+      && box.width >= 4 && box.height >= 8 && getComputedStyle(glyph).visibility === 'visible'
+      && getComputedStyle(glyph).opacity !== '0';
+    if (!shown) { hidden.push(a.getAttribute('title')); continue; }
+    lowest = Math.min(lowest, ratio(getComputedStyle(glyph).color, getComputedStyle(disc).backgroundColor));
+  }
+  return { cells: cells.length, hidden, lowest: Math.round(lowest * 10) / 10 };
+}"""
+
+
 def check(name: str, ok: bool, detail: str = "") -> None:
     print(f"{'ok  ' if ok else 'FAIL'} {name}{'  ' + detail if detail and not ok else ''}")
     if not ok:
@@ -186,6 +209,18 @@ def main() -> int:
                     "restic: repository unreachable" in groomPage.content(),
                 )
                 check(f"groom grid at {view}: no console errors", not problems, str(problems))
+                glyphs = groomPage.evaluate(GLYPH_CHECK)
+                check(f"groom grid at {view}: there are judged cells to check", glyphs["cells"] > 0, str(glyphs))
+                check(
+                    f"groom grid at {view}: every judged cell has a visible glyph (shape, not only colour)",
+                    glyphs["cells"] > 0 and not glyphs["hidden"],
+                    str(glyphs["hidden"]),
+                )
+                check(
+                    f"groom grid at {view}: each glyph is at least 4.5:1 against its fill (lowest {glyphs['lowest']})",
+                    glyphs["cells"] > 0 and glyphs["lowest"] >= 4.5,
+                    str(glyphs["lowest"]),
+                )
                 shot.close()
         browser.close()
     print(f"live: {'FAILED' if failures else 'all ok'}")

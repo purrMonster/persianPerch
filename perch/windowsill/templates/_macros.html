@@ -7,6 +7,11 @@
 {%- set bl = level|bl -%}
 <span class="dot bl-{{ bl.value }}" title="{{ bl.value }}: {{ bl.meaning }}" role="img" aria-label="{{ bl.value }}"></span>
 {%- endmacro %}
+{# a state shown with no level word beside it: the level's glyph, coloured (never colour alone, docs/06 7 rule 2) #}
+{% macro mark(level) -%}
+{%- set bl = level|bl -%}
+<span class="mark bl-{{ bl.value }}" title="{{ bl.value }}: {{ bl.meaning }}" role="img" aria-label="{{ bl.value }}"><i aria-hidden="true">{{ bl.icon }}</i></span>
+{%- endmacro %}
 {# a line about something that is off: the word is for screen readers, the icon and colour repeat it #}
 {% macro note(level, text) -%}
 {%- set bl = level|bl -%}

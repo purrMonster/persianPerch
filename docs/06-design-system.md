@@ -78,7 +78,14 @@ Checked with the WCAG relative-luminance formula on 2026-10-01; recheck when a t
 | `--code-text` / `--code-muted` on `--code-bg` | 17.0 / 8.2 | 15.8 / 7.6 | 4.5 |
 | `.note` text (`--text`) and `.note.muted` (`--muted`) on `--panel` | 16.2 / 5.8 | 15.8 / 7.2 | 4.5 |
 | a vitals bar fill (`--muted` / `--tailFlick` / `--hiss`) on its track (`--line` at 70 % over `--panel`) | 5.0 / 5.3 / 5.2 | 5.9 / 6.8 / 4.7 | 3 (1.4.11, and the number beside it carries the value) |
+| a grooming-grid glyph (`--bg`) on its level's fill: slowBlink / earTwitch / unknown / tailFlick / hiss | 6.1 / 6.8 / 6.1 / 6.7 / 6.6 | 8.3 / 7.3 / 6.3 / 8.9 / 6.2 | 4.5 (1.4.3; the shape itself needs 3, 1.4.11) |
+| a `.mark` glyph (a bodyLanguage colour, no fill) on `--bg` / `--panel` / `--panel2`, worst case per level | 6.1 / 5.7 / 5.1 (slowBlink, unknown) to 6.8 / 6.3 / 5.7 (earTwitch) | 6.2 / 5.7 / 5.1 (hiss) to 8.9 / 8.3 / 7.3 (tailFlick) | 4.5 |
 | a `.note` icon (a bodyLanguage colour) on `--panel` | decorative: `aria-hidden`, the sr-only word carries it; at least the badge ratios above | same | none |
+
+Measured 2026-10-02 (M3, the glyphs): chosen so no pair under 4.5. The grid keeps its **fill** (a failed night
+should still be red at a glance) and puts the glyph on it in `--bg`, which flips with the theme (near-white on the
+dark fills of light mode, near-black on the light fills of dark mode); a coloured glyph with no fill was kept for
+lists, where there is no cell to fill (`.mark`).
 
 Fixed in the 2026-10-01 rework (were failing): white on coral 3.28 → `--accent-fill` 4.8;
 control edges on `--line` 1.34 → `--control` 3.6; `--faint` on `--panel2` 4.21 → 4.8.
@@ -104,7 +111,12 @@ renders the same with no network.
   coral 2 px bar.
 - **Badge (bodyLanguage):** icon + word + colour, always all three; tinted 10 % background,
   30 % border. The fleet badge reads `fleet: hiss`.
-- **Dot:** state only, with `role="img"` and an `aria-label`. Never decorative.
+- **Dot:** state only, with `role="img"` and an `aria-label`. Never decorative. Only **beside a word that
+  says the state** (the strip's counts, the filter chips, a note, the header pill, "nineLives" in the footer).
+  A state with no level word beside it is a **mark** instead.
+- **Mark (`.mark`, M3):** the level's glyph (· ◦ ~ ! ?, the badges' own) in the level's colour, no fill, 14 px bold,
+  `role="img"` with the level as its label, the glyph `aria-hidden`. Used in the tree and its sidebar, the node
+  page's app rows, the overview's last-night rows and the copies panel.
 - **Card:** `--panel`, `--line` hairline, 12 px radius, 20 px padding. Use cards only when
   they group; otherwise hairlines or space.
 - **Strip:** the overview's counts in one band divided by hairlines, not four cards.
@@ -137,7 +149,7 @@ renders the same with no network.
   nothing new sends no sentence); the foot of the region says what time the state is from. Pages
   work with JavaScript off: they show the state as of load.
 - **Grooming grid (`table.nights`, M2):** one row per job (`node job`, row header), one column per night
-  (the day number, oldest to newest, the last 5 on a phone, so today is never off-screen), one dot per judged cell. The dot is a link
+  (the day number, oldest to newest, the last 5 on a phone, so today is never off-screen), one disc per judged cell, **with the level's glyph on it** (`--bg` on the fill, §4; the glyph is `aria-hidden`, the label says it all). The disc is a link
   to that run (`a.cell`, 28 px, the dot is `role="img"` with the job, night and state in its label);
   a night with nothing to judge is a faint dash (with its reason in the title and label), a night the
   timer doesn't fire is empty. Problems are listed in words under the grid, so colour is never alone.
@@ -151,7 +163,9 @@ renders the same with no network.
 From web-design-guidelines, applied to this product; a reviewer checks these.
 
 1. Every new colour pair is added to §4 with its measured ratio, both themes.
-2. Severity is never colour alone: icon + word + colour.
+2. Severity is never colour alone: icon + word + colour. Where there is no room for the word (a grid cell, a row
+   with only a name), the **glyph** goes on or instead of the dot: a bare coloured dot is not allowed (M3).
+   Playwright checks the grid: every judged cell has a visible glyph at 4.5:1 against its fill.
 3. Focus: `:focus-visible` ring, never removed without a replacement; skip link stays.
 4. Semantics before ARIA: `<a>` navigates, `<button>` acts, breadcrumbs are
    `<nav aria-label="Breadcrumb">`, headings don't skip levels.

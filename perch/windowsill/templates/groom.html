@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import badge, dot, note %}
+{% from "_macros.html" import badge, dot, mark, note %}
 {% block title %}groom{% endblock %}
 {% block main %}
 <div class="pagehead">
@@ -28,7 +28,7 @@
       <td{% if loop.revindex > 5 %} class="hide-sm"{% endif %}>
       {%- if c is none %}<span class="sr">not scheduled</span>
       {%- elif c.level is none %}<span class="nodash" role="img" title="{{ c.text }}" aria-label="{{ job.node }} {{ job.name }} {{ d.strftime('%d %b') }}: {{ c.text }}">-</span>
-      {%- else %}<a class="cell" href="/groom?nights={{ nights }}&amp;cell={{ job.key }}@{{ d.isoformat() }}#run" title="{{ job.node }} {{ job.label }}, {{ d.strftime('%d %b') }}: {{ c.text }}"{% if picked and picked[0] is sameas job and picked[1] == d %} aria-current="true"{% endif %}><span class="dot big bl-{{ c.level.value }}" role="img" aria-label="{{ c.level.value }}: {{ job.node }} {{ job.label }}, {{ d.strftime('%d %b') }}, {{ c.text }}"></span></a>
+      {%- else %}<a class="cell" href="/groom?nights={{ nights }}&amp;cell={{ job.key }}@{{ d.isoformat() }}#run" title="{{ job.node }} {{ job.label }}, {{ d.strftime('%d %b') }}: {{ c.text }}"{% if picked and picked[0] is sameas job and picked[1] == d %} aria-current="true"{% endif %}><span class="dot big bl-{{ c.level.value }}" role="img" aria-label="{{ c.level.value }}: {{ job.node }} {{ job.label }}, {{ d.strftime('%d %b') }}, {{ c.text }}"><i aria-hidden="true">{{ c.level.icon }}</i></span></a>
       {%- endif %}</td>
     {%- endfor %}
     </tr>
@@ -65,7 +65,7 @@
   <div class="card"><h2>Copies</h2>
     <ul class="copies" role="list" style="list-style:none;margin:0;padding:0">
     {%- for c in copies %}
-      <li class="row" style="align-items:flex-start;padding:8px 0;border-top:1px solid var(--line)">{{ dot(c.level) }}
+      <li class="row" style="align-items:flex-start;padding:8px 0;border-top:1px solid var(--line)">{{ mark(c.level) }}
         <div class="body"><strong>{{ c.name }}</strong><div class="muted small">{{ c.text }}</div><div class="faint small">{{ c.note }}</div></div></li>
     {%- endfor %}
     </ul>

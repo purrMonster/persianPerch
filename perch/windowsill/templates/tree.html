@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import badge, dot %}
+{% from "_macros.html" import badge, mark %}
 {% block title %}catTree{% endblock %}
 {% block main %}
 <div class="grid cols-tree" style="gap:24px">
@@ -13,10 +13,10 @@
     <div class="grid cols-cards">
     {%- for node in fleet.nodes %}
       <div class="card" id="node-{{ node.name }}">
-        <div class="row between"><div class="row">{{ dot(status.node(node.name)) }}<a href="/tree/{{ node.name }}" translate="no"><strong>{{ node.name }}/</strong></a></div><span class="mono muted small">{{ node.ip }}</span></div>
+        <div class="row between"><div class="row">{{ mark(status.node(node.name)) }}<a href="/tree/{{ node.name }}" translate="no"><strong>{{ node.name }}/</strong></a></div><span class="mono muted small">{{ node.ip }}</span></div>
         <div class="muted small" style="margin:6px 0 12px">{{ node.role }}</div>
         <div class="mono tree" translate="no">
-        {%- for a in node.apps %}<div>{{ dot(status.app(node.name, a.name)) }} <a href="/tree/{{ node.name }}/{{ a.name }}">{{ a.name }}/</a></div>{% endfor -%}
+        {%- for a in node.apps %}<div>{{ mark(status.app(node.name, a.name)) }} <a href="/tree/{{ node.name }}/{{ a.name }}">{{ a.name }}/</a></div>{% endfor -%}
         </div>
         {%- if node.extras %}<div class="faint small" style="margin-top:10px">Also in the repo: {% for a in node.extras %}<a href="/tree/{{ node.name }}/{{ a.name }}" class="mono" translate="no">{{ a.name }}/</a>{{ ', ' if not loop.last }}{% endfor %}</div>{% endif %}
       </div>

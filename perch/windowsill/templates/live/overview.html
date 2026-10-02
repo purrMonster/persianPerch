@@ -1,4 +1,4 @@
-{% from "_macros.html" import badge, dot, event, note, meter, asOf, liveSeen %}
+{% from "_macros.html" import badge, dot, mark, event, note, meter, asOf, liveSeen %}
 {%- set counts = status.counts() %}
 {%- set attention = status.attention() %}
 {%- set pill = purrPill(status) %}
@@ -49,7 +49,7 @@
       <p class="row small" style="margin:0 0 8px">{{ badge(lastLevel, 'last night: ' ~ lastOk ~ ' of ' ~ lastNight|length) }}</p>
       <ul class="feed" role="list">
       {%- for job, cell in lastNight if cell.level.rank > BodyLanguage.slowBlink.rank %}
-        <li class="row small">{{ dot(cell.level) }}<span><span class="mono" translate="no">{{ job.node }}</span> <span class="muted">{{ job.label }}: {{ cell.text }}</span></span></li>
+        <li class="row small">{{ mark(cell.level) }}<span><span class="mono" translate="no">{{ job.node }}</span> <span class="muted">{{ job.label }}: {{ cell.text }}</span></span></li>
       {%- else %}
         <li class="muted small">Every watched node's backup ran on time.</li>
       {%- endfor %}
