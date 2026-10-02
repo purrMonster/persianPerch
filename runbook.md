@@ -6,7 +6,7 @@ changes can be made later without re-deriving the reasoning. How to write entrie
 
 ## In progress
 
-- Claude Code (Sonnet 5.5) · M1 First purr, to its 05 plan §5 gate (worktree branch `claude/m1-autonomous-build-788b18`) · since 2026-10-01 14:00
+- (nobody)
 
 ## Backlog / open items
 
@@ -18,12 +18,173 @@ changes can be made later without re-deriving the reasoning. How to write entrie
 - [x] M0 Litter: scaffolding, scentTrail, catTree, windowsill skeleton (2026-09-30, gate green on roastery, M0 entry)
 - [x] Owner's go-ahead for M1 (05 plan A2): given in chat 2026-10-01, after approving the design rework's screenshots and mockups
 - [ ] CI: `ci/github-actions-ci.yml` is ready but inactive; move it to `.github/workflows/ci.yml` if you want GitHub Actions on the public repo (owner; M0 entry)
-- [ ] M1 First purr: containers and vitals via Komodo's read API (faked), rollups, overview and catTree pages
+- [x] M1 First purr: containers and vitals via Komodo's read API (faked), rollups, overview and catTree pages (2026-10-02, gate green on roastery, M1 entry; pull request open)
+- [ ] Owner: review and merge the M1 pull request, then `git pull` the main checkout (M1 entry)
+- [ ] Owner: decide on vendoring htmx for live refresh; it needs a third-party file (M1 entry; needed by M3 and M5)
+- [ ] Vitals history and sparklines (mockup 01): needs a metrics table the design plan lacks (owner and agent; M1 entry)
+- [ ] M6 `ROLLOUT.md` drills: stop a container on grinder, hiss within 60 s; `ListServers {}` and `ServerState` spelling against the real Komodo 2.3.2; roastery in and out of its window (M1 entry)
 - [ ] M2 Grooming: groom records, kitten v0, the backup grid; fleet-script change prepared in `integration/`
 - [ ] M3 meow + nineLives: alerts, litters, quiet hours, outside heartbeat
 - [ ] M4 glare + binocs + disks: Gatus, Scrutiny, tunnel, speedtest, upstream releases
 - [ ] M5 pounce + whiskers: kitten file events, Home Assistant, the scentTrail view
 - [ ] M6 Into the fleet: prepared in `integration/` with `ROLLOUT.md`; deployed by the owner
+
+---
+
+## 2026-10-02 — M1 First purr: purr, rollups, live overview and catTree pages; gate green
+
+**Context.** The owner gave the go-ahead for M1 (entry below, 2026-10-01) and asked Claude Code to
+run the pre-flight incl. the A3 checks, claim M1, build it to its 05 plan §5 gate, review every
+changed UI file with web-design-guidelines and put the findings here, then do A2. Midway the owner
+changed the last step: **open a pull request instead of pushing to `main`**, and asked for an extra
+pass to confirm nothing leaks a secret. Built on roastery in a git worktree (branch
+`claude/m1-autonomous-build-788b18`, made by the desktop app), 2026-10-01 14:00 to 2026-10-02, outside
+the 01:20-04:00 quiet hours, with three usage-limit pauses (the UI review workflow was resumed twice).
+
+**Pre-flight (05 plan §3, A3), 2026-10-01 14:00 IST, all passed:**
+```
+docker info --format '{{.ServerVersion}}'  -> 29.7.2
+git status --short --branch                -> ## claude/m1-autonomous-build-788b18   (clean)
+git log --oneline -5                       -> da32ada agents: UI work follows the three design skills ...
+git config user.email                      -> jyotirmoy.github@jyotirmoy.cc
+git ls-remote origin                       -> 82a01bc7...  HEAD / refs/heads/main   (exit 0)
+.claude/skills/                            -> design-analysis, design-taste-frontend, web-design-guidelines
+```
+`/skills` isn't available in the desktop app: the three skills are in the session's skill list and on
+disk, and were read in full before any UI work. The pinned fleet repo was cloned at `f94efdf`.
+
+**Decided** (the reasons; alternatives that lost in brackets).
+- **The Komodo API, read from v2.3.2's own source** (`moghtech/komodo`, tag `v2.3.2`), not from memory:
+  `POST /read {"type","params"}` with `x-api-key` / `x-api-secret`; `ListServers` (state, and CPU, RAM and
+  disk already in `info.stats`) and **one `ListContainers` per Ok server**. Two traps found: v2.3.0
+  renamed `ListDockerContainers` to `ListContainers`, and `ListAllContainers` pages at 30 by default, which
+  would silently drop containers on a 60-container fleet [`ListAllContainers limit:0`: one call, but one
+  node's failure hides the rest]. The adapter is one module (`perch/senses/komodo.py`) and can only send
+  those two read types.
+- **`httpx2` is the runtime HTTP client** ([ADR 0002](docs/adr/0002-httpx2-for-the-senses.md)); `httpx`
+  isn't in the test image and starlette deprecates it for tests [stdlib `urllib` in threads: no transport to fake].
+- **A hiss must be seen on two consecutive cycles (60 s) before it is written**: "no false hiss for a
+  week" (dev plan M6) matters more than 30 s. A restart loop (3 in 15 min) is already confirmed and isn't held
+  back; recovery is immediate. **Komodo unreachable turns everything `unknown`, never hiss** (design §8),
+  after two failed cycles.
+- **A restart = Docker's rounded uptime goes *down* and is *short* for the same container id**; a new id is
+  a redeploy (a daily `git pull` must not make every app tailFlick). A property test over 1 s to 2 years found
+  a real go-units quirk: for 30 minutes at the 2-year mark Docker prints "1 years" after "24 months". The
+  "short" guard handles it; its regression test fails without the guard.
+- **roastery's window comes from the repo**: wake from `purrbrews-wake-roastery.timer` (01:25), stay-up from
+  roastery's `setup.ps1` (180 min), so 01:25-04:25; plus a **10-minute settle** (the nightly waits up to 10 min
+  for roastery, 05 plan C3) before silence is a hiss. Outside the window it is slowBlink, "asleep, as
+  expected". New setting `PERCH_SLEEPERS` (default `roastery`).
+- **Only disk has thresholds** (85 / 95 %): that is all design 4.1 lists. CPU and RAM show as plain bars;
+  a sustained-RAM rule needs history first.
+- **Pages show state at load time**, with the age of purr's last look in the header ("purr 12 s ago"). **No
+  htmx and no live refresh in M1**: vendoring htmx means downloading a third-party file, which needs the owner's
+  yes (Backlog). **No sparklines**: scentTrail has no metrics store (design plan §3).
+- **Apps with nothing to watch stay out of the rollup** (they'd hold the fleet at `unknown` for ever);
+  **collector states count toward the fleet** ("a watcher that has gone quiet is a problem the fleet has").
+- **What purr stores from Komodo is a short list**: app, image, state, Docker's status text, a label, up time,
+  exit code, health, restarts: never labels, env, commands or mounts. State and event text is scrubbed anyway.
+- The 10-line fix to test infra: in a git worktree `.git` is a file with a host path, so S6 and S8 failed
+  with exit 128 in the test container; `scripts/test.ps1` mounts the main `.git` read-only and sets
+  `PERCH_TEST_GIT_DIR`, which `tests/conftest.py` applies to this project's repo only.
+
+**Done.** `perch/senses/{komodo,purr,dockerStatus}.py`, `perch/{rhythms,collectors,rollup,words}.py`;
+`catTree` knows each app's `container_name`s; scentTrail migration 2 (`state.detail`) and `forget()`;
+windowsill: overview (attention list, node vitals, apps-up, one line about what is off), node pages
+(vitals, per-app state, containers no app owns), app pages (containers), a live header pill, error
+pages; `docs/06` extended; tests: a fake Komodo built from the pinned fleet (`tests/komodoFake.py`),
+fixtures shaped from the real structs, `tests/ui/{seed,budget,dump}.py`.
+
+**Verified** (roastery, 2026-10-02, `powershell -ExecutionPolicy Bypass -File scripts\test.ps1`):
+```
+=== perch: ruff + pytest (3.12)  All checks passed!   296 passed in 56.84s
+=== kitten: unittest (3.13)      Ran 4 tests ... OK
+=== kitten: unittest (3.14)      Ran 4 tests ... OK
+=== windowsill: Playwright       30 passed, 0 failed  (10 pages x 1400 dark, 1400 light, 390 dark;
+                                 scrollWidth never above the viewport; no console errors)
+=== summary                      ok x6
+```
+- **The M1 gate** (05 plan §5), in `tests/test_purr.py` with a fake clock:
+  `test_GATE_n8n_exited_hisses_app_node_and_fleet_within_two_cycles_and_recovers` (n8n exited: held on
+  the 1st look, `app:grinder/n8n`, grinder and the fleet hiss on the 2nd, 60 s; restored: all slowBlink;
+  exactly one hiss event and one recovery event) and
+  `test_GATE_roastery_asleep_outside_its_window_is_slowBlink_not_hiss` (plus: inside the window it is hiss
+  once past the 10-minute settle). 25 more scenario tests cover the rules.
+- **The same drill over a real socket and a real clock**: `docker run ... persian-perch:ui-test python
+  budget.py` (an HTTP server speaking Komodo's API, `python -m perch` pointed at it, 2 s rhythm):
+  ```
+  ok    perch is up, purr has looked: slowBlink
+  ok    n8n stopped: the overview hisses (two cycles)
+  ok    n8n back: the overview is slowBlink again
+  ok    grinder not answering: hiss          ok    grinder back: slowBlink
+  ok    Komodo errors with the credentials in its body: purr is late
+  ok    Komodo answers again: purr is back
+  komodo requests served: 120, with a wrong path or key: 0
+  perch memory: VmRSS 60.1 MB, peak 60.1 MB (budget 300 MB)        <- M0 alone: 39 MB
+  control: the 500 body reached the overview and was masked: True
+  leak check: looked in 11 places (4231 KB): nothing found
+  budget, drill and leak check: ok
+  ```
+- Screenshots (gitignored) in `screenshots/` for every page; looked at by eye in both themes and at
+  390 px. Looking found a real bug the layout check didn't: the node page's Apps table was squeezed to
+  half width by its new column. Fixed, looked at again.
+- **No secret leaks (the extra pass the owner asked for), seven checks:** (1) credential patterns
+  (private keys, AWS/GitHub/Slack tokens, JWTs, ntfy `tk_`, passwords in URLs, long literals) over all
+  tracked files: none outside `tests/`, and inside it only the deliberate `tk_fakefake...` fixture; (2) the
+  same patterns over **every commit's diff on the branch** (all 17, added and removed lines, re-run on the final range with an extra
+  "long literal assigned to a secret-named key" pattern): only the three deliberate fakes
+  (`K-fake-key-...`, `S-fake-secret-...`, the bearer-shaped test string); (3) no tracked
+  `*.env.local`, `*.key`, `authorized_keys`, `*.pem`, settings or browser-tool files; (4) the real domain
+  appears nowhere (S6, and a grep: only the git identity); (5) no local path, username, temp dir or LAN
+  address in anything added; (6) long hex/base64 blobs added: only the fake sequential ids in the Komodo
+  fixture; (7) the runtime drill above, with Komodo echoing the key, the secret and a bearer token: none in
+  perch's stdout/stderr, six pages, `/healthz`, or the SQLite db, wal and shm files. Plus tests: pages and
+  `/healthz` never hold the key or secret, perch's log is scrubbed, `Settings` never prints them.
+  `.playwright-mcp/` (browser-tool output, untracked) is now gitignored.
+
+**web-design-guidelines review** (AGENTS §3.1; guidelines fetched fresh 2026-10-01). Seven independent
+read-only lenses over `_macros`, `base`, `overview`, `node`, `app`, `perch.css` and the view helpers in
+`app.py`, then a skeptical verifier per finding: the guidelines on markup, on node+app, on CSS; the design
+system (docs/06 §3-§7); the taste pre-flight; accessibility of the **rendered** pages; a copy audit.
+**113 findings: 70 real, 31 not applicable, 3 false positives, 9 copy-audit findings the verifiers never
+reached (usage limit), which I judged by hand.** Every real finding was fixed (commits `4ec6fb6`,
+`5342c65`; list in the second one). The ones not applied, with reasons (also in docs/06 §2):
+- *Title Case for headings*: headings in the approved mockups are sentence case; Title Case is for buttons.
+- *Curly apostrophes*: perch's copy and the event text it stores stay straight, so they can be searched,
+  quoted and grepped; typographic quotes are used where perch quotes the repo.
+- *`Intl.DateTimeFormat`*: there is no JavaScript; times are formatted on the server in `PERCH_TZ`.
+- *"6 nodes" vs roastery's own role text "not a fleet node"* (unverified): that text is the fleet repo's;
+  catTree lists every `stacks/<node>` with a `node.conf`.
+- *"disk 88 % full" can wrap at the %*: event text is stored with plain spaces; the UI filters glue
+  numbers and units, the stored sentence doesn't.
+- The 31 not-applicable and 3 false positives were refuted by their verifiers with reasons (kept in the
+  workflow journal, not in the repo); I spot-checked the ones on focus, motion and reduced motion.
+Two M0 bugs came out of it: the "Good afternoon" greeting from 00:00 to 04:59, and an `unknown` tooltip
+that read "unknown: unknown: no data yet".
+
+**Surprises for the next agent.**
+- Komodo's API was read from source and fixtures, **never run against a real Komodo 2.3.2**. Unverified:
+  `ListServers` with `params: {}` (it relies on server-side defaults), and the JSON spelling of `ServerState`
+  (the adapter accepts `Ok`/`NotOk` and `ok`/`not-ok`). Both go on the M6 drill list.
+- In a worktree, tests need `PERCH_TEST_GIT_DIR` (`scripts\test.ps1` sets it). Docker Desktop's bind mount
+  is slow (~55 s suite); the test image can vanish after a Docker restart: the script rebuilds it.
+- A usage-limit pause killed agents in the middle of the review workflow: the run is resumable
+  (`resumeFromRunId`), completed agents are cached, but check the failure list before trusting a count.
+- `.claude/skills/` stays local and gitignored (third-party texts); a fresh checkout has none.
+- This PR carries the owner's four earlier local commits (design rework, docs), not yet on `origin/main`.
+  After it merges, the main checkout's local `main` needs `git pull`.
+
+**Not done / next.**
+- [ ] Owner: review and merge the M1 pull request (the owner asked for a PR, not a push to `main`)
+- [ ] Owner: decide on vendoring htmx for live refresh (a third-party file; needed by M3's Ack and M5's SSE)
+- [ ] Owner / agent: vitals history and sparklines (mockup 01) need a metrics table the design plan lacks
+- [ ] M6 drills for `integration/ROLLOUT.md` (05 plan C12): stop a container on grinder -> hiss within 60 s
+  and back to slowBlink; check `ListServers {}` and the `ServerState` spelling against the real Komodo 2.3.2;
+  roastery inside and outside its 01:25-04:25 window
+- [ ] Optional: sustained CPU/RAM rules once there is history (design 4.1 has only disk)
+- [ ] Agent: M2 Grooming, on the owner's go-ahead after this PR
+
+— Claude (Claude Code, Sonnet 5.5); pre-flight, M1 build, UI review, verification and leak pass by the agent
 
 ---
 

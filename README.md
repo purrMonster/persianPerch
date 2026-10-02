@@ -8,8 +8,9 @@ smart-home events (**whiskers**), endpoints and the outside web (**glare** / **b
 and every backup (**groom**). Severity speaks body language: **slowBlink**, **earTwitch**,
 **tailFlick**, **hiss**.
 
-Status: **building, M0 Litter** (2026-09-30): catTree, scentTrail and the windowsill skeleton
-run; no sense is watching yet. Live status: the runbook's Backlog.
+Status: **building, M1 First purr** (2026-10-01): purr reads Komodo (faked in the tests), states
+roll up app, node, fleet, and the overview and catTree pages show live state; no other sense is
+watching yet. Live status: the runbook's Backlog.
 
 Tests (containers only, on roastery): `powershell -ExecutionPolicy Bypass -File scripts\test.ps1`.
 

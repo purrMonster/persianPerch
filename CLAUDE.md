@@ -77,6 +77,6 @@ it never changes anything.
 
 ## Status
 
-2026-09-29: planning done (ideation, design plan, dev plan, mockups, build prompt, agent
-rules, runbook). No code yet. Next: the build (milestones M0–M5), then M6 prepared for the
-owner to deploy. The runbook's Backlog is the live status.
+2026-10-01: M0 (litter) and M1 (first purr: purr, rollups, live overview and catTree pages)
+are built; the other senses (groom, meow, glare, pounce, whiskers) and M6 are not. The runbook's
+Backlog is the live status.
