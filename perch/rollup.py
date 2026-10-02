@@ -86,6 +86,9 @@ class Status:
         up = sum(1 for a in apps if self.app(nodeName, a.name) in (BodyLanguage.slowBlink, BodyLanguage.earTwitch))
         return up, len(apps)
 
+    def unknownApps(self, nodeName: str) -> int:
+        return sum(1 for a in self._watchedApps(nodeName) if self.app(nodeName, a.name) is BodyLanguage.unknown)
+
     def attention(self) -> list[Attention]:
         """tailFlick and hiss, worst first, then the longest-standing first."""
         items: list[Attention] = []
@@ -97,9 +100,9 @@ class Status:
                 state = self.appState(node.name, app.name)
                 if state and state.bodyLanguage.rank >= BodyLanguage.tailFlick.rank:
                     items.append(self._item(state, f"{node.name}/{app.name}", f"/tree/{node.name}/{app.name}"))
-        for name, state in sorted(self.collectors().items()):
+        for _name, state in sorted(self.collectors().items()):
             if state.bodyLanguage.rank >= BodyLanguage.tailFlick.rank:
-                items.append(self._item(state, f"{name} collector", None))
+                items.append(self._item(state, "", None))  # its title already names it ("purr is late: ...")
         return sorted(items, key=lambda i: (-i.level.rank, i.since))
 
     @staticmethod
@@ -116,7 +119,7 @@ class Status:
         for app in self._watchedApps(nodeName):
             state = self.appState(nodeName, app.name)
             if state and state.bodyLanguage.rank >= BodyLanguage.tailFlick.rank:
-                found.append((state.bodyLanguage, f"{app.name}: {state.title or ''}"))
+                found.append((state.bodyLanguage, f"{app.name} {state.title or ''}".rstrip()))
         if found:
             return max(found, key=lambda item: item[0].rank)  # max keeps the first of equals: the node's own
         if own and (own.detail or {}).get("mode") == "asleep":

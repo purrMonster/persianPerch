@@ -1,7 +1,7 @@
 {# windowsill macros: severity is never colour alone - every badge has an icon and a word. #}
 {% macro badge(level, text=None) -%}
 {%- set bl = level|bl -%}
-<span class="badge bl-{{ bl.value }}" title="{{ bl.value }}: {{ bl.meaning }}"><i aria-hidden="true">{{ bl.icon }}</i>{{ text if text else bl.value }}</span>
+<span class="badge bl-{{ bl.value }}" title="{{ bl.value }}: {{ bl.meaning }}"><i aria-hidden="true">{{ bl.icon }}</i>{% if text and bl.value not in text %}<span class="sr">{{ bl.value }}: </span>{% endif %}{{ text if text else bl.value }}</span>
 {%- endmacro %}
 {% macro dot(level) -%}
 {%- set bl = level|bl -%}
@@ -25,13 +25,13 @@
 {%- endmacro %}
 {% macro event(scent, fleet) -%}
 {%- set bl = scent.bodyLanguage -%}
-<div class="row event bl-{{ bl.value }}">
+<li class="row event bl-{{ bl.value }}">
   <time class="mono muted when" datetime="{{ scent.seenAt|local('%Y-%m-%dT%H:%M:%S%z') }}">{{ scent.seenAt|local('%H:%M:%S') }}</time>
   <div class="stripe" aria-hidden="true"></div>
   <div class="body"><div class="row" style="gap:8px;flex-wrap:wrap">{{ badge(bl) }}<span class="chip static" translate="no" title="{{ SENSE_MEANING[scent.sense] }}">{{ scent.sense }}</span>{{ subjectLink(scent.subject, fleet) }}</div>
   <div class="title">{{ scent.title }}</div>
   {%- if scent.litterId %}<div class="faint small" style="margin-top:2px">litter <span class="mono" translate="no">{{ scent.litterId }}</span></div>{% endif %}</div>
-</div>
+</li>
 {%- endmacro %}
 {% macro subjectLink(subject, fleet) -%}
 {%- set kind, _, rest = subject.partition(':') -%}

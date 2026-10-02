@@ -108,13 +108,24 @@ def test_attention_lists_what_needs_a_look_worst_first(fleet, trail, clock):
     assert items[0].title == "exited (137)" and items[0].since == clock()
 
 
+def test_unknown_apps_of_a_node_are_counted_and_a_collector_row_names_itself(fleet, trail):
+    everythingOk(fleet, trail)
+    trail.setState("app:grinder/n8n", B.unknown)
+    trail.setState("app:grinder/traccar", B.unknown)
+    trail.setState("collector:purr", B.tailFlick, title="purr is late: no successful cycle for 2 min.")
+    status = Status(fleet, trail)
+    assert status.unknownApps("grinder") == 2 and status.unknownApps("sieve") == 0
+    (item,) = [i for i in status.attention() if i.subject == "collector:purr"]
+    assert item.label == "" and item.href is None and item.title.startswith("purr is late")  # the title says it
+
+
 def test_node_note_is_the_one_line_a_node_card_shows(fleet, trail):
     everythingOk(fleet, trail)
     assert Status(fleet, trail).nodeNote("grinder") is None  # all well: nothing to say
     trail.setState("app:grinder/traccar", B.tailFlick, title="is restarting (last exit code 1)")
-    assert Status(fleet, trail).nodeNote("grinder") == (B.tailFlick, "traccar: is restarting (last exit code 1)")
+    assert Status(fleet, trail).nodeNote("grinder") == (B.tailFlick, "traccar is restarting (last exit code 1)")
     trail.setState("app:grinder/n8n", B.hiss, title="exited (code 137)")
-    assert Status(fleet, trail).nodeNote("grinder") == (B.hiss, "n8n: exited (code 137)")
+    assert Status(fleet, trail).nodeNote("grinder") == (B.hiss, "n8n exited (code 137)")
     trail.setState("node:grinder", B.tailFlick, title="grinder: disk 88 % full")
     assert Status(fleet, trail).nodeNote("grinder")[0] is B.hiss  # the worst wins
     trail.setState("node:grinder", B.hiss, title="grinder isn't answering")

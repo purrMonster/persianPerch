@@ -29,12 +29,17 @@ changed?", mostly at a glance, sometimes on a phone.
 | Serif numerals | Iowan Old Style/Charter draw old-style figures that bob in a column. **Counts are tabular sans**, weight 500. |
 | design-taste-frontend is written for landing pages | Its hero, bento, marquee and eyebrow rules don't apply. What does: one accent, one radius scale, full loading/empty/error states, mandatory contrast, the copy audit, no glass on dashboards. Status dots are allowed because each carries real state. |
 | design-analysis is Anthropic's own brand | We borrow its logic (tokens, type split, surfaces). We never use the Anthropic spike mark, the Claude wordmark or Anthropic's licensed fonts (Copernicus, StyreneB); system substitutes below. persianPerch's mark is its own cat on a perch. |
+| web-design-guidelines: "Title Case for headings" | Not adopted for headings: every heading in the mockups the owner approved is sentence case ("Overnight grooming", "Needs a look"). Title Case is for **buttons** only (§7.10). |
+| web-design-guidelines: curly quotes | perch's own copy and the event text it stores use straight apostrophes ("isn't"), so a person can search, quote and grep them. Typographic quotes are used where perch quotes something (the commit subject). Revisit if the owner wants them everywhere. |
+| web-design-guidelines: `Intl.DateTimeFormat` for dates | The page has no JavaScript; times are formatted on the server in the owner's `PERCH_TZ`, so every view agrees. |
 | design-analysis is light-only | Both themes, following `prefers-color-scheme`; dark mode uses the system's dark surfaces as the page. |
 
 ## 3. Tokens
 
 All colours are CSS variables on `:root`; dark mode redefines them under
 `@media (prefers-color-scheme: dark)`. Never write a hex value outside the token block.
+One exception, because they can't read CSS variables: the two `<meta name="theme-color">` tags in
+`base.html` and the favicon `perch.svg` carry hex values that must equal `--bg` (light and dark).
 
 | Token | Light | Dark | Use |
 |---|---|---|---|
@@ -48,14 +53,15 @@ All colours are CSS variables on `:root`; dark mode redefines them under
 | `--muted` | `#5f5d57` | `#aeaaa1` | secondary text |
 | `--faint` | `#65625a` | `#949087` | tertiary text (still AA) |
 | `--accent` | `#cc785c` | `#cc785c` | coral, **never behind or as text** |
-| `--accent-fill` / `--on-accent` | `#b05a3e` / white | `#cc785c` / `#181715` | the one action button |
-| `--code-bg` / `--code-text` / `--code-muted` | `#181715` / `#faf9f5` / `#b3afa7` | `#1f1e1b` / same / same | code windows |
+| `--accent-fill` / `--on-accent` / `--accent-strong` | `#b05a3e` / white / `#94492f` | `#cc785c` / `#181715` / `#e09478` | the one action button; `--accent-strong` is its hover fill |
+| `--code-bg` / `--code-line` / `--code-text` / `--code-muted` | `#181715` / `#181715` / `#faf9f5` / `#b3afa7` | `#1f1e1b` / `#37342f` / same / same | code windows (the edge shows only in dark) |
 | `--slowBlink` `--earTwitch` `--unknown` `--tailFlick` `--hiss` | `#256b3c` `#2a5a88` `#625e56` `#7a5000` `#ad1f3a` | `#6cc283` `#7fa9d6` `#9d998f` `#e5ad5f` `#f26b86` | bodyLanguage only |
 
 **Radius (one scale, shape lock):** 6 px small (tree highlight), 8 px controls and buttons,
 12 px cards, pill for badges and chips. Nothing else.
 
-**Spacing:** 4 px base; 16 px between cards, 24 px between columns, 20 px card padding.
+**Spacing:** 4 px base with 2 px half-steps (6, 10, 14) for tight pairs inside one component;
+16 px between cards, 24 px between columns, 20 px card padding.
 
 ## 4. Contrast (measured, WCAG 2.2)
 
@@ -71,6 +77,7 @@ Checked with the WCAG relative-luminance formula on 2026-10-01; recheck when a t
 | each bodyLanguage colour on its 10 % badge tint | 5.0–5.9 | 5.0–7.5 | 4.5 |
 | `--code-text` / `--code-muted` on `--code-bg` | 17.0 / 8.2 | 15.8 / 7.6 | 4.5 |
 | `.note` text (`--text`) and `.note.muted` (`--muted`) on `--panel` | 16.2 / 5.8 | 15.8 / 7.2 | 4.5 |
+| a vitals bar fill (`--muted` / `--tailFlick` / `--hiss`) on its track (`--line` at 70 % over `--panel`) | 5.0 / 5.3 / 5.2 | 5.9 / 6.8 / 4.7 | 3 (1.4.11, and the number beside it carries the value) |
 | a `.note` icon (a bodyLanguage colour) on `--panel` | decorative: `aria-hidden`, the sr-only word carries it; at least the badge ratios above | same | none |
 
 Fixed in the 2026-10-01 rework (were failing): white on coral 3.28 → `--accent-fill` 4.8;
@@ -109,16 +116,19 @@ renders the same with no network.
 - **Event row (scentTrail):** time (mono, tabular), a 3 px state stripe, badge, sense chip,
   subject link, title.
 - **Header pill (purr):** how stale purr's last look is, in words: `purr 12 s ago`, `purr late, 2 min
-  ago`, `purr missing, 6 min ago`, `purr starting`, `purr off`. The dot repeats the level; the words
+  ago`, `purr missing, 6 min ago`, `purr late, no answer yet` (never answered), `purr starting`, `purr off`. The dot repeats the level; the words
   carry it. Hidden under 700 px, where the fleet badge says the same.
 - **Attention card (`.card.attention`):** "Needs a look" on the overview, only when something is at
   tailFlick or worse: hairline tinted 45 % by the worst level, one row per item (badge, link, what is
-  wrong, how long). When nothing is, one calm sentence replaces it, and only if purr can see.
+  wrong, for how long). A collector's row has no link: its sentence names it ("purr is late: ..."). When nothing is, one calm sentence replaces it, and only if purr can see.
 - **Vitals (`.vitals`, `meter`):** CPU, RAM and disk of a node. The number is the information; the bar
   is its shape and is `aria-hidden`. Bars are muted; the disk bar takes a level colour only when
   purr's own rule fired (85 % tailFlick, 95 % hiss), so colour still means state.
 - **Note (`.note`):** one line about what is off, under a node or app: the level icon, an sr-only
   level word, then the sentence. `no data yet` is the muted variant.
+- **Error page (`error.html`):** a wrong address or an unreadable fleet repo gets a page with the
+  heading, what is wrong, what to check and links back (JSON stays for `/healthz` and `/static`).
+  It renders without the fleet when the repo is the problem.
 - **Unknown is a state with a reason.** Grey never stands alone: the overview says why
   ("purr isn't configured", "waiting for purr's first look", "purr can't see them. <why>").
 
@@ -147,3 +157,10 @@ From web-design-guidelines, applied to this product; a reviewer checks these.
     when purr can't see, it says unknown and why (M1).
 15. Before a milestone gate: `scripts\test.ps1` passes, including the Playwright layout check
     at 1400 px dark/light and 390 px (no horizontal scroll, no console errors).
+16. Anything perch links to outside itself leaves no trace of where perch lives: `base.html` sets
+    `<meta name="referrer" content="same-origin">`, so the private address never reaches GitHub.
+17. A list is a list: events, counts and attention rows are `ul > li` (with `role="list"` where CSS
+    removes the bullets); the first cell of a table row that names the row is `th scope="row"`.
+18. A number and its unit never split across lines: the `ago` and `span` filters glue with U+00A0 and
+    vitals numbers are `nowrap`. Stored event text keeps plain spaces so it stays searchable.
+19. Errors are pages: HTML with what is wrong, what to check and a way on, never bare JSON.

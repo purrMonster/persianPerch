@@ -18,9 +18,11 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.exception_handlers import http_exception_handler
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from ..bodyLanguage import LEVELS, BodyLanguage
 from ..catTree import CatTree, CatTreeError, Fleet
@@ -91,8 +93,13 @@ def createApp(
     env.globals.update(BodyLanguage=BodyLanguage, LEVELS=LEVELS, SENSES=SENSES, SENSE_MEANING=SENSE_MEANING)
     env.filters["local"] = lambda moment, fmt="%H:%M": moment.astimezone(tz).strftime(fmt) if moment else "-"
     env.filters["bl"] = BodyLanguage.parse
-    env.filters["ago"] = lambda moment: duration((clock() - moment).total_seconds()) if moment else "never"
-    env.filters["span"] = lambda seconds: duration(seconds) if seconds is not None else "-"
+
+    def glue(text: str) -> str:
+        """Keep a number with its unit ("36 s", "1 h 10 min"): no line break inside it."""
+        return text.replace(" ", "\u00a0")
+
+    env.filters["ago"] = lambda moment: glue(duration((clock() - moment).total_seconds())) if moment else "never"
+    env.filters["span"] = lambda seconds: glue(duration(seconds)) if seconds is not None else "-"
 
     def purrPill(status: Status) -> dict:
         """The header's "purr 12 s ago": what purr is doing, how stale its last look is, and a
@@ -107,6 +114,14 @@ def createApp(
                 "summary": "purr isn't watching yet",
             }
         last = (state.detail or {}).get("lastOkAt")
+        if not last and state.bodyLanguage.rank >= BodyLanguage.tailFlick.rank:
+            word = "missing" if state.bodyLanguage is BodyLanguage.hiss else "late"
+            return {
+                "level": state.bodyLanguage,
+                "text": f"purr {word}, no answer yet",
+                "title": state.title or "",
+                "summary": "purr hasn't had an answer from Komodo yet",
+            }
         if not last:
             return {
                 "level": state.bodyLanguage,
@@ -114,7 +129,7 @@ def createApp(
                 "title": "waiting for purr's first look at Komodo",
                 "summary": "waiting for purr's first look",
             }
-        age = duration((clock() - parseUtc(last)).total_seconds())
+        age = glue(duration((clock() - parseUtc(last)).total_seconds()))
         word = {BodyLanguage.tailFlick: "late, ", BodyLanguage.hiss: "missing, "}.get(state.bodyLanguage, "")
         return {
             "level": state.bodyLanguage,
@@ -129,13 +144,15 @@ def createApp(
             return None
         pill = purrPill(status)
         state = status.collectors().get("purr")
+        many = unknown != 1
+        head = f"{unknown} {'apps' if many else 'app'} unknown"
         if state is None:
-            return f"{unknown} apps unknown: purr isn't configured (set PERCH_PURR_URL)."
+            return f"{head}: purr isn't configured (set PERCH_PURR_URL, PERCH_PURR_KEY and PERCH_PURR_SECRET)."
         if pill["text"] == "purr starting":
-            return f"{unknown} apps unknown: waiting for purr's first look."
+            return f"{head}: waiting for purr's first look."
         if state.bodyLanguage.rank >= BodyLanguage.tailFlick.rank:
-            return f"{unknown} apps unknown: purr can't see them. {state.title}"
-        return f"{unknown} apps unknown: Komodo doesn't list their containers."
+            return f"{head}: purr can't see {'them' if many else 'it'}. {state.title}"
+        return f"{head}: Komodo doesn't list {'their' if many else 'its'} containers."
 
     def diskLevel(disk: float) -> BodyLanguage | None:
         """The level a full disk earns (purr's own thresholds), for tinting its bar."""
@@ -163,11 +180,50 @@ def createApp(
         context.update(fleet=fleet, status=status, page=page, now=clock())
         return templates.TemplateResponse(request, name, context)
 
+    errors = {
+        404: ("Not found", "Check the address, or find it from the overview or catTree."),
+        405: ("Not allowed", "perch only watches: no page here changes anything."),
+        503: (
+            "perch can't read its source",
+            "Check that PERCH_REPO_DIR points at the fleet repo checkout and that git can read it, then reload.",
+        ),
+    }
+    errorDetail = {
+        "no such node": "perch doesn't know a node with that name.",
+        "no such app": "That node has no app with that name.",
+        "no such doc": "That document isn't in the fleet repo's docs.",
+    }
+
+    @app.exception_handler(StarletteHTTPException)
+    async def errorPage(request: Request, exc: StarletteHTTPException):
+        """A person asked for a page, so a person gets a page (JSON stays for /healthz and /static)."""
+        if request.url.path.startswith(("/static", "/healthz")):
+            return await http_exception_handler(request, exc)
+        heading, nextStep = errors.get(
+            exc.status_code, ("Something went wrong", "Try again, or go back to the overview.")
+        )
+        try:
+            fleet = tree.fleet()
+            status = Status(fleet, trail)
+        except CatTreeError:
+            fleet = status = None  # the page can still say what is wrong without the fleet
+        context = {
+            "fleet": fleet,
+            "status": status,
+            "page": "",
+            "now": clock(),
+            "code": exc.status_code,
+            "heading": heading,
+            "detail": errorDetail.get(str(exc.detail), str(exc.detail)),
+            "nextStep": nextStep,
+        }
+        return templates.TemplateResponse(request, "error.html", context, status_code=exc.status_code)
+
     @app.get("/", response_class=HTMLResponse)
     def overview(request: Request):
         now = clock().astimezone(tz)
         hour = now.hour
-        greeting = "Good morning" if 5 <= hour < 12 else "Good afternoon" if hour < 17 else "Good evening"
+        greeting = "Good morning" if 5 <= hour < 12 else "Good afternoon" if 12 <= hour < 17 else "Good evening"
         recent = trail.events(limit=8)
         return render(request, "overview.html", "perch", greeting=greeting, local=now, recent=recent)
 

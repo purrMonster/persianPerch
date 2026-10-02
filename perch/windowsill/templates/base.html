@@ -2,6 +2,7 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="color-scheme" content="light dark">
+<meta name="referrer" content="same-origin">
 <meta name="theme-color" content="#faf9f5" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#181715" media="(prefers-color-scheme: dark)">
 <title>persianPerch · {% block title %}{{ page }}{% endblock %}</title>
@@ -9,7 +10,7 @@
 <link rel="icon" href="/static/perch.svg" type="image/svg+xml">
 </head><body>
 <a class="skip" href="#main">Skip to content</a>
-{%- set fleetLevel = status.fleetLevel() %}
+{%- set fleetLevel = status.fleetLevel() if status else BodyLanguage.unknown %}
 <header class="top"><div class="wrap">
   <a class="brand" href="/" translate="no"><svg viewBox="0 0 32 32" aria-hidden="true"><rect x="2" y="27" width="28" height="2.5" rx="1.2" fill="var(--accent)"/>
 <path d="M11 27c-2-3-2.5-7-1-10.5L9 11l3.2 2.4c1.2-.5 2.6-.6 3.8-.4L19 10.5l.3 4.2c2.8 2.1 3.6 6.3 2.2 9.6-.4 1-1 1.9-1.7 2.7z" fill="var(--text)"/>
@@ -20,8 +21,8 @@
     <a href="{{ href }}" title="{{ hint }}" class="{{ 'on' if page == key else '' }}"{% if page == key %} aria-current="page"{% endif %}>{{ key }}</a>
     {%- endfor -%}
   </nav><div class="spacer"></div>
-  {%- set pill = purrPill(status) %}
-  <span class="pill hide-sm" title="{{ pill.title }}">{{ dot(pill.level) }}{{ pill.text }}</span>
+  {%- if status %}{% set pill = purrPill(status) %}
+  <span class="pill hide-sm" translate="no" title="{{ pill.title }}">{{ dot(pill.level) }}{{ pill.text }}</span>{% endif %}
   {{ badge(fleetLevel, 'fleet: ' ~ fleetLevel.value) }}
 </div></header>
 <main id="main" tabindex="-1"><div class="wrap">
@@ -29,6 +30,6 @@
 </div></main>
 <footer class="foot"><div class="wrap row between" style="flex-wrap:wrap;gap:12px">
   {{ legend() }}
-  <div>catTree at <span class="mono" translate="no" title="{{ fleet.subject }}">{{ fleet.commit[:8] }}</span>, nineLives not yet {{ dot(BodyLanguage.unknown) }}</div>
+  <div>{% if fleet %}<span translate="no">catTree</span> at <span class="mono" translate="no" title="{{ fleet.subject }}">{{ fleet.commit[:8] }}</span>{% else %}<span translate="no">catTree</span> can't read the fleet repo{% endif %}, <span translate="no">nineLives</span> not yet {{ dot(BodyLanguage.unknown) }}</div>
 </div></footer>
 </body></html>

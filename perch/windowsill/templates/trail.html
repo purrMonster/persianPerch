@@ -17,7 +17,7 @@
 </form>
 <div class="card" style="padding:6px 8px">
 {%- if events %}{% set ns = namespace(day=None) %}
-{%- for s in events %}{% set day = s.seenAt|local('%A %d %b') %}{% if day != ns.day %}<h2 class="dayhead">{{ day }}</h2>{% set ns.day = day %}{% endif %}{{ event(s, fleet) }}{% endfor %}
+{%- for s in events %}{% set day = s.seenAt|local('%A %d %b') %}{% if day != ns.day %}{% if ns.day %}</ul>{% endif %}<h2 class="dayhead">{{ day }}</h2><ul class="feed" role="list">{% set ns.day = day %}{% endif %}{{ event(s, fleet) }}{% endfor %}</ul>
 {%- else %}<p class="empty" style="padding:10px 12px">Nothing on the trail for these filters yet.</p>{% endif %}
 </div>
 {% endblock %}
