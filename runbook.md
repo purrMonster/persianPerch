@@ -6,7 +6,7 @@ changes can be made later without re-deriving the reasoning. How to write entrie
 
 ## In progress
 
-- (nobody)
+- Claude (Claude Code, Sonnet 5.5) · M2 Grooming (htmx first, then groom, kitten v0, the grid) · branch `claude/m2-grooming-htmx-bdeb90` · since 2026-10-02 17:30
 
 ## Backlog / open items
 

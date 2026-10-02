@@ -32,5 +32,6 @@ services:
       OUT_DIR: /out
     volumes:
       - ./shoot.py:/shoot.py:ro
+      - ./live.py:/live.py:ro
       - ../../screenshots:/out
-    command: ["python3", "/shoot.py"]
+    command: ["sh", "-c", "python3 /shoot.py && python3 /live.py"]

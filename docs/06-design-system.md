@@ -129,6 +129,13 @@ renders the same with no network.
 - **Error page (`error.html`):** a wrong address or an unreadable fleet repo gets a page with the
   heading, what is wrong, what to check and links back (JSON stays for `/healthz` and `/static`).
   It renders without the fleet when the repo is the problem.
+- **Live region (`#live`, M2):** the part of the overview, node and app pages that shows state. htmx
+  (vendored, ADR 0003) polls its GET fragment (`/live/...`) every 30 s and swaps its contents, plus
+  the header's purr pill and fleet badge (out-of-band). Everything focusable inside has a stable `id`
+  so focus survives the swap; scroll is kept; nothing animates. A change since the page last looked
+  is said **once**, in one sentence, through the polite live region `#announce` (a poll with
+  nothing new sends no sentence); the foot of the region says what time the state is from. Pages
+  work with JavaScript off: they show the state as of load.
 - **Unknown is a state with a reason.** Grey never stands alone: the overview says why
   ("purr isn't configured", "waiting for purr's first look", "purr can't see them. <why>").
 
@@ -164,3 +171,5 @@ From web-design-guidelines, applied to this product; a reviewer checks these.
 18. A number and its unit never split across lines: the `ago` and `span` filters glue with U+00A0 and
     vitals numbers are `nowrap`. Stored event text keeps plain spaces so it stays searchable.
 19. Errors are pages: HTML with what is wrong, what to check and a way on, never bare JSON.
+20. A region that refreshes keeps `id`s on what can hold focus, says when its state is from, never
+    announces a poll that found nothing new, and has no motion of its own (M2, ADR 0003).

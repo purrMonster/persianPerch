@@ -1,0 +1,7 @@
+{% from "_macros.html" import headerPill, fleetBadge -%}
+{% include region %}
+{{ headerPill(status, true) }}
+{{ fleetBadge(status, true) }}
+{%- if announce %}
+<div id="announce" hx-swap-oob="innerHTML">{{ announce }}</div>
+{%- endif %}

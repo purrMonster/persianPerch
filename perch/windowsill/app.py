@@ -1,16 +1,19 @@
-"""windowsill: perch's web UI (server-rendered Jinja2). Pages show the state at the moment they
-are loaded, with how old purr's last look is; live refresh (htmx, SSE) comes with the milestones
-that need it (runbook 2026-10-01).
+"""windowsill: perch's web UI (server-rendered Jinja2). A page shows the state as of the moment
+it was rendered, with how old purr's last look is. The overview, node and app pages also refresh
+their state region every 30 s with htmx (ADR 0003): ``GET /live/...`` returns just that region,
+the header's two live bits and, when the state changed since the page last looked, one sentence
+for a polite live region. SSE comes with M5.
 
 Read-only by design (04 rule 4, amended by 05 A11): the only write routes perch will
 ever have are ``POST /api/kitten``, ``POST /ack/{litterId}`` and ``POST /ack/t/{token}``;
-test S7 checks the route table. M1 has none.
+test S7 checks the route table. The fragments are GET only.
 """
 
 from __future__ import annotations
 
 import asyncio
 import contextlib
+import hashlib
 from collections.abc import Callable
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
@@ -219,13 +222,72 @@ def createApp(
         }
         return templates.TemplateResponse(request, "error.html", context, status_code=exc.status_code)
 
-    @app.get("/", response_class=HTMLResponse)
-    def overview(request: Request):
+    def digest(parts: list[str]) -> str:
+        """What a client last saw, in 12 characters: the levels a person would be told about."""
+        return hashlib.blake2b("|".join(parts).encode(), digest_size=6).hexdigest()
+
+    def overviewContext(fleet: Fleet, status: Status) -> tuple[dict, str, str]:
         now = clock().astimezone(tz)
         hour = now.hour
         greeting = "Good morning" if 5 <= hour < 12 else "Good afternoon" if 12 <= hour < 17 else "Good evening"
-        recent = trail.events(limit=8)
-        return render(request, "overview.html", "perch", greeting=greeting, local=now, recent=recent)
+        attention = status.attention()
+        level = status.fleetLevel()
+        signature = digest(
+            [
+                level.value,
+                *(f"{n.name}={status.node(n.name).value}" for n in fleet.nodes),
+                *(f"{a.subject}={a.level.value}" for a in attention),
+            ]
+        )
+        count = len(attention)
+        things = "thing needs" if count == 1 else "things need"
+        needs = f"{count} {things} a look." if count else "Nothing needs a look."
+        context = {"greeting": greeting, "local": now, "recent": trail.events(limit=8)}
+        return context, signature, f"Fleet is {level.value}. {needs}"
+
+    def nodeContext(fleet: Fleet, status: Status, nodeName: str) -> tuple[dict, str, str]:
+        node = fleet.node(nodeName)
+        if node is None:
+            raise HTTPException(404, "no such node")
+        level = status.node(nodeName)
+        parts = [level.value, *(f"{a.name}={status.app(nodeName, a.name).value}" for a in node.apps)]
+        parts += [f"{s.subject}={s.bodyLanguage.value}" for s in status.strays(nodeName)]
+        return {"node": node}, digest(parts), f"{nodeName} is {level.value}."
+
+    def appContext(fleet: Fleet, status: Status, nodeName: str, appName: str) -> tuple[dict, str, str]:
+        node = fleet.node(nodeName)
+        found = node.app(appName) if node else None
+        if node is None or found is None:
+            raise HTTPException(404, "no such app")
+        level = status.app(nodeName, appName)
+        parts = [level.value, *(f"{c.subject}={c.bodyLanguage.value}" for c in status.containers(nodeName, found))]
+        return {"node": node, "app": found}, digest(parts), f"{nodeName}/{appName} is {level.value}."
+
+    def liveFragment(request: Request, kind: str, status: Status, built: tuple[dict, str, str], seen: str):
+        """The region, the header's live bits, and one sentence when the client's last-seen state is stale."""
+        context, signature, said = built
+        context.update(
+            fleet=status.fleet,
+            status=status,
+            now=clock(),
+            signature=signature,
+            region=f"live/{kind}.html",
+            announce=said if seen and seen != signature else None,
+        )
+        return templates.TemplateResponse(request, "live/fragment.html", context)
+
+    @app.get("/", response_class=HTMLResponse)
+    def overview(request: Request):
+        fleet = fleetOr503()
+        status = Status(fleet, trail)
+        context, signature, _ = overviewContext(fleet, status)
+        return render(request, "overview.html", "perch", fleet=fleet, status=status, signature=signature, **context)
+
+    @app.get("/live/overview", response_class=HTMLResponse)
+    def liveOverview(request: Request, seen: str = Query(default="", max_length=64)):
+        fleet = fleetOr503()
+        status = Status(fleet, trail)
+        return liveFragment(request, "overview", status, overviewContext(fleet, status), seen)
 
     @app.get("/tree", response_class=HTMLResponse)
     def treeIndex(request: Request):
@@ -245,22 +307,42 @@ def createApp(
     @app.get("/tree/{nodeName}", response_class=HTMLResponse)
     def treeNode(request: Request, nodeName: str):
         fleet = fleetOr503()
-        node = fleet.node(nodeName)
-        if node is None:
-            raise HTTPException(404, "no such node")
-        readme = readTracked(fleet, f"{node.path}/README.md")
-        return render(request, "node.html", "catTree", fleet=fleet, node=node, readme=readme)
+        status = Status(fleet, trail)
+        context, signature, _ = nodeContext(fleet, status, nodeName)
+        readme = readTracked(fleet, f"{context['node'].path}/README.md")
+        return render(
+            request, "node.html", "catTree", fleet=fleet, status=status, signature=signature, readme=readme, **context
+        )
+
+    @app.get("/live/node/{nodeName}", response_class=HTMLResponse)
+    def liveNode(request: Request, nodeName: str, seen: str = Query(default="", max_length=64)):
+        fleet = fleetOr503()
+        status = Status(fleet, trail)
+        return liveFragment(request, "node", status, nodeContext(fleet, status, nodeName), seen)
 
     @app.get("/tree/{nodeName}/{appName}", response_class=HTMLResponse)
     def treeApp(request: Request, nodeName: str, appName: str):
         fleet = fleetOr503()
-        node = fleet.node(nodeName)
-        found = node.app(appName) if node else None
-        if found is None:
-            raise HTTPException(404, "no such app")
-        readme = readTracked(fleet, f"{found.path}/README.md")
-        events = trail.events(subjectPrefix=found.id, limit=20)
-        return render(request, "app.html", "catTree", fleet=fleet, node=node, app=found, readme=readme, events=events)
+        status = Status(fleet, trail)
+        context, signature, _ = appContext(fleet, status, nodeName, appName)
+        found = context["app"]
+        return render(
+            request,
+            "app.html",
+            "catTree",
+            fleet=fleet,
+            status=status,
+            signature=signature,
+            readme=readTracked(fleet, f"{found.path}/README.md"),
+            events=trail.events(subjectPrefix=found.id, limit=20),
+            **context,
+        )
+
+    @app.get("/live/app/{nodeName}/{appName}", response_class=HTMLResponse)
+    def liveApp(request: Request, nodeName: str, appName: str, seen: str = Query(default="", max_length=64)):
+        fleet = fleetOr503()
+        status = Status(fleet, trail)
+        return liveFragment(request, "app", status, appContext(fleet, status, nodeName, appName), seen)
 
     @app.get("/groom", response_class=HTMLResponse)
     def groom(request: Request):

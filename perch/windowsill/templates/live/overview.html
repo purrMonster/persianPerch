@@ -1,0 +1,57 @@
+{% from "_macros.html" import badge, dot, event, note, meter, asOf, liveSeen %}
+{%- set counts = status.counts() %}
+{%- set attention = status.attention() %}
+{%- set pill = purrPill(status) %}
+{%- set blind = unknownNote(status, counts[BodyLanguage.unknown]) %}
+<div class="pagehead">
+  <div><h1>{{ greeting }}, barista</h1><div class="muted"><time datetime="{{ local.isoformat(timespec='minutes') }}">{{ local.strftime('%A %d %b, %H:%M') }}</time>. {{ fleet.nodes|length }} nodes and {{ fleet.appCount }} apps; {{ pill.summary }}.</div></div>
+  {{ badge(status.fleetLevel(), 'fleet: ' ~ status.fleetLevel().value) }}
+</div>
+{%- if attention %}
+<section class="card attention bl-{{ attention[0].level.value }}" aria-labelledby="h-attention">
+  <h2 id="h-attention">Needs a look</h2>
+  <ul class="attn" role="list">
+  {%- for item in attention %}
+    <li class="row">{{ badge(item.level) }}
+      <div class="body">{% if item.href %}<a class="mono" translate="no" id="attn-{{ item.subject|replace(':', '-')|replace('/', '-') }}" href="{{ item.href }}">{{ item.label }}</a> {% endif %}<span class="muted">{{ item.title }}</span></div>
+      <span class="faint small">for {{ item.since|ago }}</span>
+    </li>
+  {%- endfor %}
+  </ul>
+</section>
+{%- elif not blind %}
+<p class="calm">Nothing needs a look.</p>
+{%- endif %}
+<ul class="strip" role="list" aria-label="Apps by bodyLanguage" translate="no">
+{%- for lv in LEVELS %}<li><div class="row small">{{ dot(lv) }}<span class="muted">{{ lv.value }}</span></div><div class="n">{{ counts[lv] }}</div></li>{% endfor -%}
+</ul>
+{%- if blind %}<p class="muted small blindnote">{{ dot(BodyLanguage.unknown) }} {{ blind }}</p>{% endif %}
+<div class="grid cols-main" style="gap:24px">
+  <section aria-labelledby="h-nodes">
+    <h2 id="h-nodes">Nodes <span class="faint" translate="no">purr</span></h2>
+    <div class="grid cols-nodes">
+    {%- for node in fleet.nodes %}{% set lv = status.node(node.name) %}{% set v = status.vitals(node.name) %}{% set up = status.upCount(node.name) %}{% set flag = status.nodeNote(node.name) %}
+      <a class="card nodecard" id="node-{{ node.name }}" href="/tree/{{ node.name }}">
+        <div class="row between"><strong translate="no">{{ node.name }}</strong>{{ badge(lv) }}</div>
+        <div class="muted small" style="margin:6px 0 14px">{{ node.role }}{% if node.ip %}, <span class="mono">{{ node.ip }}</span>{% endif %}</div>
+        {%- if v and v.cpu is defined %}
+        <div class="vitals" role="group" aria-label="{{ node.name }} vitals">{{ meter('CPU', v.cpu) }}{{ meter('RAM', v.mem) }}{{ meter('disk', v.disk, diskLevel(v.disk)) }}</div>
+        {%- endif %}
+        <div class="row between small nodesum"><span>{% if v and v.cpu is defined and not status.unknownApps(node.name) %}<strong class="num">{{ up[0] }}/{{ up[1] }}</strong> <span class="muted">apps up</span>{% elif v and v.mode == 'asleep' %}<span class="muted">{{ up[1] }} apps, not visible while it sleeps</span>{% else %}<span class="muted">{{ up[1] }} apps, no live data</span>{% endif %}</span></div>
+        {%- if flag %}{{ note(flag[0], flag[1]) }}{% elif lv == BodyLanguage.unknown %}<div class="note muted small">no data yet</div>{% endif %}
+      </a>
+    {%- endfor %}
+    </div>
+  </section>
+  <aside class="grid" aria-label="Recent">
+    <div class="card"><div class="section-title"><h2>Overnight grooming</h2><a class="small" id="all-nights" href="/groom">All nights</a></div>
+      <p class="empty">groom (backups) starts watching in M2.</p></div>
+    <div class="card"><div class="section-title"><h2 translate="no">scentTrail</h2><a class="small" id="all-events" href="/trail">Everything</a></div>
+      {%- if recent %}<ul class="feed" role="list">{% for s in recent %}{{ event(s, fleet) }}{% endfor %}</ul>
+      {%- else %}<p class="empty">Nothing on the trail yet. Events appear here as they happen.</p>{% endif %}</div>
+    <div class="card"><h2>Endpoints <span class="faint" translate="no">glare</span></h2>
+      <p class="empty">glare (Gatus) starts watching in M4.</p></div>
+  </aside>
+</div>
+{{ asOf(now) }}
+{{ liveSeen(signature) }}

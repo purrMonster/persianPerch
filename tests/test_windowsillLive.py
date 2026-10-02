@@ -149,7 +149,7 @@ def test_a_node_page_has_vitals_and_other_containers(live):
     assert "250.0 of 500.0 GB" in html and "2.3.2" in html and "Komodo Periphery" in html
     assert "Other containers" in html and "stray-test" in html and "don't count toward the node" in html
     assert "karakeep" in html and "healthy" in html  # live state per app in the apps table
-    assert '<th scope="row" class="mono"><a href="/tree/grinder/n8n">n8n/</a></th>' in html
+    assert '<th scope="row" class="mono"><a id="app-n8n" href="/tree/grinder/n8n">n8n/</a></th>' in html
 
 
 def test_a_sleeping_node_says_so_once_instead_of_showing_a_hiss(live):
