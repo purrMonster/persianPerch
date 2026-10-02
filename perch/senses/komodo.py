@@ -126,17 +126,23 @@ class KomodoClient:
         try:
             response = await self._http.post("/read", json={"type": kind, "params": params})
         except httpx2.HTTPError as exc:
-            raise KomodoError(self._safe(f"can't reach Komodo ({type(exc).__name__}: {exc})")) from None
+            raise KomodoError(
+                f"Can't reach Komodo ({_reason(exc)}). Check PERCH_PURR_URL and that Komodo Core is running."
+            ) from None
         if response.status_code in (401, 403):
-            raise KomodoError(f"Komodo refused the API key (HTTP {response.status_code})")
+            raise KomodoError(
+                f"Komodo refused the API key (HTTP {response.status_code}). Check PERCH_PURR_KEY and PERCH_PURR_SECRET."
+            )
         if response.status_code >= 400:
             raise KomodoError(self._safe(f"Komodo answered HTTP {response.status_code}: {response.text[:200]}"))
         try:
             answer = response.json()
         except ValueError:
-            raise KomodoError("unexpected answer from Komodo: not JSON") from None
+            raise KomodoError(
+                "Unexpected answer from Komodo: not JSON. Check that PERCH_PURR_URL is Komodo Core's address."
+            ) from None
         if not isinstance(answer, list):
-            raise KomodoError(f"unexpected answer from Komodo: {kind} did not return a list")
+            raise KomodoError(f"Unexpected answer from Komodo: {kind} did not return a list.")
         return answer
 
     def _safe(self, text: str) -> str:
@@ -169,8 +175,17 @@ class KomodoClient:
 # -- parsing: anything that isn't the shape above is a KomodoError, never a guess ----
 
 
+def _reason(exc: Exception) -> str:
+    """What went wrong with the connection, in words an owner can act on."""
+    if isinstance(exc, httpx2.TimeoutException):
+        return "it timed out"
+    if isinstance(exc, httpx2.ConnectError):
+        return "connection refused or no route to it"
+    return type(exc).__name__
+
+
 def _unexpected(what: str) -> KomodoError:
-    return KomodoError(f"unexpected answer from Komodo: {what}")
+    return KomodoError(f"Unexpected answer from Komodo: {what}.")
 
 
 def _server(item: Any) -> KomodoServer:

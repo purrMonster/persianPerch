@@ -27,13 +27,13 @@ _UNIT_SECONDS = {
 
 EXIT_MEANINGS = {
     0: "stopped cleanly",
-    1: "error",
-    2: "misused a shell command",
+    1: "the app reported an error",
+    2: "the command was misused",
     125: "Docker couldn't run it",
-    126: "command can't be run",
-    127: "command not found",
+    126: "the command can't be run",
+    127: "the command wasn't found",
     137: "killed, often out of memory",
-    139: "segmentation fault",
+    139: "crashed (segmentation fault)",
     143: "terminated",
 }
 

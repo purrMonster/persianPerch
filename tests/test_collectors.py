@@ -92,7 +92,7 @@ def test_late_after_three_missed_cycles_missing_after_ten_and_back(rig):
     assert rig.state().bodyLanguage is B.tailFlick
     (late,) = rig.events()
     assert (late.sense, late.subject, late.bodyLanguage) == ("perch", "collector:fake", B.tailFlick)
-    assert late.title == "fake is late: no successful cycle for 2 min (Komodo isn't answering)"
+    assert late.title == "fake is late: no successful cycle for 2 min. Komodo isn't answering."
     for _ in range(6):  # still late, nothing new to say
         rig.step()
     assert len(rig.events()) == 1 and rig.state().bodyLanguage is B.tailFlick
@@ -238,3 +238,20 @@ def test_the_app_starts_and_stops_its_collectors_and_healthz_reports_them(tmp_pa
         assert body["ok"] and body["collectors"]["fake"]["level"] == "slowBlink"
     assert fake.closed
     trail.close()
+
+
+def test_perchs_own_log_never_carries_a_secret(tmp_path, clock, caplog):
+    """The runner logs each outage once; what it logs must be scrubbed like what it stores."""
+    r = Rig(tmp_path, clock, secrets=["SECRET-VALUE-1234"])
+    try:
+        r.step()
+        r.fake.fail = RuntimeError("Komodo said no to SECRET-VALUE-1234 and Authorization: Bearer abcdefghijklmnop")
+        with caplog.at_level("DEBUG"):
+            for _ in range(6):
+                r.step()
+        assert "fake failed" in caplog.text  # it did log the outage...
+        assert "SECRET-VALUE-1234" not in caplog.text and "abcdefghijklmnop" not in caplog.text  # ...without the secret
+        report = str(r.runner.report())
+        assert "SECRET-VALUE-1234" not in report and "abcdefghijklmnop" not in report  # nor in /healthz
+    finally:
+        r.close()

@@ -171,7 +171,7 @@ def test_http_errors_are_komodo_errors_without_the_secret(komodo, status, words)
 @pytest.mark.parametrize("raw", [b"not json", b"{}", b'{"servers": []}', b'[{"nope": 1}]', b'["x"]'])
 def test_an_unexpected_answer_is_a_komodo_error(komodo, raw):
     komodo.raw = raw
-    with pytest.raises(KomodoError, match="unexpected"):
+    with pytest.raises(KomodoError, match="Unexpected answer"):
         snapshot(komodo)
 
 
@@ -183,5 +183,31 @@ def test_network_errors_are_komodo_errors(error):
         raise error
 
     client = KomodoClient("http://komodo-core:9120", KEY, SECRET, transport=httpx2.MockTransport(boom))
-    with pytest.raises(KomodoError, match="can't reach Komodo"):
+    with pytest.raises(KomodoError, match="Can't reach Komodo"):
         asyncio.run(client.snapshot(NOW))
+
+
+@pytest.mark.parametrize(
+    ("error", "words"),
+    [
+        (httpx2.ConnectError("x"), "connection refused"),
+        (httpx2.ReadTimeout(""), "it timed out"),
+        (httpx2.RemoteProtocolError("x"), "RemoteProtocolError"),
+    ],
+)
+def test_network_errors_say_what_happened_and_what_to_check(error, words):
+    def boom(request):
+        raise error
+
+    client = KomodoClient("http://komodo-core:9120", KEY, SECRET, transport=httpx2.MockTransport(boom))
+    with pytest.raises(KomodoError) as caught:
+        asyncio.run(client.snapshot(NOW))
+    assert words in str(caught.value) and "PERCH_PURR_URL" in str(caught.value)
+
+
+def test_a_refused_key_says_which_settings_to_check(komodo):
+    komodo.status = 401
+    with pytest.raises(KomodoError) as caught:
+        snapshot(komodo)
+    assert "PERCH_PURR_KEY" in str(caught.value) and "PERCH_PURR_SECRET" in str(caught.value)
+    assert KEY not in str(caught.value) and SECRET not in str(caught.value)

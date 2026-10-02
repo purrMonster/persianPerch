@@ -157,7 +157,7 @@ class Runner:
 
     def _title(self, collector: Collector, health: _Health, level: B, now: datetime) -> str:
         silent = duration((now - (health.lastOkAt or health.startedAt)).total_seconds())
-        why = f" ({health.lastError})" if health.lastError else ""
+        why = f". {health.lastError.rstrip('.')}." if health.lastError else ""
         if level is B.hiss:
             return f"{collector.name} is missing: no successful cycle for {silent}{why}"
         if level is B.tailFlick:
