@@ -1,0 +1,117 @@
+[
+  {
+    "server_id": "6a1f00000000000000000001",
+    "server_name": "grinder",
+    "name": "n8n",
+    "id": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    "image": "n8nio/n8n:1.80.0",
+    "image_id": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "created": 1789900000,
+    "size_rw": null,
+    "size_root_fs": null,
+    "state": "running",
+    "status": "Up 3 hours (healthy)",
+    "network_mode": "grinder_net",
+    "networks": ["grinder_net"],
+    "ports": [],
+    "volumes": ["/srv/data/n8n:/home/node/.n8n"],
+    "stats": null,
+    "labels": {
+      "com.docker.compose.project": "n8n",
+      "com.docker.compose.service": "n8n"
+    }
+  },
+  {
+    "server_id": "6a1f00000000000000000001",
+    "server_name": "grinder",
+    "name": "postgres-vector",
+    "id": "1123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    "image": "pgvector/pgvector:pg17",
+    "image_id": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "created": 1789800000,
+    "state": "running",
+    "status": "Up 2 days (healthy)",
+    "network_mode": "grinder_net",
+    "networks": ["grinder_net"],
+    "ports": [],
+    "volumes": [],
+    "stats": null,
+    "labels": {
+      "com.docker.compose.project": "postgres-vector",
+      "com.docker.compose.service": "postgres-vector"
+    }
+  },
+  {
+    "server_id": "6a1f00000000000000000001",
+    "server_name": "grinder",
+    "name": "embedding-worker",
+    "id": "2123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    "image": "example/embedding-worker:1.0",
+    "image_id": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "created": 1789700000,
+    "state": "exited",
+    "status": "Exited (137) 3 minutes ago",
+    "networks": [],
+    "ports": [],
+    "volumes": [],
+    "stats": null,
+    "labels": {
+      "com.docker.compose.project": "embedding-worker",
+      "com.docker.compose.service": "embedding-worker"
+    }
+  },
+  {
+    "server_id": "6a1f00000000000000000001",
+    "server_name": "grinder",
+    "name": "traccar",
+    "id": "3123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    "image": "traccar/traccar:6.6",
+    "image_id": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "created": 1789600000,
+    "state": "restarting",
+    "status": "Restarting (1) 12 seconds ago",
+    "networks": ["grinder_net"],
+    "ports": [],
+    "volumes": [],
+    "stats": null,
+    "labels": {
+      "com.docker.compose.project": "traccar",
+      "com.docker.compose.service": "traccar"
+    }
+  },
+  {
+    "server_id": "6a1f00000000000000000001",
+    "server_name": "grinder",
+    "name": "openwebui",
+    "id": "4123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    "image": "example/openwebui:0.6",
+    "image_id": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "created": 1789500000,
+    "state": "running",
+    "status": "Up 5 minutes (unhealthy)",
+    "networks": ["grinder_net"],
+    "ports": [],
+    "volumes": [],
+    "stats": null,
+    "labels": {
+      "com.docker.compose.project": "openwebui",
+      "com.docker.compose.service": "openwebui"
+    }
+  },
+  {
+    "server_id": "6a1f00000000000000000001",
+    "server_name": "grinder",
+    "name": "stray-test",
+    "id": "5123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    "image": "alpine:3.22",
+    "image_id": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    "created": 1789400000,
+    "state": "running",
+    "status": "Up About an hour",
+    "networks": ["bridge"],
+    "ports": [],
+    "volumes": [],
+    "stats": null,
+    "labels": {}
+  }
+]

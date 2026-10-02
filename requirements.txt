@@ -4,3 +4,6 @@ starlette==1.7.0
 uvicorn==0.54.0
 jinja2==3.1.6
 tzdata==2026.4
+# purr, glare and binocs read other services over HTTP (ADR 0002). The same version the
+# tests have always pinned: starlette's TestClient already needed it.
+httpx2==2.13.1

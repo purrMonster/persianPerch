@@ -62,6 +62,26 @@ and record.
 - **PowerShell files are ASCII-only** (PowerShell 5 misreads BOM-less UTF-8). Shell and
   data files use LF line endings.
 
+### 3.1 UI work: three design skills, every time
+
+Any change to `perch/windowsill/` (templates, CSS, static files) or `mockups/` must follow
+three skills. They are installed as Claude Code project skills in `.claude/skills/` on
+roastery (gitignored: third-party texts, public repo); other agents read the same files.
+
+| Skill | Use it for | Limits in this project |
+|---|---|---|
+| `design-analysis` | the visual language: tokens, the serif/sans split, surfaces, radius | Tokens live only in `perch.css`. Never the Anthropic spike mark, the Claude wordmark or Anthropic's licensed fonts. |
+| `design-taste-frontend` | anti-default discipline: one accent, one radius scale, full loading/empty/error states, contrast, the copy audit | It is written for landing pages. **Never** take its stack defaults (React, Next.js, Tailwind, Motion, icon libraries, web fonts): this stays Jinja2 + htmx + one CSS file. Its hero, bento, marquee and eyebrow rules don't apply. |
+| `web-design-guidelines` | the review: fetch the guidelines fresh from its source URL and check every changed file | Run it before every milestone gate that touched the UI. Fix each finding, or record in the runbook why it doesn't apply. |
+
+**Order of authority:** `docs/06-design-system.md` (the project's decisions, including
+where the skills were overruled and why) → the skills → the agent's own taste. If a skill
+and docs/06 disagree, docs/06 wins; if you think docs/06 is wrong, say so in the runbook and
+ask the owner, don't silently diverge. Every UI change also follows docs/06 §7's checklist.
+
+If `.claude/skills/` is missing or a skill won't load, stop and tell the owner: don't build
+UI from memory of what the skills say.
+
 ## 4. The runbook (`runbook.md`)
 
 `runbook.md` is the project's memory: **every decision and every change of state goes in

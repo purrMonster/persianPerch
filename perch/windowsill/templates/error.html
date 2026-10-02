@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}{{ code }} {{ heading }}{% endblock %}
+{% block main %}
+<div class="pagehead">
+  <div><h1>{{ heading }}</h1><div class="muted">{{ detail }}</div></div>
+</div>
+<p>{{ nextStep }}</p>
+<p class="row"><a class="chip" href="/">Overview</a><a class="chip" href="/tree">catTree</a></p>
+{% endblock %}

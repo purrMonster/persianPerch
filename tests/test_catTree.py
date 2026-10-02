@@ -47,6 +47,39 @@ def test_app_details_from_the_repo(fleetRepo):
     assert "runbook.md" in fleet.docs and "docs/MAP.md" in fleet.docs
 
 
+def test_container_names_come_from_each_compose_file(fleetRepo):
+    """purr needs to know which containers an app should have (a removed one is a hiss)."""
+    fleet = CatTree(fleetRepo).fleet()
+    karakeep = fleet.node("grinder").app("karakeep")
+    assert karakeep.containers == ["karakeep", "karakeep-chrome", "karakeep-meilisearch"]
+    assert fleet.node("grinder").app("n8n").containers == ["n8n"]
+    assert fleet.node("cellar").app("komodo").containers == ["komodo-mongo", "komodo-core", "komodo-periphery"]
+    # independent count: every container_name line of every app listed in a node.conf
+    expected = 0
+    for node, apps in nodeConfApps(fleetRepo).items():
+        for app in apps:
+            compose = fleetRepo / "stacks" / node / app / "docker-compose.yml"
+            expected += len(re.findall(r"^\s*container_name:", compose.read_text(encoding="utf-8"), re.M))
+    assert expected >= 60 and sum(len(a.containers) for n in fleet.nodes for a in n.apps) == expected
+
+
+def test_container_names_skip_variables_and_comments(tmp_path):
+    repo = makeRepo(
+        tmp_path / "r",
+        {
+            "stacks/sieve/node.conf": "APPS=(a)\n",
+            "stacks/sieve/a/docker-compose.yml": (
+                "services:\n"
+                "  web:\n    image: x/web:1\n    container_name: web\n"
+                '  db:\n    image: x/db:1\n    container_name: "a-db"  # quoted\n'
+                "  odd:\n    image: x/odd:1\n    container_name: ${NAME}\n"
+                "  # container_name: commented-out\n"
+            ),
+        },
+    )
+    assert CatTree(repo).fleet().node("sieve").app("a").containers == ["web", "a-db"]
+
+
 def test_pinned_repo_lists_no_denied_file(fleetRepo):
     fleet = CatTree(fleetRepo).fleet()
     listed = list(fleet.files)

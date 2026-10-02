@@ -2,28 +2,28 @@
 {% from "_macros.html" import badge, dot %}
 {% block title %}catTree{% endblock %}
 {% block main %}
-<div class="grid cols-tree">
+<div class="grid cols-tree" style="gap:24px">
   {% set current_node = None %}{% set current_app = None %}{% include "_treeNav.html" %}
   <section>
-    <div class="muted mono crumbs">fleet</div>
-    <div class="row between" style="flex-wrap:wrap;gap:10px;margin:6px 0 16px">
-      <div><h1>catTree</h1><div class="muted">The fleet in the shape of <span class="mono">purrbrews-containers</span>: {{ fleet.nodes|length }} nodes, {{ fleet.appCount }} apps, at <span class="mono">{{ fleet.commit[:8] }}</span> · {{ fleet.subject }}</div></div>
+    <nav class="muted mono crumbs" aria-label="Breadcrumb" translate="no">fleet</nav>
+    <div class="pagehead">
+      <div><h1 translate="no">catTree</h1><div class="muted">The fleet in the shape of <span class="mono" translate="no">purrbrews-containers</span>: {{ fleet.nodes|length }} nodes and {{ fleet.appCount }} apps at <span class="mono" translate="no">{{ fleet.commit[:8] }}</span>, “{{ fleet.subject }}”</div></div>
       {{ badge(status.fleetLevel()) }}
     </div>
     <div class="grid cols-cards">
     {%- for node in fleet.nodes %}
       <div class="card" id="node-{{ node.name }}">
-        <div class="row between"><div class="row">{{ dot(status.node(node.name)) }}<a href="/tree/{{ node.name }}"><strong style="font-size:15px">{{ node.name }}/</strong></a></div><span class="mono muted small">{{ node.ip }}</span></div>
-        <div class="muted small" style="margin:4px 0 10px">{{ node.role }}</div>
-        <div class="mono tree">
+        <div class="row between"><div class="row">{{ dot(status.node(node.name)) }}<a href="/tree/{{ node.name }}" translate="no"><strong>{{ node.name }}/</strong></a></div><span class="mono muted small">{{ node.ip }}</span></div>
+        <div class="muted small" style="margin:6px 0 12px">{{ node.role }}</div>
+        <div class="mono tree" translate="no">
         {%- for a in node.apps %}<div>{{ dot(status.app(node.name, a.name)) }} <a href="/tree/{{ node.name }}/{{ a.name }}">{{ a.name }}/</a></div>{% endfor -%}
         </div>
-        {%- if node.extras %}<div class="faint small" style="margin-top:8px">also in the repo: {% for a in node.extras %}<a href="/tree/{{ node.name }}/{{ a.name }}" class="mono">{{ a.name }}/</a>{{ ', ' if not loop.last }}{% endfor %}</div>{% endif %}
+        {%- if node.extras %}<div class="faint small" style="margin-top:10px">Also in the repo: {% for a in node.extras %}<a href="/tree/{{ node.name }}/{{ a.name }}" class="mono" translate="no">{{ a.name }}/</a>{{ ', ' if not loop.last }}{% endfor %}</div>{% endif %}
       </div>
     {%- endfor %}
     </div>
-    <div class="card" id="docs" style="margin-top:16px"><h2>docs <span class="faint" style="font-weight:400">· git-tracked only</span></h2>
-      <table><tbody>{% for d in fleet.docs %}<tr><td class="mono"><a href="/tree/docs/{{ d }}">{{ d }}</a></td></tr>{% endfor %}</tbody></table></div>
+    <div class="card" id="docs" style="margin-top:16px"><h2>docs <span class="faint">git-tracked only</span></h2>
+      <table><tbody>{% for d in fleet.docs %}<tr><td class="mono" translate="no"><a href="/tree/docs/{{ d }}">{{ d }}</a></td></tr>{% endfor %}</tbody></table></div>
   </section>
 </div>
 {% endblock %}

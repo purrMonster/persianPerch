@@ -11,13 +11,13 @@
 </div>
 <div class="row" style="flex-wrap:wrap;gap:8px;margin-bottom:10px">
 {%- for lv in LEVELS %}<label class="chip" title="{{ lv.meaning }}"><input type="checkbox" name="level" value="{{ lv.value }}"{{ ' checked' if lv.value in levels }}>{{ dot(lv) }}{{ lv.value }}</label>{% endfor -%}
-<label class="chip">last <select name="hours" style="background:transparent;color:inherit;border:0;font:inherit">{% for h, label in [(24,'24 h'),(48,'48 h'),(168,'7 days'),(720,'30 days'),(2160,'90 days')] %}<option value="{{ h }}"{{ ' selected' if h == hours }}>{{ label }}</option>{% endfor %}</select></label>
-<button class="chip" type="submit">filter</button>
+<label class="chip">last <select name="hours">{% for h, label in [(24,'24 h'),(48,'48 h'),(168,'7 days'),(720,'30 days'),(2160,'90 days')] %}<option value="{{ h }}"{{ ' selected' if h == hours }}>{{ label }}</option>{% endfor %}</select></label>
+<button class="chip" type="submit">Apply Filters</button>
 </div>
 </form>
 <div class="card" style="padding:6px 8px">
 {%- if events %}{% set ns = namespace(day=None) %}
-{%- for s in events %}{% set day = s.seenAt|local('%A %d %b') %}{% if day != ns.day %}<h3 style="margin:18px 0 6px 12px">{{ day }}</h3>{% set ns.day = day %}{% endif %}{{ event(s, fleet) }}{% endfor %}
+{%- for s in events %}{% set day = s.seenAt|local('%A %d %b') %}{% if day != ns.day %}{% if ns.day %}</ul>{% endif %}<h2 class="dayhead">{{ day }}</h2><ul class="feed" role="list">{% set ns.day = day %}{% endif %}{{ event(s, fleet) }}{% endfor %}</ul>
 {%- else %}<p class="empty" style="padding:10px 12px">Nothing on the trail for these filters yet.</p>{% endif %}
 </div>
 {% endblock %}

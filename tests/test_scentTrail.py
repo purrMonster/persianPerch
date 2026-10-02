@@ -91,6 +91,50 @@ def test_state_keeps_since_until_level_changes(trail, clock):
     assert state.nextExpectedAt is None
 
 
+def test_state_detail_is_stored_scrubbed_and_replaced(trail, clock):
+    trail.setState("container:grinder/n8n", B.slowBlink, detail={"image": "n8n:1", "uptimeSeconds": 90})
+    assert trail.states()["container:grinder/n8n"].detail == {"image": "n8n:1", "uptimeSeconds": 90}
+    trail.setState("container:grinder/n8n", B.slowBlink)  # no detail: the old one doesn't linger
+    assert trail.states()["container:grinder/n8n"].detail is None
+    trail.setState("node:grinder", B.slowBlink, detail={"env": "RESTIC_PASSWORD=hunter2hunter2 fake-secret-value-123"})
+    stored = str(trail.states()["node:grinder"].detail)
+    assert "hunter2hunter2" not in stored and "fake-secret-value-123" not in stored
+
+
+def test_migration_2_adds_state_detail_to_a_version_1_database(tmp_path, clock):
+    import sqlite3
+
+    path = tmp_path / "old.db"
+    db = sqlite3.connect(path)
+    db.executescript(MIGRATIONS[0])
+    db.execute(
+        "INSERT INTO state VALUES ('app:sieve/pihole','slowBlink','2026-09-29T00:00:00.000Z',"
+        "'2026-09-29T00:00:00.000Z','ok',NULL,NULL)"
+    )
+    db.execute("PRAGMA user_version=1")
+    db.commit()
+    db.close()
+    trail = ScentTrail(path, clock=clock)
+    try:
+        assert trail.schemaVersion == len(MIGRATIONS) >= 2
+        old = trail.states()["app:sieve/pihole"]
+        assert old.bodyLanguage is B.slowBlink and old.detail is None  # nothing lost
+        trail.setState("app:sieve/pihole", B.slowBlink, detail={"n": 1})
+        assert trail.states()["app:sieve/pihole"].detail == {"n": 1}
+    finally:
+        trail.close()
+
+
+def test_forget_drops_states_and_nothing_else(trail):
+    trail.setState("container:grinder/a", B.slowBlink)
+    trail.setState("container:grinder/b", B.hiss)
+    trail.addEvent("purr", "container:grinder/b", B.hiss, "b exited")
+    assert trail.forget(["container:grinder/b", "container:grinder/nope"]) == 1
+    assert set(trail.states()) == {"container:grinder/a"}
+    assert trail.counts()["events"] == 1  # history stays
+    assert trail.forget([]) == 0
+
+
 def test_daily_rollup_is_worst_of_the_day(trail, clock):
     trail.addEvent("purr", "app:grinder/n8n", B.slowBlink, "ok")
     trail.addEvent("purr", "app:grinder/n8n", B.hiss, "down")

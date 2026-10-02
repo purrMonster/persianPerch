@@ -14,12 +14,14 @@ FLEET_COMMIT = "f94efdfb1995d7217ec2be33e45b33720a0a0b3b"
 
 
 def git(repo: Path, *args: str) -> str:
-    return subprocess.run(
-        ["git", "-c", "safe.directory=*", "-C", str(repo), *args],
-        check=True,
-        capture_output=True,
-        text=True,
-    ).stdout
+    cmd = ["git", "-c", "safe.directory=*"]
+    projectGitDir = os.environ.get("PERCH_TEST_GIT_DIR")
+    if projectGitDir and Path(repo).resolve() == ROOT:
+        # Only this project's own repo: scripts/test.ps1 sets it when the checkout is a git
+        # worktree, whose .git file points at a host path the container can't see. Every
+        # other repo (the fleet clone, the tests' temporary ones) is found the normal way.
+        cmd += ["--git-dir", projectGitDir, "--work-tree", str(ROOT)]
+    return subprocess.run([*cmd, "-C", str(repo), *args], check=True, capture_output=True, text=True).stdout
 
 
 @pytest.fixture(scope="session")
@@ -35,6 +37,17 @@ def fleetRepo() -> Path:
     head = git(repo, "rev-parse", "HEAD").strip()
     assert head == FLEET_COMMIT, f"fleet repo at {head}, tests pin {FLEET_COMMIT}"
     return repo
+
+
+@pytest.fixture(scope="session")
+def fleetTree(fleetRepo):
+    """One catTree over the pinned repo for the whole run. Building it reads ~100 files, which
+    is slow on a Docker Desktop bind mount; it only reads, and rebuilds when HEAD moves."""
+    from perch.catTree import CatTree
+
+    tree = CatTree(fleetRepo)
+    tree.fleet()
+    return tree
 
 
 class FakeClock:

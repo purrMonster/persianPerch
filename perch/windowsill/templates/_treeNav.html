@@ -1,13 +1,13 @@
 {% from "_macros.html" import dot %}
-<aside class="card hide-sm sticky" aria-label="catTree">
-  <div class="mono tree">
+<div class="card treecard sticky" translate="no">
+  <nav class="mono tree" aria-label="catTree">
     <div>{{ dot(status.fleetLevel()) }} <a class="strong" href="/tree"><strong>fleet</strong></a></div>
     {%- for n in fleet.nodes %}{% set open = current_node is defined and current_node and current_node.name == n.name %}
-    <div class="l1{{ ' here' if open and not current_app else '' }}">{{ '▾' if open else '▸' }} {{ dot(status.node(n.name)) }} <a class="strong" href="/tree/{{ n.name }}">{{ n.name }}/</a> <span class="faint">{{ n.apps|length }}</span></div>
+    <div class="l1{{ ' here' if open and not current_app else '' }}"><span aria-hidden="true">{{ '▾' if open else '▸' }}</span> {{ dot(status.node(n.name)) }} <a class="strong" href="/tree/{{ n.name }}"{% if open and not current_app %} aria-current="page"{% endif %}>{{ n.name }}/</a> <span class="faint">{{ n.apps|length }}</span></div>
       {%- if open %}{% for a in n.apps %}
       <div class="l2{{ ' here' if current_app and current_app.name == a.name else '' }}">{{ dot(status.app(n.name, a.name)) }} <a href="/tree/{{ n.name }}/{{ a.name }}"{% if current_app and current_app.name == a.name %} class="strong" aria-current="page"{% endif %}>{{ a.name }}/</a></div>
       {%- endfor %}{% endif %}
     {%- endfor %}
-    <div class="l1">▸ <a class="strong" href="/tree#docs">docs/</a> <span class="faint">{{ fleet.docs|length }}</span></div>
-  </div>
-</aside>
+    <div class="l1"><span aria-hidden="true">▸</span> <a class="strong" href="/tree#docs">docs/</a> <span class="faint">{{ fleet.docs|length }}</span></div>
+  </nav>
+</div>

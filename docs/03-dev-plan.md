@@ -12,7 +12,7 @@
 | Web | **FastAPI** + **Jinja2** + **htmx** + SSE | server-rendered, no JS build step, fast on a phone |
 | Store | **SQLite** (WAL, stdlib `sqlite3` behind a lock) | one file, backed up by groom like any app; enough for 90 days of events. *2026-09-30 (M0): `aiosqlite` dropped: a few writes per second don't need an async driver (runbook).* |
 | Scheduling | `asyncio` tasks per sense with jittered rhythms | no Celery/cron inside the container |
-| HTTP clients | `httpx` (async) | Komodo, Gatus, Scrutiny, HA REST |
+| HTTP clients | `httpx2` (async) | Komodo, Gatus, Scrutiny, HA REST. *2026-10-01 (M1): was `httpx`, which the test image doesn't have and starlette deprecates for tests ([ADR 0002](adr/0002-httpx2-for-the-senses.md)).* |
 | HA | `websockets` | whiskers' `state_changed` subscription |
 | Files (kitten) | `inotifywait` (Debian `inotify-tools`) on Linux, polling on Windows; kitten is stdlib-only | *2026-09-30: was `watchfiles`, a compiled extension a zipapp can't carry ([ADR 0001](adr/0001-kitten-stdlib-zipapp.md), 05 plan C11, A5).* |
 | Packaging | one container image for perch; kitten as a zipapp + systemd unit | kitten needs no Docker, so it runs on roastery-style hosts too |
@@ -58,6 +58,7 @@ persianPerch/
 | `PERCH_TRAIL_DAYS` | `90` | event retention; daily rollups kept 400 days |
 | `PERCH_PURR_URL` / `_KEY` / `_SECRET` | — | Komodo Core read API |
 | `PERCH_PURR_EVERY` | `30s` | purr rhythm |
+| `PERCH_SLEEPERS` | `roastery` | nodes that sleep between their wake windows: unreachable outside the window is slowBlink, not hiss (05 plan C5; the window itself is read from the fleet repo) |
 | `PERCH_GLARE_URL` / `_USER` / `_PASSWORD` | `https://gatus-api.${DOMAIN}` | Gatus on sieve through a `gatus-api` router with `forward-auth-basic` (05 plan Q12 = A); LLDAP service account `perch-svc` |
 | `PERCH_WHISKERS_URL` / `_TOKEN` | — | Home Assistant on mochaPot, read-only user |
 | `PERCH_WHISKERS_ENTITIES` | `whiskers.yml` | entity allow-list → bodyLanguage map |

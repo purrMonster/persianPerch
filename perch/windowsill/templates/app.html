@@ -1,38 +1,47 @@
 {% extends "base.html" %}
-{% from "_macros.html" import badge, dot, event %}
+{% from "_macros.html" import badge, dot, event, note %}
 {% block title %}{{ node.name }}/{{ app.name }}{% endblock %}
 {% block main %}
 {%- set lv = status.app(node.name, app.name) %}
-<div class="grid cols-tree">
+{%- set st = status.appState(node.name, app.name) %}
+{%- set boxes = status.containers(node.name, app) %}
+<div class="grid cols-tree" style="gap:24px">
   {% set current_node = node %}{% set current_app = app %}{% include "_treeNav.html" %}
   <section>
-    <div class="muted mono crumbs"><a href="/tree">fleet</a> / <a href="/tree/{{ node.name }}">{{ node.name }}</a> / {{ app.name }}</div>
-    <div class="row between" style="flex-wrap:wrap;gap:10px;margin-top:6px">
-      <div><h1>{{ app.name }}</h1><div class="muted">{{ app.summary or 'No README summary.' }}</div></div>
-      <div class="row" style="flex-wrap:wrap">{{ badge(lv) }}{% if not app.inApps %}<span class="chip" style="cursor:default" title="a folder in stacks/{{ node.name }}/ that node.conf's APPS doesn't list">not in node.conf</span>{% endif %}<a class="chip" href="https://github.com/purrMonster/purrbrews-containers/tree/{{ fleet.commit }}/{{ app.path }}" rel="noopener">GitHub ↗</a></div>
+    <nav class="muted mono crumbs" aria-label="Breadcrumb" translate="no"><a href="/tree">fleet</a> / <a href="/tree/{{ node.name }}">{{ node.name }}</a> / {{ app.name }}</nav>
+    <div class="pagehead" style="margin-bottom:0">
+      <div><h1 translate="no">{{ app.name }}</h1><div class="muted">{{ app.summary or 'No README summary.' }}</div></div>
+      <div class="row" style="flex-wrap:wrap">{{ badge(lv, lv.value ~ (' for ' ~ (st.since|ago) if st and lv != BodyLanguage.unknown else '')) }}{% if not app.inApps %}<span class="chip static" title="a folder in stacks/{{ node.name }}/ that node.conf's APPS doesn't list">not in node.conf</span>{% endif %}<a class="chip" href="https://github.com/purrMonster/purrbrews-containers/tree/{{ fleet.commit }}/{{ app.path }}" rel="noopener">GitHub <span aria-hidden="true">↗</span></a></div>
     </div>
-    <div class="tabs"><a class="on" href="#" aria-current="page">overview</a><a class="off" title="arrives with the senses">scentTrail</a><a class="off" title="arrives in M1">config</a><a class="off" title="arrives in M2">groom</a></div>
+    {%- if st and st.bodyLanguage.rank >= BodyLanguage.tailFlick.rank %}{{ note(st.bodyLanguage, st.title) }}{% endif %}
+    <p class="muted small" style="margin:16px 0 20px">This app's config and <span translate="no">groom</span> views arrive with M2.</p>
     <div class="grid cols-cards">
-      <div class="card"><h2>Containers <span class="faint" style="font-weight:400">· purr</span></h2>
-        {%- if app.images %}<div class="tablewrap"><table><thead><tr><th>image</th><th>state</th></tr></thead><tbody>
-        {%- for img in app.images %}<tr><td class="mono">{{ img }}</td><td>{{ badge(BodyLanguage.unknown) }}</td></tr>{% endfor %}
+      <div class="card wide"><h2>Containers <span class="faint" translate="no">purr</span></h2>
+        {%- if boxes %}<div class="tablewrap"><table><thead><tr><th>name</th><th>state</th><th class="hide-sm">image</th><th class="hide-sm">up</th></tr></thead><tbody translate="no">
+        {%- for b in boxes %}{% set d = b.detail or {} %}{% set n = d.get('restarts15m') %}<tr><th scope="row" class="mono">{{ b.subject.partition('/')[2] }}</th><td>{{ badge(b.bodyLanguage, d.get('label')) }}{% if n %} <span class="faint small">{{ n }} restart{{ '' if n == 1 else 's' }} in 15 min</span>{% endif %}</td><td class="mono muted hide-sm">{{ d.get('image') or '-' }}</td><td class="num muted hide-sm">{{ d.get('uptimeSeconds')|span }}</td></tr>{% endfor %}
         </tbody></table></div>
-        <p class="muted small" style="margin-bottom:0">Images from <span class="mono">docker-compose.yml</span>; live state arrives with purr (M1).</p>
-        {%- else %}<p class="empty">No <span class="mono">docker-compose.yml</span> images: not a container app.</p>{% endif %}
+        <p class="muted small" style="margin-bottom:0">purr looked {{ boxes[0].lastSeenAt|ago }} ago. A healthy app runs every container that <span class="mono" translate="no">docker-compose.yml</span> names.</p>
+        {%- elif app.images %}<div class="tablewrap"><table><thead><tr><th>image</th><th>state</th></tr></thead><tbody>
+        {%- for img in app.images %}<tr><td class="mono" translate="no">{{ img }}</td><td>{{ badge(BodyLanguage.unknown) }}</td></tr>{% endfor %}
+        </tbody></table></div>
+        <p class="muted small" style="margin-bottom:0">{% if st %}{{ st.title }}{% else %}purr hasn't seen this app's containers yet{% endif %}. Images are from <span class="mono" translate="no">docker-compose.yml</span>.</p>
+        {%- else %}<p class="empty">No <span class="mono" translate="no">docker-compose.yml</span> images: not a container app.</p>{% endif %}
       </div>
-      <div class="card"><h2>Backups <span class="faint" style="font-weight:400">· groom</span></h2>
-        {%- if app.backup %}<dl class="kv"><dt>what</dt><dd>{% for line in app.backup %}<span class="mono">{{ line }}</span>{% if not loop.last %}<br>{% endif %}{% endfor %}</dd>
+      <div class="card"><h2>Backups <span class="faint" translate="no">groom</span></h2>
+        {%- if app.backup %}<dl class="kv"><dt>what</dt><dd><div class="card codewin slim"><pre class="readme" translate="no">{{ app.backup|join('\n') }}</pre></div></dd>
         <dt>last run</dt><dd>{{ badge(BodyLanguage.unknown, 'arrives in M2') }}</dd></dl>
-        {%- else %}<p class="empty">No <span class="mono">backup</span> file: nothing of this app is backed up.</p>{% endif %}
+        {%- else %}<p class="empty">No <span class="mono" translate="no">backup</span> file: the nightly backup skips this app.</p>{% endif %}
       </div>
-      <div class="card"><h2>Files <span class="faint" style="font-weight:400">· git-tracked only</span></h2>
-        <table><tbody>{% for f in app.files %}<tr><td class="mono">{{ f }}</td></tr>{% endfor %}
-        {%- if app.hasSecretsConf %}<tr><td class="mono faint" title="the node keeps this file; catTree never reads it">secrets.env.local <span class="faint">· 🔒 never read · gitignored</span></td></tr>{% endif %}
+      <div class="card"><h2>Files <span class="faint">git-tracked only</span></h2>
+        <table><tbody translate="no">{% for f in app.files %}<tr><td class="mono">{{ f }}</td></tr>{% endfor %}
+        {%- if app.hasSecretsConf %}<tr><td class="mono faint" title="the node keeps this file; catTree never reads it">secrets.env.local <span class="faint">(never read, gitignored)</span></td></tr>{% endif %}
         </tbody></table></div>
     </div>
-    <div class="card" style="margin-top:16px"><h2>README.md</h2>
+    <div class="card codewin" style="margin-top:16px"><h2 translate="no">README.md</h2>
       {%- if readme %}<pre class="readme">{{ readme }}</pre>{% else %}<p class="empty">No README.</p>{% endif %}</div>
-    {%- if events %}<div class="card" style="margin-top:16px"><h2>scentTrail</h2>{% for s in events %}{{ event(s, fleet) }}{% endfor %}</div>{% endif %}
+    <div class="card" style="margin-top:16px"><h2 translate="no">scentTrail</h2>
+      {%- if events %}<ul class="feed" role="list">{% for s in events %}{{ event(s, fleet) }}{% endfor %}</ul>
+      {%- else %}<p class="empty">Nothing has happened to this app since perch started watching.</p>{% endif %}</div>
   </section>
 </div>
 {% endblock %}

@@ -72,7 +72,7 @@ class BodyLanguage(StrEnum):
 _LOOKS: dict[BodyLanguage, _Look] = {
     BodyLanguage.slowBlink: _Look(0, "·", "#6fa287", "OK / info", "OK / info"),
     BodyLanguage.earTwitch: _Look(1, "◦", "#6b8fb3", "notice", "notice: expected event"),
-    BodyLanguage.unknown: _Look(2, "?", "#6d6259", "unknown", "unknown: no data yet"),
+    BodyLanguage.unknown: _Look(2, "?", "#6d6259", "unknown", "no data yet"),
     BodyLanguage.tailFlick: _Look(3, "~", "#d9953b", "warn", "warn: degraded, late, retrying"),
     BodyLanguage.hiss: _Look(4, "!", "#c8453b", "critical", "critical: needs barista"),
 }

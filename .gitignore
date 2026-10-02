@@ -9,3 +9,9 @@ __pycache__/
 .venv/
 screenshots/
 /data/
+# Project skills for Claude Code (installed on roastery, see AGENTS.md 3.1). Third-party
+# texts whose licences aren't ours to redistribute, and this repo is public.
+.claude/skills/
+.claude/settings.local.json
+# Output of the Claude desktop app's browser tool, never project content.
+.playwright-mcp/

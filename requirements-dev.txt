@@ -1,5 +1,4 @@
 # Tests and lint for perch (the test image installs these on top of requirements.txt).
 -r requirements.txt
-httpx2==2.13.1
 pytest==9.1.1
 ruff==0.16.9

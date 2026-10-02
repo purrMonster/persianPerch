@@ -1,32 +1,42 @@
 {# windowsill macros: severity is never colour alone - every badge has an icon and a word. #}
 {% macro badge(level, text=None) -%}
 {%- set bl = level|bl -%}
-<span class="badge bl-{{ bl.value }}" title="{{ bl.value }}: {{ bl.meaning }}"><i>{{ bl.icon }}</i>{{ text if text else bl.value }}</span>
+<span class="badge bl-{{ bl.value }}" title="{{ bl.value }}: {{ bl.meaning }}"><i aria-hidden="true">{{ bl.icon }}</i>{% if text and bl.value not in text %}<span class="sr">{{ bl.value }}: </span>{% endif %}{{ text if text else bl.value }}</span>
 {%- endmacro %}
 {% macro dot(level) -%}
 {%- set bl = level|bl -%}
 <span class="dot bl-{{ bl.value }}" title="{{ bl.value }}: {{ bl.meaning }}" role="img" aria-label="{{ bl.value }}"></span>
 {%- endmacro %}
+{# a line about something that is off: the word is for screen readers, the icon and colour repeat it #}
+{% macro note(level, text) -%}
+{%- set bl = level|bl -%}
+<div class="note bl-{{ bl.value }}"><i aria-hidden="true">{{ bl.icon }}</i><span><span class="sr">{{ bl.value }}: </span>{{ text }}</span></div>
+{%- endmacro %}
+{# a vitals bar: the number is the information, the bar is only its shape (aria-hidden) #}
+{% macro meter(label, value, level=None) -%}
+<div><div class="row between small"><span class="muted">{{ label }}</span><span class="num">{{ value|round|int }} %</span></div>
+<div class="bar{{ ' bl-' ~ level.value if level else '' }}" aria-hidden="true"><b style="width:{{ [value, 100]|min|round|int }}%"></b></div></div>
+{%- endmacro %}
 {% macro legend() -%}
-<div class="legend">
+<div class="legend" translate="no">
 {%- for lv in LEVELS %}<span class="row">{{ badge(lv) }}<span>{{ lv.meaning }}</span></span>{% endfor -%}
 <span class="row">{{ badge(BodyLanguage.unknown) }}<span>{{ BodyLanguage.unknown.meaning }}</span></span>
 </div>
 {%- endmacro %}
 {% macro event(scent, fleet) -%}
 {%- set bl = scent.bodyLanguage -%}
-<div class="row event bl-{{ bl.value }}">
-  <div class="mono muted when">{{ scent.seenAt|local('%H:%M:%S') }}</div>
-  <div class="stripe"></div>
-  <div class="body"><div class="row" style="gap:8px;flex-wrap:wrap">{{ badge(bl) }}<span class="chip" style="cursor:default" title="{{ SENSE_MEANING[scent.sense] }}">{{ scent.sense }}</span>{{ subjectLink(scent.subject, fleet) }}</div>
-  <div style="margin-top:4px">{{ scent.title }}</div>
-  {%- if scent.litterId %}<div class="faint small" style="margin-top:2px">litter {{ scent.litterId }}</div>{% endif %}</div>
-</div>
+<li class="row event bl-{{ bl.value }}">
+  <time class="mono muted when" datetime="{{ scent.seenAt|local('%Y-%m-%dT%H:%M:%S%z') }}">{{ scent.seenAt|local('%H:%M:%S') }}</time>
+  <div class="stripe" aria-hidden="true"></div>
+  <div class="body"><div class="row" style="gap:8px;flex-wrap:wrap">{{ badge(bl) }}<span class="chip static" translate="no" title="{{ SENSE_MEANING[scent.sense] }}">{{ scent.sense }}</span>{{ subjectLink(scent.subject, fleet) }}</div>
+  <div class="title">{{ scent.title }}</div>
+  {%- if scent.litterId %}<div class="faint small" style="margin-top:2px">litter <span class="mono" translate="no">{{ scent.litterId }}</span></div>{% endif %}</div>
+</li>
 {%- endmacro %}
 {% macro subjectLink(subject, fleet) -%}
 {%- set kind, _, rest = subject.partition(':') -%}
 {%- if kind == 'app' and '/' in rest -%}{%- set n, _, a = rest.partition('/') -%}
-{%- if fleet.node(n) and fleet.node(n).app(a) %}<a class="mono" href="/tree/{{ n }}/{{ a }}">{{ rest }}</a>{% else %}<span class="mono">{{ rest }}</span>{% endif -%}
-{%- elif kind == 'node' and fleet.node(rest) %}<a class="mono" href="/tree/{{ rest }}">{{ rest }}</a>
-{%- else %}<span class="mono">{{ rest or subject }}</span>{% endif -%}
+{%- if fleet.node(n) and fleet.node(n).app(a) %}<a class="mono" translate="no" href="/tree/{{ n }}/{{ a }}">{{ rest }}</a>{% else %}<span class="mono" translate="no">{{ rest }}</span>{% endif -%}
+{%- elif kind == 'node' and fleet.node(rest) %}<a class="mono" translate="no" href="/tree/{{ rest }}">{{ rest }}</a>
+{%- else %}<span class="mono" translate="no">{{ rest or subject }}</span>{% endif -%}
 {%- endmacro %}

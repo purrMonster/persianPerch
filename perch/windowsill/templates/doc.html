@@ -4,10 +4,10 @@
 <div class="grid cols-tree">
   {% set current_node = None %}{% set current_app = None %}{% include "_treeNav.html" %}
   <section>
-    <div class="muted mono crumbs"><a href="/tree">fleet</a> / <a href="/tree#docs">docs</a> / {{ path }}</div>
-    <div class="row between" style="flex-wrap:wrap;gap:10px;margin:6px 0 16px"><h1 class="mono" style="font-size:18px">{{ path }}</h1>
-      <a class="chip" href="https://github.com/purrMonster/purrbrews-containers/blob/{{ fleet.commit }}/{{ path }}" rel="noopener">GitHub ↗</a></div>
-    <div class="card"><pre class="readme">{{ text }}</pre></div>
+    <nav class="muted mono crumbs" aria-label="Breadcrumb" translate="no"><a href="/tree">fleet</a> / <a href="/tree#docs">docs</a> / {{ path }}</nav>
+    <div class="row between" style="flex-wrap:wrap;gap:10px;margin:6px 0 16px"><h1 class="path" translate="no">{{ path }}</h1>
+      <a class="chip" href="https://github.com/purrMonster/purrbrews-containers/blob/{{ fleet.commit }}/{{ path }}" rel="noopener">GitHub <span aria-hidden="true">↗</span></a></div>
+    <div class="card codewin"><pre class="readme">{{ text }}</pre></div>
   </section>
 </div>
 {% endblock %}
