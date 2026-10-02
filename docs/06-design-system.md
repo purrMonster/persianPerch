@@ -80,6 +80,7 @@ Checked with the WCAG relative-luminance formula on 2026-10-01; recheck when a t
 | a vitals bar fill (`--muted` / `--tailFlick` / `--hiss`) on its track (`--line` at 70 % over `--panel`) | 5.0 / 5.3 / 5.2 | 5.9 / 6.8 / 4.7 | 3 (1.4.11, and the number beside it carries the value) |
 | a grooming-grid glyph (`--bg`) on its level's fill: slowBlink / earTwitch / unknown / tailFlick / hiss | 6.1 / 6.8 / 6.1 / 6.7 / 6.6 | 8.3 / 7.3 / 6.3 / 8.9 / 6.2 | 4.5 (1.4.3; the shape itself needs 3, 1.4.11) |
 | a `.mark` glyph (a bodyLanguage colour, no fill) on `--bg` / `--panel` / `--panel2`, worst case per level | 6.1 / 5.7 / 5.1 (slowBlink, unknown) to 6.8 / 6.3 / 5.7 (earTwitch) | 6.2 / 5.7 / 5.1 (hiss) to 8.9 / 8.3 / 7.3 (tailFlick) | 4.5 |
+| a sparkline's line (`--muted`, 1.5 px) on `--panel` / `--bg` (M4) | 5.8 / 6.3 | 7.2 / 7.7 | 3 (1.4.11: a graphic carrying information; the number beside it and the text alternative carry the values) |
 | a `.note` icon (a bodyLanguage colour) on `--panel` | decorative: `aria-hidden`, the sr-only word carries it; at least the badge ratios above | same | none |
 
 Measured 2026-10-02 (M3, the glyphs): chosen so no pair under 4.5. The grid keeps its **fill** (a failed night
@@ -155,6 +156,23 @@ renders the same with no network.
   timer doesn't fire is empty. Problems are listed in words under the grid, so colour is never alone.
   The chosen run shows below it (details, then its log in a code window); Copies sits beside it
   (stacked under it on a phone).
+- **Sparkline (`svg.spark`, `.sparks`, M4):** a node's CPU, RAM or disk over a span, drawn on the server as inline SVG
+  (`windowsill/spark.py`), no chart library and no script. The line is `--muted` and **never a level colour** (colour
+  means state only, §2): a breached threshold shows as the usual badge or bar. Fixed scale 0 to 100 % so the same
+  height means the same load everywhere; the span is cut into equal columns and a column with no stored data is a
+  **gap** where the line breaks (a lone column is a dot), never interpolated. Every sparkline is `role="img"` with a
+  text alternative, `RAM 24 h: 41-63 %, now 58 %` (lowest and highest column, the live reading, `, with gaps` when
+  there are any); with nothing stored it is a sentence, not an empty box. Three sit side by side under a node's three
+  meters (overview card: 24 h; node page: 7 days from the 5-minute rows and 90 days from the hourly ones), with one
+  caption saying the span and the order (`last 24 h: CPU, RAM, disk`). A `--line` baseline marks 0 %.
+- **Endpoints card (`#glare`, M4):** `N of M answering` as a badge, then one line per endpoint that is not plainly up
+  (mark, name, what is wrong); when all pass, one sentence. Not configured and waiting are each said in words.
+- **Disks card (`#disks`, M4):** one line per drive Scrutiny reports (mark, host and device as a link to the node
+  when the host is a node, model, one sentence); the node page has the same as a table with the powered-on hours
+  and, when the summary disagrees with SMART attribute 9, the summary's figure in small type.
+- **Outside card (`#binocs`, M4):** a `dl` of tunnel (Gatus's own check, so no request of its own), speedtest and
+  releases, then the newer releases as lines. Notices only: nothing here is ever worse than earTwitch, and none of it
+  moves the fleet badge.
 - **Unknown is a state with a reason.** Grey never stands alone: the overview says why
   ("purr isn't configured", "waiting for purr's first look", "purr can't see them. <why>").
 

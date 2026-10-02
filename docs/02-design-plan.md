@@ -138,6 +138,9 @@ from (found in M1). It stays one SQLite file, not a time-series database (§2.3 
 - **Unlocks later:** "sustained" CPU/RAM rules (e.g. RAM > 90 % for 15 min), which M1 left
   out because there was no history. Not part of M4 unless the owner asks.
 - A gap (Komodo down, perch stopped) is a gap in the line, never interpolated.
+- *Built in M4 (2026-10-03, [ADR 0008](adr/0008-vitals-history-tables.md)):* both tables keep the highest reading of CPU,
+  RAM and disk (the plan said disk only); the sparkline scale is fixed 0 to 100 %; the sparklines sit under the three
+  meters (docs/06 6).
 
 ## 4. The senses in detail
 
@@ -180,6 +183,10 @@ from (found in M1). It stays one SQLite file, not a time-series database (§2.3 
   truth for uptime. Gatus publishes no port (it's behind sieve's Traefik and Authelia), so
   perch signs in as an LLDAP service account through Authelia's existing basic-auth
   endpoint (`forward-auth-basic`), read-only by what Gatus exposes. **Later:** own checks for TLS expiry and response time.
+- *Built in M4 (2026-10-03):* one `GET /api/v1/endpoints/statuses?page=1&pageSize=20` a minute (Gatus v5.36.0; `page` and
+  `pageSize` page each endpoint's *results*). Uptime is not in that JSON, so glare judges the newest results itself: a
+  failure streak of 2 is tailFlick, 5 is hiss, an endpoint Gatus stopped checking is unknown, and Gatus unreachable is
+  unknown plus one tailFlick ("glare is late: can't see Gatus"), never a hiss per endpoint.
 
 ### 4.4 pounce (filesystem)
 
@@ -206,6 +213,9 @@ from (found in M1). It stays one SQLite file, not a time-series database (§2.3 
 
 - Cloudflare tunnel health (from cloudflared metrics), speedtest-tracker's last result,
   new upstream releases of pinned images (weekly; earTwitch, never hiss).
+- *As built in M4 (2026-10-03):* the tunnel is Gatus's own `/ready` check (05 plan C7), shown from the glare state;
+  speedtest is the newest result of speedtest-tracker v1.15.0 (earTwitch at most); releases go through the registries'
+  OCI API, only when `PERCH_BINOCS_RELEASES_EVERY` is set ([ADR 0007](adr/0007-binocs-releases-through-the-oci-registry-api.md)).
 
 ## 5. meow (alerts)
 

@@ -19,6 +19,7 @@ PAGES = {
     "catTree-app": "/tree/percolator/authelia",
     "catTree-app-hiss": "/tree/grinder/n8n",
     "catTree-node-hiss": "/tree/grinder",
+    "catTree-node-disks": "/tree/cellar",
     "catTree-node-roastery": "/tree/roastery",
     "catTree-doc": "/tree/docs/README.md",
     "groom": "/groom",

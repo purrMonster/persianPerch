@@ -71,3 +71,60 @@
 {%- elif kind == 'node' and fleet.node(rest) %}<a class="mono" translate="no" href="/tree/{{ rest }}">{{ rest }}</a>
 {%- else %}<span class="mono" translate="no">{{ rest or subject }}</span>{% endif -%}
 {%- endmacro %}
+{# vitals history (M4): three sparklines under the three meters, same grid; each carries its own text alternative #}
+{% macro sparkRow(sp, span) -%}
+{%- if sp.any %}<div class="sparks" role="group" aria-label="last {{ span }}">{{ sp.cpu }}{{ sp.mem }}{{ sp.disk }}</div>
+<div class="faint small sparkcap">last {{ span }}: CPU, RAM, disk</div>
+{%- else %}<div class="faint small sparkcap">No {{ span }} history yet. It builds up as purr keeps looking.</div>{% endif %}
+{%- endmacro %}
+{# glare: Gatus's endpoints. Problems are listed in words; the ones that passed are a count. #}
+{% macro glareCard(status, on) -%}
+{%- set eps = status.glare() -%}
+<div class="card" id="glare"><div class="section-title"><h2>Endpoints <span class="faint" translate="no">glare</span></h2></div>
+{%- if not on %}<p class="empty">glare isn't watching: it needs <span class="mono" translate="no">PERCH_GLARE_URL</span> and the <span class="mono" translate="no">perch-svc</span> login for Gatus.</p>
+{%- elif not eps %}<p class="empty">glare is waiting for its first look at Gatus. Endpoints appear here when it has read them.</p>
+{%- else %}
+{%- set up = eps|selectattr('bodyLanguage.value', 'in', ['slowBlink', 'earTwitch'])|list|length %}
+<p class="row small" style="margin:0 0 8px">{{ badge(eps[0].bodyLanguage, up ~ ' of ' ~ eps|length ~ ' answering') }}</p>
+<ul class="feed" role="list">
+{%- for s in eps if s.bodyLanguage.value != 'slowBlink' or (s.detail or {}).failStreak %}
+  <li class="row small">{{ mark(s.bodyLanguage) }}<span><span class="mono" translate="no">{{ (s.detail or {}).name or s.subject }}</span> <span class="muted">{{ s.title }}</span></span></li>
+{%- else %}
+  <li class="muted small">Every endpoint passed its last check.</li>
+{%- endfor %}
+</ul>
+{%- endif %}</div>
+{%- endmacro %}
+{# disks: Scrutiny's drives, one line each #}
+{% macro disksCard(disks, on, fleet) -%}
+<div class="card" id="disks"><div class="section-title"><h2>Disks <span class="faint" translate="no">Scrutiny</span></h2></div>
+{%- if not on %}<p class="empty">Drive health isn't watched: it needs <span class="mono" translate="no">PERCH_DISKS_URL</span>.</p>
+{%- elif not disks %}<p class="empty">Waiting for the first look at Scrutiny. Drives appear here once it has them.</p>
+{%- else %}
+<ul class="feed" role="list">
+{%- for s in disks %}{% set d = s.detail or {} %}
+  <li class="row small">{{ mark(s.bodyLanguage) }}<span><span class="mono" translate="no">{% if d.host and fleet.node(d.host) %}<a href="/tree/{{ fleet.node(d.host).name }}">{{ d.host }}</a>{% else %}{{ d.host or 'unnamed host' }}{% endif %} {{ d.device }}</span> <span class="muted">{{ d.model }}: {{ s.title }}</span></span></li>
+{%- endfor %}
+</ul>
+{%- endif %}</div>
+{%- endmacro %}
+{# binocs: the outside web. Notices only: nothing here is ever worse than earTwitch. #}
+{% macro binocsCard(status, on, releases) -%}
+{%- set tunnel = status.tunnel() -%}
+{%- set speed = status.states.get('binocs:speedtest') -%}
+<div class="card" id="binocs"><div class="section-title"><h2>Outside <span class="faint" translate="no">binocs</span></h2></div>
+<dl class="kv">
+  <dt>tunnel</dt><dd>{% if tunnel %}{{ mark(tunnel.bodyLanguage) }} {{ tunnel.title }}{% else %}<span class="muted">Gatus has no check named cloudflare tunnel yet</span>{% endif %}</dd>
+  <dt>speedtest</dt><dd>{% if speed %}{{ mark(speed.bodyLanguage) }} {{ speed.title }}{% else %}<span class="muted">not configured: <span class="mono" translate="no">PERCH_BINOCS_SPEEDTEST_URL</span> and its token</span>{% endif %}</dd>
+  <dt>releases</dt><dd>{% if releases %}{{ releases.images }} images checked, {{ releases.newer }} with a newer release, {{ releases.skipped }} that can't be compared. <span class="faint">Checked {{ releases.at|ago }} ago.</span>{% if releases.stopped %} <span class="muted">Stopped early: {{ releases.stopped }}.</span>{% endif %}{% else %}<span class="muted">{% if on %}Not looked yet. It looks once a week.{% else %}off: set <span class="mono" translate="no">PERCH_BINOCS_RELEASES_EVERY</span> to look weekly{% endif %}</span>{% endif %}</dd>
+</dl>
+{%- set newer = [] %}{% for s in status.binocs() if s.subject.startswith('binocs:release/') %}{% set _ = newer.append(s) %}{% endfor %}
+{%- if newer %}
+<ul class="feed" role="list" style="margin-top:10px">
+{%- for s in newer[:8] %}
+  <li class="row small">{{ mark(s.bodyLanguage) }}<span><span class="mono" translate="no">{{ s.title }}</span> <span class="faint">{{ (s.detail or {}).usedBy|join(', ') }}</span></span></li>
+{%- endfor %}
+</ul>
+{%- if newer|length > 8 %}<p class="faint small" style="margin:6px 0 0">and {{ newer|length - 8 }} more.</p>{% endif %}
+{%- endif %}</div>
+{%- endmacro %}

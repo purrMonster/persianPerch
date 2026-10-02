@@ -1,4 +1,4 @@
-{% from "_macros.html" import badge, dot, mark, event, note, meter, asOf, liveSeen, subjectLink, ackForm %}
+{% from "_macros.html" import badge, dot, mark, event, note, meter, asOf, liveSeen, subjectLink, ackForm, sparkRow, glareCard, disksCard, binocsCard %}
 {%- set counts = status.counts() %}
 {%- set attention = status.attention() %}
 {%- set pill = purrPill(status) %}
@@ -13,7 +13,7 @@
   <ul class="attn" role="list">
   {%- for item in attention %}
     <li class="row">{{ badge(item.level) }}
-      <div class="body">{% if item.href %}<a class="mono" translate="no" id="attn-{{ item.subject|replace(':', '-')|replace('/', '-') }}" href="{{ item.href }}">{{ item.label }}</a> {% endif %}<span class="muted">{{ item.title }}</span></div>
+      <div class="body">{% if item.href %}<a class="mono" translate="no" id="attn-{{ item.subject|replace(':', '-')|replace('/', '-') }}" href="{{ item.href }}">{{ item.label }}</a> {% elif item.label %}<span class="mono" translate="no">{{ item.label }}</span> {% endif %}<span class="muted">{{ item.title }}</span></div>
       <span class="faint small">for {{ item.since|ago }}</span>
     </li>
   {%- endfor %}
@@ -36,6 +36,7 @@
         <div class="muted small" style="margin:6px 0 14px">{{ node.role }}{% if node.ip %}, <span class="mono">{{ node.ip }}</span>{% endif %}</div>
         {%- if v and v.cpu is defined %}
         <div class="vitals" role="group" aria-label="{{ node.name }} vitals">{{ meter('CPU', v.cpu) }}{{ meter('RAM', v.mem) }}{{ meter('disk', v.disk, diskLevel(v.disk)) }}</div>
+        {{ sparkRow(sparks[node.name], '24 h') }}
         {%- endif %}
         <div class="row between small nodesum"><span>{% if v and v.cpu is defined and not status.unknownApps(node.name) %}<strong class="num">{{ up[0] }}/{{ up[1] }}</strong> <span class="muted">apps up</span>{% elif v and v.mode == 'asleep' %}<span class="muted">{{ up[1] }} apps, not visible while it sleeps</span>{% else %}<span class="muted">{{ up[1] }} apps, no live data</span>{% endif %}</span></div>
         {%- if flag %}{{ note(flag[0], flag[1]) }}{% elif lv == BodyLanguage.unknown %}<div class="note muted small">no data yet</div>{% endif %}
@@ -80,8 +81,9 @@
     <div class="card"><div class="section-title"><h2 translate="no">scentTrail</h2><a class="small" id="all-events" href="/trail">Everything</a></div>
       {%- if recent %}<ul class="feed" role="list">{% for s in recent %}{{ event(s, fleet) }}{% endfor %}</ul>
       {%- else %}<p class="empty">Nothing on the trail yet. Events appear here as they happen.</p>{% endif %}</div>
-    <div class="card"><h2>Endpoints <span class="faint" translate="no">glare</span></h2>
-      <p class="empty">glare (Gatus) starts watching in M4.</p></div>
+    {{ glareCard(status, glareOn) }}
+    {{ disksCard(status.disks(), disksOn, fleet) }}
+    {{ binocsCard(status, binocsOn, releases) }}
   </aside>
 </div>
 {{ asOf(now) }}

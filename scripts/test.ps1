@@ -95,6 +95,19 @@ if (-not $SkipUi) {
     }
 }
 
+# The real-socket drill (05 plan 4 step 9): perch with every sense really running over loopback sockets against
+# fakes of Komodo, ntfy, Gatus, Scrutiny and speedtest-tracker; memory budget; leak check. Exits non-zero on any failure.
+Step 'real-socket drill: budget + leak check' {
+    docker build --quiet --label $label -t persian-perch:ui-test . | Out-Null
+    $mounts = @(
+        '-v', "${root}\.cache\purrbrews-containers:/fleet:ro",
+        '-v', "${root}\tests\ui\budget.py:/app/budget.py:ro",
+        '-v', "${root}\tests\komodoFake.py:/app/komodoFake.py:ro",
+        '-v', "${root}\tests\outsideFakes.py:/app/outsideFakes.py:ro"
+    )
+    docker run --rm --label $label -e PERCH_REPO_DIR=/fleet @mounts -w /app persian-perch:ui-test python budget.py
+}
+
 Write-Host ''
 Write-Host '=== summary'
 $failed = 0
