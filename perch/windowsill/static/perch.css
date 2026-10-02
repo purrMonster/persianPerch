@@ -231,6 +231,15 @@ footer.foot{border-top:1px solid var(--line);padding:18px 0 24px;color:var(--mut
   html{scroll-padding-top:120px}
 }
 .asof{margin:22px 0 0}
+/* groom: the grooming grid. One column per night, one dot per job, the dot is a link to that run */
+.nights th,.nights td{padding:4px 2px;text-align:center}
+.nights thead th{font-weight:500;color:var(--muted);font-variant-numeric:tabular-nums}
+.nights tbody th{text-align:left;white-space:nowrap;padding-right:14px;font-weight:400}
+a.cell{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:6px}
+a.cell:hover{background:var(--panel2)}
+a.cell[aria-current="true"]{outline:2px solid var(--text);outline-offset:-2px}
+.dot.big{width:12px;height:12px}
+.nodash{color:var(--faint)}
 @media (prefers-reduced-motion: reduce){
   *,*::before,*::after{transition:none!important;animation:none!important;scroll-behavior:auto!important}
 }

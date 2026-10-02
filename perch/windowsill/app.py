@@ -29,7 +29,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from ..bodyLanguage import LEVELS, BodyLanguage
+from ..bodyLanguage import LEVELS, BodyLanguage, worstOf
 from ..catTree import CatTree, CatTreeError, Fleet
 from ..collectors import Runner, buildCollectors
 from ..rollup import Status
@@ -40,6 +40,7 @@ from ..settings import Settings
 from ..words import duration
 
 HERE = Path(__file__).parent
+GROOM_NIGHTS = (7, 14, 30, 90)
 
 SENSE_MEANING = {
     "purr": "containers, node vitals",
@@ -257,7 +258,15 @@ def createApp(
         count = len(attention)
         things = "thing needs" if count == 1 else "things need"
         needs = f"{count} {things} a look." if count else "Nothing needs a look."
-        context = {"greeting": greeting, "local": now, "recent": trail.events(limit=8)}
+        lastNight = groomer.lastNight(clock())
+        context = {
+            "greeting": greeting,
+            "local": now,
+            "recent": trail.events(limit=8),
+            "lastNight": lastNight,
+            "lastLevel": worstOf(c.level for _j, c in lastNight) if lastNight else BodyLanguage.unknown,
+            "lastOk": sum(1 for _j, c in lastNight if c.level.rank <= BodyLanguage.earTwitch.rank),
+        }
         return context, signature, f"Fleet is {level.value}. {needs}"
 
     def nodeContext(fleet: Fleet, status: Status, nodeName: str) -> tuple[dict, str, str]:
@@ -276,7 +285,14 @@ def createApp(
             raise HTTPException(404, "no such app")
         level = status.app(nodeName, appName)
         parts = [level.value, *(f"{c.subject}={c.bodyLanguage.value}" for c in status.containers(nodeName, found))]
-        return {"node": node, "app": found}, digest(parts), f"{nodeName}/{appName} is {level.value}."
+        nightly = groomer.nightlyFor(nodeName, clock())
+        if nightly is not None and nightly[1].level is not None:
+            parts.append(f"nightly={nightly[1].level.value}")
+        return (
+            {"node": node, "app": found, "nightly": nightly},
+            digest(parts),
+            f"{nodeName}/{appName} is {level.value}.",
+        )
 
     def liveFragment(request: Request, kind: str, status: Status, built: tuple[dict, str, str], seen: str):
         """The region, the header's live bits, and one sentence when the client's last-seen state is stale."""
@@ -360,8 +376,56 @@ def createApp(
         return liveFragment(request, "app", status, appContext(fleet, status, nodeName, appName), seen)
 
     @app.get("/groom", response_class=HTMLResponse)
-    def groom(request: Request):
-        return render(request, "groom.html", "groom")
+    def groomView(
+        request: Request, nights: str = Query(default="14", max_length=4), cell: str = Query(default="", max_length=80)
+    ):
+        fleet = fleetOr503()
+        status = Status(fleet, trail)
+        now = clock()
+        nights = int(nights) if nights.isdigit() and int(nights) in GROOM_NIGHTS else 14
+        days, rows = groomer.grid(nights, now)
+        picked = None
+        key, _, day = cell.partition("@")
+        for job, cells in rows:
+            for when, found in zip(days, cells, strict=True):
+                if found is None or found.run is None:
+                    continue
+                if (job.key, when.isoformat()) == (key, day):
+                    picked = (job, when, found)
+                    break
+                if not cell and (picked is None or found.run.start > picked[2].run.start):
+                    picked = (job, when, found)
+        problems = sorted(
+            (
+                (found.slot, job, found)
+                for job, cells in rows
+                for found in cells
+                if found is not None and found.level is not None and found.level.rank >= BodyLanguage.earTwitch.rank
+            ),
+            key=lambda item: item[0],
+            reverse=True,
+        )[:10]
+        jobs = groomer.jobs(fleet)
+        lastNight = groomer.lastNight(now)
+        return render(
+            request,
+            "groom.html",
+            "groom",
+            fleet=fleet,
+            status=status,
+            nights=nights,
+            nightChoices=GROOM_NIGHTS,
+            days=days,
+            rows=rows,
+            picked=picked,
+            problems=problems,
+            copies=groomer.copies(now),
+            lastNight=lastNight,
+            lastLevel=worstOf(c.level for _j, c in lastNight) if lastNight else BodyLanguage.unknown,
+            lastOk=sum(1 for _j, c in lastNight if c.level.rank <= BodyLanguage.earTwitch.rank),
+            unwatched=sorted({j.node for j in jobs} - groomer.watchedNodes()),
+            noJobs=not jobs,
+        )
 
     @app.get("/trail", response_class=HTMLResponse)
     def scentTrailView(

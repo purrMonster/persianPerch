@@ -375,13 +375,19 @@ class Groom:
         today = now.astimezone(self.tz).date()
         days = [today - timedelta(days=n) for n in range(nights - 1, -1, -1)]
         runs = self.trail.runs(since=datetime.combine(days[0], time(0), tzinfo=self.tz) - _HOUR * 12)
+        watching = self.watchedNodes()
         rows = []
         for job in self.jobs():
             mine = [r for r in runs if r.node == job.node and r.job == job.name]
             cells: list[Cell | None] = []
             for day in days:
                 slot = job.slotOn(day, self.tz)
-                cells.append(self.cellFor(job, slot, mine, now) if slot else None)
+                if slot is None:
+                    cells.append(None)
+                elif job.node not in watching:
+                    cells.append(Cell(None, "not watched yet: no kitten token for this node", slot))
+                else:
+                    cells.append(self.cellFor(job, slot, mine, now))
             rows.append((job, cells))
         return days, rows
 
@@ -392,6 +398,82 @@ class Groom:
             return None
         runs = self.trail.runs(since=slot - _HOUR, node=job.node, job=job.name)
         return self.cellFor(job, slot, runs, now)
+
+    def nightlyFor(self, node: str, now: datetime) -> tuple[Job, Cell] | None:
+        """A node's latest nightly backup, for the node's and its apps' pages; None when the repo
+        doesn't schedule one there or perch doesn't watch the node yet."""
+        for job in self.jobs():
+            if job.node == node and job.name == "nightly" and node in self.watchedNodes():
+                cell = self.latest(job, now)
+                return (job, cell) if cell is not None else None
+        return None
+
+    def lastNight(self, now: datetime) -> list[tuple[Job, Cell]]:
+        """Every watched node's latest nightly backup: the grid's headline."""
+        found = []
+        for job in self.jobs():
+            if job.name == "nightly" and job.node in self.watchedNodes():
+                cell = self.latest(job, now)
+                if cell is not None and cell.level is not None:
+                    found.append((job, cell))
+        return found
+
+    def copies(self, now: datetime) -> list[dict]:
+        """Where the copies stand (design plan 4.2): the dump store, the Drive copy (its age from
+        ``drive-sync.ok``, as kitten on cellar reads it), the morning check and the restore check."""
+        jobs = {j.key: j for j in self.jobs()}
+        found: list[dict] = []
+
+        def fromJob(label: str, key: str, note: str, empty: str) -> None:
+            job = jobs.get(key)
+            cell = self.latest(job, now) if job and job.node in self.watchedNodes() else None
+            level = cell.level if cell and cell.level is not None else B.unknown
+            text = cell.text if cell and cell.level is not None else empty
+            when = cell.run.end or cell.run.start if cell and cell.run else None
+            found.append({"name": label, "level": level, "text": text, "when": when, "note": note})
+
+        fromJob("Dump store", "cellar/store", "every node's database dumps, backed up on cellar", "no record yet")
+        drive = jobs.get("cellar/drive")
+        beat = self.trail.states().get("kitten:cellar")
+        stamp = ((beat.detail or {}).get("stamps") or {}).get("drive-sync.ok") if beat else None
+        if drive is not None and stamp:
+            slot = drive.latestSlot(now, self.tz)
+            synced = datetime.fromtimestamp(stamp, UTC)
+            age = duration((now - synced).total_seconds())
+            if slot is not None and synced >= slot - _HOUR:
+                found.append(
+                    {
+                        "name": "Google Drive copy",
+                        "level": B.slowBlink,
+                        "text": f"synced {clockTime(synced, self.tz)}, {age} old",
+                        "when": synced,
+                        "note": "encrypted; files deleted since are kept 30 days",
+                    }
+                )
+            else:
+                late = judge(drive, slot, [], now=now, tz=self.tz, watchedSince=None) if slot else None
+                level = late.level if late and late.level is not None else B.unknown
+                found.append(
+                    {
+                        "name": "Google Drive copy",
+                        "level": level,
+                        "text": f"last sync {age} ago",
+                        "when": synced,
+                        "note": "encrypted; files deleted since are kept 30 days",
+                    }
+                )
+        else:
+            fromJob(
+                "Google Drive copy",
+                "cellar/drive",
+                "encrypted; files deleted since are kept 30 days",
+                "no sync seen yet",
+            )
+        fromJob("Morning check", "cellar/check", "06:00: every backup younger than 26 h", "no record yet")
+        fromJob(
+            "Restore check", "cellar/verify", "monthly: reads part of the repository back", "never run, due on the 1st"
+        )
+        return found
 
     # -- coming in --------------------------------------------------------------------------
 

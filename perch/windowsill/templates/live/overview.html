@@ -45,7 +45,16 @@
   </section>
   <aside class="grid" aria-label="Recent">
     <div class="card"><div class="section-title"><h2>Overnight grooming</h2><a class="small" id="all-nights" href="/groom">All nights</a></div>
-      <p class="empty">groom (backups) starts watching in M2.</p></div>
+      {%- if lastNight %}
+      <p class="row small" style="margin:0 0 8px">{{ badge(lastLevel, 'last night: ' ~ lastOk ~ ' of ' ~ lastNight|length) }}</p>
+      <ul class="feed" role="list">
+      {%- for job, cell in lastNight if cell.level.rank > BodyLanguage.slowBlink.rank %}
+        <li class="row small">{{ dot(cell.level) }}<span><span class="mono" translate="no">{{ job.node }}</span> <span class="muted">{{ job.label }}: {{ cell.text }}</span></span></li>
+      {%- else %}
+        <li class="muted small">Every watched node's backup ran on time.</li>
+      {%- endfor %}
+      </ul>
+      {%- else %}<p class="empty">Nothing to judge yet. groom watches a node once its kitten has a token (<span class="mono" translate="no">PERCH_KITTEN_TOKEN_&lt;NODE&gt;</span>), and judges nights from then on.</p>{% endif %}</div>
     <div class="card"><div class="section-title"><h2 translate="no">scentTrail</h2><a class="small" id="all-events" href="/trail">Everything</a></div>
       {%- if recent %}<ul class="feed" role="list">{% for s in recent %}{{ event(s, fleet) }}{% endfor %}</ul>
       {%- else %}<p class="empty">Nothing on the trail yet. Events appear here as they happen.</p>{% endif %}</div>
