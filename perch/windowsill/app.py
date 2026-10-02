@@ -14,6 +14,8 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import hashlib
+import hmac
+import json
 from collections.abc import Callable
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
@@ -32,6 +34,7 @@ from ..catTree import CatTree, CatTreeError, Fleet
 from ..collectors import Runner, buildCollectors
 from ..rollup import Status
 from ..scentTrail import SENSES, ScentTrail, parseUtc, utcNow
+from ..senses.groom import Groom, RecordError, parseRecord
 from ..senses.purr import DISK_CRIT, DISK_WARN
 from ..settings import Settings
 from ..words import duration
@@ -67,8 +70,19 @@ def createApp(
     )
     tree = tree or CatTree(settings.repoDir)
     tz = ZoneInfo(settings.tz)
+    groomer = Groom(
+        trail,
+        tree,
+        clock=clock,
+        tz=tz,
+        watched=settings.kittenTokens,
+        groomDir=settings.groomDir,
+        sleepers=settings.sleepers,
+    )
     if collectors is None:
         collectors = buildCollectors(settings, trail, tree, clock)
+        if groomer.watchedNodes():
+            collectors.append(groomer)
     runner = Runner(trail, collectors, clock=clock, secrets=settings.secretValues())
 
     @asynccontextmanager
@@ -89,6 +103,7 @@ def createApp(
     app.state.trail = trail
     app.state.tree = tree
     app.state.runner = runner
+    app.state.groom = groomer
     app.mount("/static", StaticFiles(directory=HERE / "static"), name="static")
 
     templates = Jinja2Templates(directory=HERE / "templates")
@@ -200,7 +215,7 @@ def createApp(
     @app.exception_handler(StarletteHTTPException)
     async def errorPage(request: Request, exc: StarletteHTTPException):
         """A person asked for a page, so a person gets a page (JSON stays for /healthz and /static)."""
-        if request.url.path.startswith(("/static", "/healthz")):
+        if request.url.path.startswith(("/static", "/healthz", "/api")):
             return await http_exception_handler(request, exc)
         heading, nextStep = errors.get(
             exc.status_code, ("Something went wrong", "Try again, or go back to the overview.")
@@ -359,6 +374,66 @@ def createApp(
         levels = [lv for lv in level if lv in BodyLanguage.__members__] or [lv.value for lv in LEVELS]
         events = trail.events(since=clock() - timedelta(hours=hours), senses=senses, levels=levels, limit=500)
         return render(request, "trail.html", "scentTrail", events=events, senses=senses, levels=levels, hours=hours)
+
+    MAX_KITTEN_BODY = 1024 * 1024
+    MAX_KITTEN_RECORDS = 100
+
+    def kittenError(status: int, message: str) -> JSONResponse:
+        headers = {"WWW-Authenticate": "Bearer"} if status == 401 else None
+        return JSONResponse({"ok": False, "error": message}, status_code=status, headers=headers)
+
+    def kittenNode(request: Request) -> str | None:
+        """The node a bearer token belongs to. Every token is compared, in constant time, so the answer
+        doesn't depend on which one matched."""
+        header = request.headers.get("authorization", "")
+        scheme, _, token = header.partition(" ")
+        if scheme.lower() != "bearer" or not token.strip():
+            return None
+        found = None
+        for node, expected in settings.kittenTokens.items():
+            if hmac.compare_digest(token.strip().encode(), expected.encode()):
+                found = node
+        return found
+
+    @app.post("/api/kitten")
+    async def kittenApi(request: Request):  # noqa: PLR0911 - one early return per way to refuse
+        """kitten's report: a heartbeat and the groom records it hasn't had acknowledged. The one write
+        endpoint besides the acknowledgements (05 plan A11, test S7); it writes only perch's own database.
+        401 without a token the node list knows, 403 with another node's token (test S3)."""
+        node = kittenNode(request)
+        if node is None:
+            return kittenError(401, "a bearer token is required")
+        if int(request.headers.get("content-length") or 0) > MAX_KITTEN_BODY:
+            return kittenError(413, "report too large")
+        raw = await request.body()
+        if len(raw) > MAX_KITTEN_BODY:
+            return kittenError(413, "report too large")
+        try:
+            body = json.loads(raw)
+        except ValueError:
+            return kittenError(422, "the body must be JSON")
+        if not isinstance(body, dict):
+            return kittenError(422, "the body must be a JSON object")
+        if body.get("node") != node:
+            return kittenError(403, "this token belongs to another node")
+        heartbeat, records = body.get("heartbeat"), body.get("records", [])
+        if heartbeat is not None and not isinstance(heartbeat, dict):
+            return kittenError(422, "heartbeat must be an object")
+        if not isinstance(records, list) or len(records) > MAX_KITTEN_RECORDS:
+            return kittenError(422, f"records must be a list of at most {MAX_KITTEN_RECORDS}")
+        if heartbeat is None and not records:
+            return kittenError(422, "send a heartbeat, records, or both")
+        runs = []
+        for index, record in enumerate(records):
+            try:
+                run = parseRecord(record)
+            except RecordError as exc:
+                return kittenError(422, f"record {index}: {exc}")
+            if run.node != node:
+                return kittenError(403, f"record {index} is for another node")
+            runs.append(run)
+        stored = await asyncio.to_thread(groomer.ingest, node, heartbeat, runs)
+        return {"ok": True, "stored": stored}
 
     @app.get("/healthz")
     def healthz():

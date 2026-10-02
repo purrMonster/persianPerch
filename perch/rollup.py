@@ -61,7 +61,18 @@ class Status:
         own = self.nodeState(name)
         if own:
             levels.append(own.bodyLanguage)
+        levels.extend(s.bodyLanguage for s in self.agents(name))
         return worstOf(levels)
+
+    def agents(self, nodeName: str) -> list[State]:
+        """What watches the node's backups and answers for its agent: groom's latest night of each job
+        (``groom:<node>/<job>``) and kitten's heartbeat (``kitten:<node>``). They count toward the
+        node: a backup that didn't run, or an agent that went quiet, is a problem the node has."""
+        prefix = f"groom:{nodeName}/"
+        mine = [s for s in self.states.values() if s.subject.startswith(prefix)]
+        mine.sort(key=lambda s: s.subject)
+        beat = self.states.get(f"kitten:{nodeName}")
+        return ([beat] if beat else []) + mine
 
     def collectors(self) -> dict[str, State]:
         return {s.subject.partition(":")[2]: s for s in self.states.values() if s.subject.startswith("collector:")}
@@ -100,6 +111,9 @@ class Status:
                 state = self.appState(node.name, app.name)
                 if state and state.bodyLanguage.rank >= BodyLanguage.tailFlick.rank:
                     items.append(self._item(state, f"{node.name}/{app.name}", f"/tree/{node.name}/{app.name}"))
+            for state in self.agents(node.name):
+                if state.bodyLanguage.rank >= BodyLanguage.tailFlick.rank:
+                    items.append(self._item(state, node.name, "/groom" if state.subject.startswith("groom:") else None))
         for _name, state in sorted(self.collectors().items()):
             if state.bodyLanguage.rank >= BodyLanguage.tailFlick.rank:
                 items.append(self._item(state, "", None))  # its title already names it ("purr is late: ...")
@@ -120,6 +134,9 @@ class Status:
             state = self.appState(nodeName, app.name)
             if state and state.bodyLanguage.rank >= BodyLanguage.tailFlick.rank:
                 found.append((state.bodyLanguage, f"{app.name} {state.title or ''}".rstrip()))
+        for state in self.agents(nodeName):
+            if state.bodyLanguage.rank >= BodyLanguage.tailFlick.rank:
+                found.append((state.bodyLanguage, state.title or ""))
         if found:
             return max(found, key=lambda item: item[0].rank)  # max keeps the first of equals: the node's own
         if own and (own.detail or {}).get("mode") == "asleep":

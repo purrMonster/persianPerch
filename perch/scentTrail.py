@@ -69,6 +69,24 @@ MIGRATIONS: tuple[str, ...] = (
     """
     ALTER TABLE state ADD COLUMN detail TEXT;
     """,
+    # 3: groom (M2): one row per backup-job run a node's recorder wrote (design plan 4.2), and a
+    # small key-value table for facts about perch itself (when groom first looked)
+    """
+    CREATE TABLE groomRuns (
+        node       TEXT NOT NULL,
+        job        TEXT NOT NULL,
+        start      TEXT NOT NULL,
+        end        TEXT,
+        result     TEXT NOT NULL,
+        exitStatus TEXT,
+        unit       TEXT,
+        logTail    TEXT,
+        receivedAt TEXT NOT NULL,
+        PRIMARY KEY (node, job, start)
+    );
+    CREATE INDEX groomRuns_start ON groomRuns (start);
+    CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+    """,
 )
 
 _CROCKFORD = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
@@ -122,6 +140,20 @@ class State:
     expectedRhythm: int | None
     nextExpectedAt: datetime | None
     detail: dict[str, Any] | None = None
+
+
+@dataclass(frozen=True)
+class GroomRun:
+    """One run of one backup job on one node, as its recorder wrote it (groom, design plan 4.2)."""
+
+    node: str
+    job: str
+    start: datetime
+    end: datetime | None
+    result: str  # "success", or systemd's $SERVICE_RESULT: exit-code, signal, timeout, ...
+    exitStatus: str
+    unit: str
+    logTail: str
 
 
 class ScentTrail:
@@ -395,6 +427,70 @@ class ScentTrail:
                 names,
             ).rowcount
 
+    # -- groom runs and meta -------------------------------------------------
+
+    def addRun(self, run: GroomRun) -> bool:
+        """Store a run (log tail scrubbed). False when this exact run was already stored: kitten
+        re-sends what it hasn't seen acknowledged, so the same record arriving twice is normal."""
+        with self._lock:
+            cursor = self._db.execute(
+                "INSERT OR IGNORE INTO groomRuns VALUES (?,?,?,?,?,?,?,?,?)",
+                (
+                    run.node,
+                    run.job,
+                    isoUtc(run.start),
+                    isoUtc(run.end) if run.end else None,
+                    run.result,
+                    run.exitStatus,
+                    run.unit,
+                    scrub(run.logTail, self._secrets) if run.logTail else "",
+                    isoUtc(self.clock()),
+                ),
+            )
+            return cursor.rowcount > 0
+
+    def runs(
+        self, *, since: "datetime | None" = None, node: "str | None" = None, job: "str | None" = None
+    ) -> list[GroomRun]:
+        where, args = [], []
+        if since is not None:
+            where.append("start >= ?")
+            args.append(isoUtc(since))
+        if node is not None:
+            where.append("node = ?")
+            args.append(node)
+        if job is not None:
+            where.append("job = ?")
+            args.append(job)
+        clause = " WHERE " + " AND ".join(where) if where else ""
+        sql = f"SELECT * FROM groomRuns{clause} ORDER BY start"  # noqa: S608 - fixed clauses, values are placeholders
+        with self._lock:
+            rows = self._db.execute(sql, args).fetchall()
+        return [
+            GroomRun(
+                node=r["node"],
+                job=r["job"],
+                start=parseUtc(r["start"]),
+                end=parseUtc(r["end"]) if r["end"] else None,
+                result=r["result"],
+                exitStatus=r["exitStatus"] or "",
+                unit=r["unit"] or "",
+                logTail=r["logTail"] or "",
+            )
+            for r in rows
+        ]
+
+    def meta(self, key: str) -> "str | None":
+        with self._lock:
+            row = self._db.execute("SELECT value FROM meta WHERE key=?", (key,)).fetchone()
+        return row["value"] if row else None
+
+    def setMetaOnce(self, key: str, value: str) -> str:
+        """Set a fact the first time only; returns the value that is stored."""
+        with self._lock:
+            self._db.execute("INSERT OR IGNORE INTO meta VALUES (?,?)", (key, value))
+            return self._db.execute("SELECT value FROM meta WHERE key=?", (key,)).fetchone()["value"]
+
     # -- rollups, retention ---------------------------------------------------
 
     def rollups(self, subject: str, days: int = 7) -> dict[str, BodyLanguage]:
@@ -413,6 +509,7 @@ class ScentTrail:
         with self._lock:
             events = self._db.execute("DELETE FROM events WHERE seenAt < ?", (eventCut,)).rowcount
             rollups = self._db.execute("DELETE FROM rollups WHERE day < ?", (rollupCut,)).rowcount
+            self._db.execute("DELETE FROM groomRuns WHERE start < ?", (eventCut,))  # same age as events
         return {"events": events, "rollups": rollups}
 
     def counts(self) -> dict[str, int]:

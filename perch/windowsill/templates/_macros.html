@@ -55,6 +55,8 @@
 {%- set kind, _, rest = subject.partition(':') -%}
 {%- if kind == 'app' and '/' in rest -%}{%- set n, _, a = rest.partition('/') -%}
 {%- if fleet.node(n) and fleet.node(n).app(a) %}<a class="mono" translate="no" href="/tree/{{ n }}/{{ a }}">{{ rest }}</a>{% else %}<span class="mono" translate="no">{{ rest }}</span>{% endif -%}
+{%- elif kind == 'groom' %}<a class="mono" translate="no" href="/groom">{{ rest }}</a>
+{%- elif kind == 'kitten' and fleet.node(rest) %}<a class="mono" translate="no" href="/tree/{{ rest }}">kitten {{ rest }}</a>
 {%- elif kind == 'node' and fleet.node(rest) %}<a class="mono" translate="no" href="/tree/{{ rest }}">{{ rest }}</a>
 {%- else %}<span class="mono" translate="no">{{ rest or subject }}</span>{% endif -%}
 {%- endmacro %}
