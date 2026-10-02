@@ -150,14 +150,18 @@ understand *why* things are the way they are without re-deriving it.
   `windowsill`, `docs`, `runbook`, `integration`, `ci`), then a short body saying why.
   End with an attribution trailer naming the agent, e.g.
   `Co-Authored-By: Claude <noreply@anthropic.com>`.
+- **Branches and pull requests (owner's rule, 2026-10-02):** never commit or push to `main`.
+  Work on a branch (`<agent>/<milestone-or-topic>`). At a green gate: run the pre-push
+  checks below, push **the branch**, open a pull request into `main` (without the `gh` CLI,
+  give the owner the `github.com/purrMonster/persianPerch/compare/main...<branch>` link),
+  report, and stop. **Only the owner merges**, with a **merge commit**, never squash or
+  rebase: runbook entries cite commit hashes as evidence, and both would rewrite them.
 - **Before every push:**
   - `git log origin/main..HEAD --format='%ae %ce'` shows only
     `jyotirmoy.github@jyotirmoy.cc`;
   - no real domain, secret or private hostname in the diff
     (`git diff origin/main..HEAD` read through, not just grepped);
   - the tests pass.
-- **No remote yet:** if `git remote -v` is empty, commit locally and don't add one unless the
-  owner says so.
 
 ## 6. Handing off
 
