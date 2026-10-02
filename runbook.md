@@ -38,6 +38,83 @@ changes can be made later without re-deriving the reasoning. How to write entrie
 
 ---
 
+## 2026-10-03 — M4 glare + binocs + disks + vitals: built, unit gate green; UI and drill wait for 04:00 (IN PROGRESS)
+
+**Context.** The owner gave M4 its go-ahead and a first task: make the M3 container incident impossible to repeat.
+Claude Code (Sonnet 5.5), branch `claude/m4-glare-binocs-disks-vitals-1a383e`, started 2026-10-03 00:40 IST. Pre-flight passed
+(Docker 29.7.2, `main` at M3's merge `47dad4a`, clean, identity right, origin answered, the three skills present).
+Running on roastery at the start: `purrbrews-bootstrap`, `komodo-periphery`, `immich-machine-learning`; I touched none.
+
+**Decided** (reasons; losing alternatives in brackets).
+- **Container safety (AGENTS 2.8).** Only objects this project created may be stopped, killed, removed or pruned, identified by the label
+  `com.purrbrews.project=persianperch` or the compose project; commands that select all or unnamed objects are forbidden.
+  Every container and image `scripts/test.ps1` and `tests/ui/compose.yml` start carries the label; `tests/test_containerSafety.py` greps
+  tracked scripts (14 forbidden forms caught, 7 safe forms pass). Pointer added to CLAUDE.md.
+- **Gatus read at v5.36.0 (source, tag v5.36.0):** `GET /api/v1/endpoints/statuses?page=&pageSize=` returns a JSON array; page and pageSize
+  page each endpoint's *results* (default 50). Fields: `name`, `group`, `key`, `results[]` (`success`, `timestamp`, `duration` in ns,
+  `status`, `errors`, `conditionResults`), `events`. **Uptime is `json:"-"`**, so it is not in that JSON (separate plain-text routes
+  `/uptimes/{1h,24h,7d,30d}`); glare judges the newest results itself, one request for everything [calling the uptime route per endpoint:
+  N more requests for a number the results already give]. Rules: 2 failed checks in a row tailFlick, 5 hiss, 0 or 1 slowBlink (the title says
+  "last check failed"); no result for 3 of its own intervals (min 5 min) unknown; Gatus unreachable: after 2 failed cycles every endpoint
+  unknown, no per-endpoint event, one tailFlick from the collector rhythm ("glare is late ... can't see Gatus"). A refused login
+  (302, 401, 403) has its own message; the password is never in a message.
+- **Scrutiny read at v0.9.3 (source):** `GET /api/summary` (`data.summary` keyed by wwn: `device` with `device_status` bit flag 1 failed SMART,
+  2 failed Scrutiny's thresholds, `host_id`, `device_name`, `model_name`; `smart` with `collector_date`, `temp`, `power_on_hours`) and
+  `GET /api/device/<scrutiny_uuid>/details?duration_key=week` (`smart_results` newest first, `attrs` keyed by id as text, attribute `status` bit
+  flag 1 failed SMART, 2 warning, 4 failed Scrutiny; `metadata` with `display_name`). **Mapping:** device_status not 0 is hiss; no device failure
+  but an attribute in Scrutiny's warning band is tailFlick; no SMART report for 3 days is tailFlick; else slowBlink. **Power-on hours: attribute 9
+  (`raw_value`; NVMe `power_on_hours`, `value`) beats the summary's**; the page shows the summary's figure in small type when they disagree. A drive
+  counts toward the node named by its `host_id` (case-insensitive), else toward the fleet. Disk events use sense `purr` ("node vitals, drive health"):
+  no new sense name [a new sense `disks`: touches the trail filter, the SENSES tuple and two docs for no gain].
+- **speedtest-tracker read at v1.15.0 (source; the fleet runs the linuxserver `v1.15.0-ls170` build):** `GET /api/v1/results/latest`, Bearer
+  token with `results:read`, `{"data": {...}}`, 404 when empty; `download_bits` and `upload_bits` in bits/s, `ping` in ms, `healthy`, `status`,
+  `created_at` as `YYYY-MM-DD HH:MM:SS` in the app timezone (taken as `PERCH_TZ`). Failed, unhealthy or older than 6 h is earTwitch;
+  unreachable, forbidden or empty is unknown.
+- **Registries (ADR 0007).** Read: Docker's published OpenAPI (tag listing there is bearer-authenticated, no `ordering` for tags), the OCI distribution
+  spec (`tags/list?n=`, `Link rel=next`, lexical order), Docker's rate-limit docs (429 and Retry-After). **So Docker Hub is read through its
+  registry (`registry-1.docker.io` with the anonymous token from `auth.docker.io`), the same code as ghcr.io; lscr.io is ghcr.io/linuxserver.** One list
+  per repository, a pause between, a 429 stops the run and it resumes after Retry-After. Only `[v]X.Y.Z[-flavour]` pins compare; `-lsNNN` is ignored;
+  line pins and moving tags are counted as "can't be compared". **Off unless `PERCH_BINOCS_RELEASES_EVERY` is set** (the default was 7 d), so no
+  development run ever touches a registry. S6 allow-list: `ghcr.io` and `lscr.io` (one-line reasons in `test_repoHygiene.py`; `*.docker.io` was already there).
+- **Tunnel (C7):** Gatus's `cloudflare tunnel` check (key `network_cloudflare-tunnel`), shown from the glare state; binocs makes no request and
+  writes no state for it. **binocs states never count toward the fleet level or "Needs a look"** (earTwitch ranks above slowBlink, so a weekly notice
+  would turn the badge); glare and disks do.
+- **Vitals (ADR 0008):** two tables, both keep the highest reading of all three metrics (the plan said disk only); written from purr's stats.
+- **Sparklines:** fixed 0 to 100 % scale, `--muted`, gaps break the line, `role="img"` with `RAM 24 h: 41-63 %, now 58 %`; docs/06 sections 4 and 6.
+- New settings `PERCH_GLARE_EVERY`, `PERCH_DISKS_EVERY`, `PERCH_BINOCS_EVERY` (empty keys in `secrets.env`) so the drill can run on a 2 s rhythm.
+
+**Done.** `perch/vitals.py`, scentTrail migration 5, `senses/{gatus,glare,scrutiny,disks,speedtest,registries,binocs}.py`, `windowsill/spark.py`,
+rollup, meow, collectors and settings wiring, the Endpoints, Disks and Outside cards and the sparklines (templates, CSS), fakes in `tests/outsideFakes.py`,
+seed, live, shoot and budget extended, `scripts/test.ps1` gets the drill step and labels, ADRs 0007 and 0008, docs 02 and 06.
+
+**Verified so far** (labeled containers only, 2026-10-03 01:13 IST):
+```
+ruff check .  -> All checks passed!
+pytest        -> 585 passed in 347.10s
+```
+- Gate pieces, in tests: `test_GATE_smart_attribute_9_wins_when_the_summary_disagrees` (20000 h beats 3 h);
+  `test_GATE_8_days_of_30_second_samples_leave_exactly_7_days_of_5_minute_rows_plus_hourly_rows` (2016 and 192);
+  `test_GATE_the_database_stays_under_20_MB_at_400_days_of_6_nodes` (**7.43 MB**);
+  `test_GATE_gatus_unreachable_is_one_tailFlick_and_unknown_never_a_hiss_per_endpoint`;
+  `test_the_overview_shows_glare_from_the_fixture_and_the_placeholder_is_gone`; the container-safety tests.
+
+**Not done yet (blocked by the 01:20 to 04:00 quiet hours: they need image builds).**
+- [ ] `scripts\test.ps1` whole: kitten 3.13 and 3.14, Playwright (shoot.py and live.py with the new sparkline checks), the real-socket drill (now a step in
+  test.ps1: budget under 300 MB, leak check with the Gatus password and the speedtest token), summary ok x7
+- [ ] Look at the screenshots (both themes, 390 px), especially the sparklines and the three new cards
+- [ ] One web-design-guidelines pass (guidelines fetched fresh 2026-10-03) over `_macros.html`, `live/overview.html`, `live/node.html`, `perch.css`, `spark.py`; fix or explain each finding
+- [ ] CLAUDE.md status line; the Pre-push checks section; push the branch; remove the In-progress claim
+
+**Notes for the next agent.**
+- `ScentTrail.retention()` is not called by perch itself (only by tests); vitals retention runs inside `Vitals.maintain`. Events and rollups retention is an M0 gap worth a look.
+- nineLives holds its ping back while any collector is late, so a Gatus or Scrutiny outage of 3 cycles stops the outside heartbeat (M3's rule, now reached by glare
+  and disks). Owner decision: keep, or exempt glare and disks.
+- `ruff format .` reformats files this project never formatted (`tests/test_groomPage.py`, `tests/ui/budget.py`); format only the files you touch.
+
+— Claude (Claude Code, Sonnet 5.5)
+
+---
+
 ## 2026-10-02 — M3 meow + nineLives: litters, pushes, Acknowledge, the outside heartbeat; gate green
 
 **Context.** The owner gave M3 its go-ahead (see the M2 entry's "next"), plus a first task: the grooming grid
