@@ -33,6 +33,7 @@ from ..catTree import App, CatTree, Fleet, Node
 from ..rhythms import Rhythm, SleepWindow, sleepWindowFromRepo
 from ..rollup import Status
 from ..scentTrail import ScentTrail, State
+from ..vitals import Vitals
 from ..words import duration, ordinal
 from .dockerStatus import EXIT_MEANINGS, DockerStatus, parseStatus
 from .komodo import KomodoContainer, KomodoError, KomodoServer, KomodoSnapshot
@@ -125,6 +126,7 @@ class Purr:
         every: int = 30,
         sleepers: tuple[str, ...] = ("roastery",),
         tz: ZoneInfo,
+        vitals: Vitals | None = None,
     ) -> None:
         self.komodo = komodo
         self.trail = trail
@@ -133,6 +135,7 @@ class Purr:
         self.rhythm = Rhythm(every=every)
         self.sleepers = {s.lower() for s in sleepers}
         self.tz = tz
+        self.vitals = vitals  # history of the stats read below (M4); None: no history is kept
         self._streaks: dict[str, int] = {}
         self._seen: dict[str, _Seen] = {}
         self._restarts: dict[str, deque[datetime]] = {}
@@ -273,6 +276,8 @@ class Purr:
                 "diskUsedGb": round(stats.diskUsedGb, 1),
                 "diskTotalGb": round(stats.diskTotalGb, 1),
             }
+            if self.vitals is not None:
+                self.vitals.add(node.name, cy.now, stats.cpuPerc, stats.memPerc, stats.diskPerc)
             if stats.diskPerc >= DISK_CRIT:
                 level, title = B.hiss, f"disk {stats.diskPerc:.0f} % full"
             elif stats.diskPerc >= DISK_WARN:
