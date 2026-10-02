@@ -24,7 +24,7 @@ changes can be made later without re-deriving the reasoning. How to write entrie
 - [x] Vitals history and sparklines (mockup 01): **yes, in M4** with the disks (2026-10-02; 05 plan A13, design plan §3.5)
 - [x] Agents open pull requests instead of pushing to `main`; the owner merges with a merge commit (2026-10-02; AGENTS.md §5, 05 plan A2)
 - [x] Owner's go-ahead for M2 (2026-10-02), effective once the pull request with these decisions is merged
-- [ ] Owner: is the domain of the commit email (`jyotirmoy.github@jyotirmoy.cc`) also the fleet's real domain? If so it is already public in every commit; consider GitHub's noreply address for future commits (owner; raised in the M0 entry)
+- [x] Owner: is the domain of the commit email (`jyotirmoy.github@jyotirmoy.cc`) also the fleet's real domain? **No**: it is the owner's personal domain, not the fleet's (owner, 2026-10-02). Nothing is exposed; the commit identity stays as it is. S6 keeps allowing only the full address, never the bare domain, so the rule "no domains in files" stays simple.
 - [ ] M6 `ROLLOUT.md` drills: stop a container on grinder, hiss within 60 s; `ListServers {}` and `ServerState` spelling against the real Komodo 2.3.2; roastery in and out of its window (M1 entry)
 - [ ] M2 Grooming: **htmx first** (A12), then groom records, kitten v0, the backup grid; fleet-script change prepared in `integration/`
 - [ ] M3 meow + nineLives: alerts, litters, quiet hours, outside heartbeat
@@ -86,7 +86,7 @@ Second run: ruff clean, 296 passed, kitten OK × 2, Playwright 30 passed, summar
 **Not done / next.**
 - [ ] Owner: merge the pull request for `docs/owner-decisions-m2` (merge commit) (owner)
 - [ ] Builder: M2, starting with htmx per ADR 0003, on its own branch (agent)
-- [ ] Owner: the commit-email domain question in the Backlog (owner)
+- [x] Owner: the commit-email domain question in the Backlog: answered, it's the owner's personal domain (owner)
 
 — Claude (chat, Opus 5.5), for the owner
 
