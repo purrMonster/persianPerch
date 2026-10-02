@@ -13,3 +13,5 @@ screenshots/
 # texts whose licences aren't ours to redistribute, and this repo is public.
 .claude/skills/
 .claude/settings.local.json
+# Output of the Claude desktop app's browser tool, never project content.
+.playwright-mcp/
