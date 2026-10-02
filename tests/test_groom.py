@@ -99,7 +99,7 @@ def test_a_changed_timer_in_the_repo_moves_the_expectation(tmp_path, fleetRepo):
     repo = makeRepo(
         tmp_path / "r",
         {
-            "stacks/fleet.env": "SIEVE_LAN_IP=192.168.0.10\n",
+            "stacks/fleet.env": "SIEVE_LAN_IP=192.0.2.10\n",
             "stacks/sieve/node.conf": "# sieve: net.\nAPPS=(ntfy)\n",
             "stacks/sieve/ntfy/backup": "path /var/lib/ntfy\n",
             "stacks/_lib/systemd/purrbrews-backup@.timer": "[Timer]\nOnCalendar=*-*-* 02:10:00\n",
