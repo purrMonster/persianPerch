@@ -15,7 +15,7 @@ Set-Location $root
 $py312 = 'python:3.12-slim@sha256:f77ac9e44ae96ef2c90b8053ea08c31f8be030f824196b0ae4db6d462c84e51f'
 $py313 = 'python:3.13-slim@sha256:7c61056e61ac89e852de05f3dc6fa51a6dd2181797bceed46aa725dd7cb2cd3b'
 $py314 = 'python:3.14-slim@sha256:51dafde81dbdb6ebde285137a295cf18a47ca95234fe388a343719cb97305b3d'
-$fleetCommit = 'f94efdfb1995d7217ec2be33e45b33720a0a0b3b'
+$fleetCommit = '922164af2449ee9c8899b9466d721ffc5a2ac4e6'
 $fleetDir = Join-Path $root '.cache\purrbrews-containers'
 
 # Container-safety rule (AGENTS.md 2.8): every container this script starts carries this label, and

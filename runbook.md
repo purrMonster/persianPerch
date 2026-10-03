@@ -6,7 +6,7 @@ changes can be made later without re-deriving the reasoning. How to write entrie
 
 ## In progress
 
-- (nobody)
+- Claude Code (Sonnet 5.5) · M6 prepare: integration/, ROLLOUT.md, two owner decisions, re-pin · since 2026-10-03 17:40
 
 ## Backlog / open items
 
