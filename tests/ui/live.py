@@ -267,14 +267,35 @@ def main() -> int:
                     not found["recoloured"],
                     str(found["recoloured"]),
                 )
-                widths = outside.evaluate("[document.documentElement.scrollWidth, window.innerWidth]")
+                widths = outside.evaluate("[document.documentElement.scrollWidth, document.documentElement.clientWidth]")
                 check(f"sparklines on {where}: no horizontal scroll", widths[0] <= widths[1], str(widths))
+            # M5 task 0: the longest seeded subjects (no break points) on every list that shows subjects, at the
+            # page's own font width and with every glyph 5 % and 12 % wider (a phone's fonts are not ours)
+            for path in ("/", "/trail", "/tree/cellar", "/tree/percolator/vaultwarden"):
+                outside.goto(BASE + path, wait_until="networkidle")
+                if path in ("/", "/trail"):
+                    body = outside.inner_text("main")
+                    check(
+                        f"the longest seeded names are on {path} at {view}",
+                        "an-image-name-with-no-break-points" in body and "a-deliberately-long-endpoint-name" in body,
+                    )
+                for extra in (0, 0.05, 0.12):
+                    if extra:
+                        outside.add_style_tag(content=f"body *{{letter-spacing:{extra}em !important}}")
+                    widths = outside.evaluate(
+                        "[document.documentElement.scrollWidth, document.documentElement.clientWidth]"
+                    )
+                    check(
+                        f"{path} at {view} with fonts {int(extra * 100)} % wider: scrollWidth <= clientWidth",
+                        widths[0] <= widths[1],
+                        str(widths),
+                    )
             outside.goto(BASE + "/", wait_until="networkidle")
             outside.screenshot(path=f"{OUT}/overview-m4-{view}.png", full_page=True)
             text = outside.inner_text("main")
             check(
                 f"the overview at {view} shows glare, disks and binocs",
-                all(w in text for w in ("Endpoints", "Disks", "Outside", "5 of 6 answering")),
+                all(w in text for w in ("Endpoints", "Disks", "Outside", "5 of 7 answering")),
                 text[:200],
             )
             check(
@@ -311,7 +332,7 @@ def main() -> int:
                     "console", lambda m, problems=problems: problems.append(m.text) if m.type == "error" else None
                 )
                 groomPage.goto(f"{BASE}/groom?cell=sieve/nightly@{night}", wait_until="networkidle")
-                widths = groomPage.evaluate("[document.documentElement.scrollWidth, window.innerWidth]")
+                widths = groomPage.evaluate("[document.documentElement.scrollWidth, document.documentElement.clientWidth]")
                 groomPage.screenshot(path=f"{OUT}/groom-run-{view}.png", full_page=True)
                 check(f"groom grid at {view}: no horizontal scroll", widths[0] <= widths[1], str(widths))
                 check(

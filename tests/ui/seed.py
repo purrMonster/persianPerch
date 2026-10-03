@@ -30,6 +30,10 @@ settings = Settings.fromEnv()
 trail = ScentTrail(settings.trailDb)
 now = datetime.now(UTC)
 
+LONG_RELEASE = "release/ghcr.io/example-organisation/an-image-name-with-no-break-points-at-all-for-the-wrap-check"
+LONG_ENDPOINT = "a-deliberately-long-endpoint-name-with-no-break-points-at-all-for-the-wrap-check"
+LONG_ENDPOINT_KEY = f"apps_{LONG_ENDPOINT}"
+
 # events from senses that arrive in later milestones (the trail page needs rows to show)
 samples = [
     (0.4, "pounce", "app:percolator/paperless", B.earTwitch, "2 files dropped into consume/", None),
@@ -38,6 +42,9 @@ samples = [
     (5.5, "glare", "app:percolator/vaultwarden", B.slowBlink, "back: 200 · was down 3 min 30 s", "L6"),
     (5.6, "glare", "app:percolator/vaultwarden", B.hiss, "502 for 3 checks", "L6"),
     (26.0, "binocs", "node:sieve", B.earTwitch, "new upstream release: an image pinned in the repo", None),
+    # the longest subjects perch can show: no break points at all, as real release and endpoint names are
+    # (M5 task 0: a phone must not scroll sideways because of them, whatever the font is)
+    (0.2, "binocs", LONG_RELEASE, B.earTwitch, "newer release: 10.20.30-flavour is out (pinned 10.19.2-flavour)", None),
 ]
 for hoursAgo, sense, subject, level, title, litter in samples:
     trail.addEvent(sense, subject, level, title, litterId=litter, seenAt=now - timedelta(hours=hoursAgo))
@@ -104,14 +111,16 @@ for name, group in (
     ("authelia", "identity"),
     ("vaultwarden", "apps"),
     ("nextcloud", "apps"),
+    (LONG_ENDPOINT, "apps"),
 ):
     gatus.add(name, group)
 glare = Glare(gatus.client(), trail, clock=outside)
 for _ in range(12):
     gatus.tick()
     loop.run_until_complete(glare.cycle())
-for _ in range(2):  # vaultwarden fails twice: tailFlick
+for _ in range(2):  # vaultwarden and the long-named endpoint fail twice: tailFlick
     gatus.check("apps_vaultwarden", up=False, why="HTTP 502")
+    gatus.check(LONG_ENDPOINT_KEY, up=False, why="HTTP 503: " + "no-break-points-in-this-reason-either-" * 2)
     outside.advance(seconds=60)
     loop.run_until_complete(glare.cycle())
 

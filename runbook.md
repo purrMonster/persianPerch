@@ -6,7 +6,7 @@ changes can be made later without re-deriving the reasoning. How to write entrie
 
 ## In progress
 
-- (nobody)
+- Claude Code (Sonnet 5.5) · M5 pounce + whiskers + the live scentTrail, branch `claude/m5-pounce-whiskers-scenttrail-06df26` · since 2026-10-03 14:10
 
 ## Backlog / open items
 
