@@ -212,7 +212,8 @@ tr:last-child th[scope="row"]{border-bottom:none}
 .event{align-items:flex-start;gap:12px;padding:10px 12px;border-radius:var(--r-md)}
 .event .when{width:64px;flex:none;padding-top:2px}
 .event .stripe{width:3px;align-self:stretch;border-radius:var(--r-pill);background:var(--c)}
-.event .body{flex:1;min-width:0}
+.event .body{flex:1;min-width:0;overflow-wrap:anywhere}
+.event .body .row>a,.event .body .row>span.mono{min-width:0}  /* a subject with no break points wraps instead of pushing the row wider (docs/06 7.12) */
 .event .title{margin-top:4px;color:var(--text);overflow-wrap:anywhere}
 .dayhead{font-size:13px;font-weight:500;color:var(--muted);margin:18px 0 6px 12px}
 h1.path{font:500 18px/1.3 var(--font-mono);letter-spacing:0;overflow-wrap:anywhere}

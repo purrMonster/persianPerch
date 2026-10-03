@@ -55,6 +55,7 @@ class Settings:
     whiskersUrl: str = ""
     whiskersToken: str = _secret()
     whiskersEntities: Path = Path("/config/whiskers.yml")
+    whiskersEvery: int = 30
 
     binocsSpeedtestUrl: str = ""
     binocsSpeedtestToken: str = _secret()
@@ -119,6 +120,7 @@ class Settings:
             whiskersUrl=get("PERCH_WHISKERS_URL"),
             whiskersToken=get("PERCH_WHISKERS_TOKEN"),
             whiskersEntities=Path(get("PERCH_WHISKERS_ENTITIES", "/config/whiskers.yml")),
+            whiskersEvery=parseDuration(get("PERCH_WHISKERS_EVERY", "30s")),
             binocsSpeedtestUrl=get("PERCH_BINOCS_SPEEDTEST_URL"),
             binocsSpeedtestToken=get("PERCH_BINOCS_SPEEDTEST_TOKEN"),
             binocsEvery=parseDuration(get("PERCH_BINOCS_EVERY", "15m")),

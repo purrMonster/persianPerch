@@ -1,6 +1,7 @@
 """kitten: the small agent on each node (sieve, percolator, cellar, mochaPot, grinder,
 roastery). Every 60 s it sends perch a heartbeat and the groom records it hasn't had
-acknowledged; pounce events join them in M5.
+acknowledged. Pounce (``pounce.py``, M5) adds filesystem events: names and change types only, sent as soon
+as they are debounced, so a dropped file reaches the trail in seconds.
 
 Standard library only, so it runs as a zipapp on the nodes' own Python 3.13
 (Debian 13) and on roastery's Python 3.14 without installing anything (05 plan C11,
@@ -8,8 +9,9 @@ A5; ADR 0001). Test S8 runs its tests on both versions.
 
 It runs as an unprivileged ``kitten`` user and only *reads*: the groom records the recorder
 wrote (``/var/lib/purrbrews/groom/<job>/<start>.json``, 0644 in a 0755 directory, 05 plan A10) and
-the ``*.ok`` stamp files beside them (``drive-sync.ok``: when the Drive copy last finished).
-It never writes to a node and never runs anything. roastery has no groom jobs, so its kitten
+the ``*.ok`` stamp files beside them (``drive-sync.ok``: when the Drive copy last finished), and the
+names (never the contents) of what pounce watches. It never writes to a node; the only programs it runs are
+``inotifywait`` and ``git log`` (pounce.py). roastery has no groom jobs, so its kitten
 only sends heartbeats; it simply isn't running while roastery sleeps, and perch knows roastery's
 wake window (05 plan C5).
 """
@@ -30,11 +32,15 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 
-VERSION = "0.1.0"
+from .pounce import Pounce, Watch, buildPounce, defaultWatches, parseWatch
+
+VERSION = "0.2.0"
 
 EVERY = 60  # seconds between reports (design plan 3.4: the heartbeat's rhythm)
 RECENT = 72 * 3600  # records older than this are not (re)sent: perch long has them, or never will
 BATCH = 50  # records per report (perch accepts 100)
+EVENT_BATCH = 100  # pounce events per report (perch accepts 100)
+EVENT_BACKLOG = 500  # events kept while perch can't be reached; the oldest go first
 TIMEOUT = 15
 
 # Several pounce paths in one setting are separated by ';' on every OS: Windows
@@ -70,6 +76,15 @@ class KittenConfig:
             stateDir=env.get("KITTEN_STATE_DIR", "").strip() or ("" if os.name == "nt" else "/var/lib/purrbrews"),
             node=env.get("KITTEN_NODE", "").strip() or platform.node().split(".")[0],
         )
+
+    def watches(self) -> tuple[Watch, ...]:
+        """What pounce watches: ``KITTEN_POUNCE_PATHS`` when set (``none`` switches pounce off), else the
+        node's defaults (design plan 4.4, 05 plan C2 and A5)."""
+        if self.pouncePaths == ("none",):
+            return ()
+        if self.pouncePaths:
+            return tuple(parseWatch(p) for p in self.pouncePaths)
+        return defaultWatches(self.node, windows=os.name == "nt")
 
     def problems(self) -> list[str]:
         """What's missing before kitten can push; empty when it's ready."""
@@ -124,6 +139,10 @@ class Kitten:
         self._log = log
         self._done: set[str] = set()  # records perch has acknowledged or refused: not sent again
         self._said: str | None = None  # the last problem logged, so an outage is said once
+        self._events: list[dict] = []  # pounce events perch hasn't acknowledged
+        self._eventLock = threading.Lock()
+        self._wake = threading.Event()  # set when events are ready: send now, don't wait for the minute
+        self.pounce: Pounce | None = None
 
     # -- what it reads ------------------------------------------------------------------------
 
@@ -161,7 +180,23 @@ class Kitten:
 
     # -- one report ---------------------------------------------------------------------------
 
-    def _body(self, records: list[dict]) -> dict:
+    def addEvents(self, events: list[dict]) -> None:
+        """Pounce hands over events that are ready; the loop sends them at once."""
+        with self._eventLock:
+            self._events.extend(events)
+            del self._events[:-EVENT_BACKLOG]
+        self._wake.set()
+
+    def _takeEvents(self) -> list[dict]:
+        with self._eventLock:
+            return list(self._events[:EVENT_BATCH])
+
+    def _dropEvents(self, sent: list[dict]) -> None:
+        ids = {e["id"] for e in sent}
+        with self._eventLock:
+            self._events = [e for e in self._events if e["id"] not in ids]
+
+    def _body(self, records: list[dict], events: "list[dict] | None" = None) -> dict:
         sentAt = utcIso(datetime.fromtimestamp(self._clock(), UTC))
         body: dict = {
             "node": self.config.node,
@@ -169,26 +204,36 @@ class Kitten:
         }
         if records:
             body["records"] = records
+        if events:
+            body["events"] = events
         return body
 
     def cycle(self) -> bool:
         """Send one report. True when perch accepted it."""
         pending = self.records()
+        events = self._takeEvents()
         try:
-            status, answer = self._post(self.config.perchUrl, self.config.token, self._body([d for _p, d in pending]))
+            status, answer = self._post(
+                self.config.perchUrl, self.config.token, self._body([d for _p, d in pending], events)
+            )
         except OSError as exc:
             self._say(f"perch unreachable: {exc}")
             return False
-        if status == 422 and pending:
-            # A record perch can't read would block every later one. Mark this batch as seen (it is
-            # logged, and stays on the node for a person to look at) and keep the heartbeat going.
-            self._log(f"perch refused {len(pending)} record(s): {str(answer.get('error', ''))[:200]}")
+        if status == 422 and (pending or events):
+            # A record or event perch can't read would block every later one. Mark this batch as seen (it is
+            # logged, and a record stays on the node for a person to look at) and keep the heartbeat going.
+            self._log(
+                f"perch refused {len(pending)} record(s) and {len(events)} event(s): "
+                f"{str(answer.get('error', ''))[:200]}"
+            )
             self._done.update(path for path, _data in pending)
+            self._dropEvents(events)
             return self._heartbeatOnly()
         if status != 200:
             self._say(f"perch answered {status}: {str(answer.get('error', ''))[:200]}")
             return False
         self._done.update(path for path, _data in pending)
+        self._dropEvents(events)
         self._said = None
         return True
 
@@ -205,10 +250,29 @@ class Kitten:
             self._log(text)
 
     def run(self, stop: threading.Event, every: float = EVERY) -> None:
-        """Report until told to stop. A little jitter keeps six nodes from reporting in the same second."""
-        while not stop.is_set():
-            self.cycle()
-            stop.wait(every * random.uniform(0.9, 1.1))  # noqa: S311 - spreading load, not security
+        """Report until told to stop. A little jitter keeps six nodes from reporting in the same second; a
+        pounce event that is ready cuts the wait short (and a failing perch is not hammered: a woken cycle
+        that fails waits out the rest of the minute)."""
+        self.startPounce()
+        try:
+            while not stop.is_set():
+                self._wake.clear()
+                ok = self.cycle()
+                deadline = time.monotonic() + every * random.uniform(0.9, 1.1)  # noqa: S311 - spreading load
+                while not stop.is_set() and time.monotonic() < deadline:
+                    if self._wake.wait(0.25):
+                        if ok:
+                            break
+                        self._wake.clear()  # perch is refusing us: wait for the next minute, keep the events
+        finally:
+            if self.pounce:
+                self.pounce.stop()
+
+    def startPounce(self) -> None:
+        if self.pounce is None:  # a test may have built its own
+            self.pounce = buildPounce(self.config.watches(), self.addEvents, windows=os.name == "nt", log=self._log)
+        if self.pounce:
+            self.pounce.start()
 
 
 def main(argv: "list[str] | None" = None) -> int:

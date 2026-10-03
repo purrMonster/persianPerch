@@ -36,6 +36,7 @@ from .senses.purr import Purr
 from .senses.registries import Registries
 from .senses.scrutiny import ScrutinyClient
 from .senses.speedtest import SpeedtestClient
+from .senses.whiskers import Whiskers, loadConfig
 from .settings import Settings
 from .vitals import Vitals
 from .words import duration
@@ -224,8 +225,8 @@ def buildCollectors(settings: Settings, trail: ScentTrail, tree: CatTree, clock:
 
 
 def _outsideSenses(settings: Settings, trail: ScentTrail, tree: CatTree, clock: Callable[[], datetime]) -> list[Any]:
-    """glare (Gatus), disks (Scrutiny) and binocs (speedtest, upstream releases): each starts only when its
-    setting is there; one that is half set says so on the trail, once, and the rest carry on."""
+    """glare (Gatus), disks (Scrutiny), whiskers (Home Assistant) and binocs (speedtest, upstream releases): each
+    starts only when its setting is there; one that is half set says so on the trail, once, and the rest carry on."""
     found: list[Any] = []
     if settings.glareUrl:
         try:
@@ -242,6 +243,21 @@ def _outsideSenses(settings: Settings, trail: ScentTrail, tree: CatTree, clock: 
             trail.addEvent("perch", "collector:glare", B.tailFlick, f"glare is switched off: {exc}")
     if settings.disksUrl:
         found.append(Disks(ScrutinyClient(settings.disksUrl), trail, clock=clock, every=settings.disksEvery))
+    if settings.whiskersUrl or settings.whiskersToken:
+        try:
+            found.append(
+                Whiskers(
+                    settings.whiskersUrl,
+                    settings.whiskersToken,
+                    loadConfig(settings.whiskersEntities),
+                    trail,
+                    clock=clock,
+                    every=settings.whiskersEvery,
+                )
+            )
+        except ValueError as exc:  # also the entity list's ConfigError
+            log.warning("whiskers is off: %s", exc)
+            trail.addEvent("perch", "collector:whiskers", B.tailFlick, f"whiskers is switched off: {exc}")
     speedtest = None
     if settings.binocsSpeedtestUrl or settings.binocsSpeedtestToken:
         try:

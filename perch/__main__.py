@@ -15,6 +15,7 @@ def main() -> None:
         proxy_headers=True,
         forwarded_allow_ips=os.environ.get("PERCH_TRUSTED_PROXIES", "127.0.0.1"),
         access_log=False,
+        timeout_graceful_shutdown=5,  # an open live-trail stream (ADR 0011) must not hold up a container stop
     )
 
 

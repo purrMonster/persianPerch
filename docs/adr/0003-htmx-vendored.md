@@ -38,7 +38,8 @@ tarball `htmx.org-2.0.11.tgz` (`dist/htmx.min.js`), with its `LICENSE` beside it
 
 - **Polling, not SSE, for now:** the overview, node and app pages refresh their state regions
   with `hx-get` + `hx-trigger="every 30s"` (purr's rhythm) and `hx-swap` of that region only.
-  The page itself never reloads. SSE (`htmx-ext-sse`, vendored the same way) waits for M5.
+  The page itself never reloads. SSE (`htmx-ext-sse`, vendored the same way) came with M5, for the scentTrail only:
+  [ADR 0011](0011-live-scenttrail-sse-extension.md).
 - **Accessibility:** the swapped region keeps focus and scroll; a changed state is announced
   once through a polite live region, never every 30 s; nothing animates under
   `prefers-reduced-motion`.

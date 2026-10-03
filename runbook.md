@@ -36,8 +36,125 @@ changes can be made later without re-deriving the reasoning. How to write entrie
 - [ ] Owner: review and merge the M4 pull request (merge commit), then `git pull` the main checkout (M4 entry)
 - [ ] M6: Gatus router and Authelia rule for perch-svc; `PERCH_GLARE_*`, `PERCH_DISKS_URL`, `PERCH_BINOCS_SPEEDTEST_*` and `PERCH_BINOCS_RELEASES_EVERY=7d` entered on cellar (M4 entry)
 - [ ] Owner: should glare and disks stop nineLives' ping when late? (M4 entry, Notes)
-- [ ] M5 pounce + whiskers: kitten file events, Home Assistant, the scentTrail view
+- [x] M5 pounce + whiskers + the live scentTrail: kitten file events, Home Assistant, SSE (2026-10-03, gate green on roastery, M5 entry; pull request to open)
+- [ ] Owner: review and merge the M5 pull request (merge commit), then `git pull` the main checkout (M5 entry)
+- [ ] Owner decisions M5 left open: push `/etc/purrbrews` changes?; whiskers collector hiss after 5 min? (M5 entry, Not done)
+- [ ] M6: `inotify-tools`, `git` and the `kitten` user's read access on the nodes; the Traefik router must not buffer `/trail/stream`; `PERCH_WHISKERS_*` and the entity list on cellar; drill the non-admin Home Assistant user (M5 entry)
 - [ ] M6 Into the fleet: prepared in `integration/` with `ROLLOUT.md`; deployed by the owner
+
+---
+
+## 2026-10-03 — M5 pounce + whiskers + the live scentTrail: kitten file events, Home Assistant, SSE; gate green
+
+**Context.** The owner gave M5 its go-ahead and a first task (task 0): at 390 px with slightly wider fonts the overview's
+scentTrail rows ended 3 px past the viewport. Claude Code (Sonnet 5.5), branch `claude/m5-pounce-whiskers-scenttrail-06df26`,
+started 2026-10-03 13:55 IST (outside the quiet hours). Pre-flight passed: Docker 29.7.2, identity right, origin answered, the three
+skills present. **One finding:** my branch was cut from M3's merge (`47dad4a`), not M4's; `origin/main` was at M4's merge `867cc7d`,
+so I fast-forwarded the (empty) branch before starting. Running on roastery at the start: `purrbrews-bootstrap`, `komodo-periphery`,
+`immich-machine-learning`; I touched none (every container I started carries the project label).
+
+**Decided** (reasons; losing alternatives in brackets).
+- **Task 0.** `overflow-wrap: anywhere` on `.event .body` and `min-width: 0` on its subject links (docs/06 7.12, new rule 21). The check no longer
+  depends on a font: `shoot.py` and `live.py` assert `scrollWidth <= clientWidth` at 0, 5 and 12 % wider glyphs, and the seed now holds the
+  longest unbreakable names (a release subject and a Gatus endpoint). Reproduced first: `/` at 390 px, 12 % wider: 400 > 390, then fixed.
+- **pounce ([ADR 0010](docs/adr/0010-pounce-names-only-events-over-the-kitten-report.md)).** Names and change types only; kitten never opens, reads
+  or hashes a watched file (an audit-hook test and a syntax-tree test prove it). The pull event's commit subject is asked of `git`, never read
+  from the ref. Events ride the existing `/api/kitten` as an `events` list (S3 and S7 unchanged), sent as soon as they are debounced. An event is
+  an event, not a state: no rollup, no meow push. `KITTEN_POUNCE_PATHS` is `path|level|why;...`, unset means the node's defaults, `none` is off.
+  [a new endpoint; hashing; reading refs ourselves.] kitten is now version 0.2.0.
+- **whiskers ([ADR 0009](docs/adr/0009-whiskers-websockets-and-pyyaml.md)).** Two new dependencies, justified there: `websockets` 17.1 and `PyYAML` 6.0.3
+  (`safe_load`). One send function with an allow-list of three message types (S4), proven by a fake that records what it receives, by a
+  test that feeds the function eight forbidden messages, and by a scan that finds exactly one `.send(` in the module. Unreachable Home Assistant:
+  every entity `unknown` after two failed collector cycles, **no entity event**, and the collector's rhythm says it: one tailFlick at 3 missed
+  cycles. **By M1's rule the collector then escalates to a hiss about whiskers itself at 10 missed cycles (5 min)**; that is the collector, not an entity.
+  Only a tailFlick or hiss from the house moves the fleet badge and is pushed by meow; a door (earTwitch) is for the trail and the Home card.
+- **SSE ([ADR 0011](docs/adr/0011-live-scenttrail-sse-extension.md)).** `htmx-ext-sse` 2.2.4 vendored; **every message is the whole list** of events since the page
+  was built, so a reconnect can never double a row and perch keeps no per-client state [one row per message: needs browser-side dedupe]. The cursor is
+  SQLite's row number (a node's pounce event can carry a past time). A new hiss is said once through `#announce`; nothing else is. 15 s keep-alive.
+  **A deviation from "no JavaScript on the page":** `static/trail-live.js` (10 lines) closes the stream on `beforeunload`, because htmx logs the aborted
+  stream as a console error on every navigation away (measured: `[object Event]`; `htmx.remove()` did not close it, closing the `EventSource` did).
+- Small: pounce rows link to their node; the Home card shows `N sensors watched`; `PERCH_WHISKERS_EVERY` is a new empty key in `secrets.env`; `__main__` sets
+  `timeout_graceful_shutdown=5` so an open stream cannot hold a container stop; `scrub.py` also masks the shape of any JWT.
+
+**Done.** `kitten/pounce.py` and kitten 0.2.0; `perch/senses/{pounce,whiskers}.py`; scentTrail `lastRowid` and `eventsSince`; `/trail/stream`; rollup,
+meow, collectors, settings, scrub; the Home card, the live trail section and `live/trailNew.html`; `whiskers.example.yml`; vendored extension and its licence;
+`tests/{haFake,liveServer}.py`; ADRs 0009, 0010, 0011 (migrations: none needed, so scentTrail is still at 5); docs 02, 05, 06 and ADR 0003 updated.
+`scripts/test.ps1` gets a step that builds `tests/kitten/Dockerfile` (3.13 + `inotify-tools`) and runs pounce's tests there with `KITTEN_REQUIRE_INOTIFY=1`.
+
+**APIs read (2026-10-03).** Home Assistant WebSocket API (developers.home-assistant.io/docs/api/websocket): the server sends `auth_required`; the client
+sends `{"type":"auth","access_token":...}` and gets `auth_ok` or `auth_invalid`; every later message has an integer `id`; `subscribe_events` with
+`event_type: "state_changed"` is answered by a `result`, then `event` messages with `event.data.entity_id`, `old_state`, `new_state`; `get_states` answers a `result`
+holding every state. The docs say nothing about what a non-admin user may do, so **the owner should confirm on the real Home Assistant that the `perch` user can
+subscribe and read states** (M6 drill). `inotifywait` format `%e|%w%f` was checked against the real binary in the test container. htmx-ext-sse 2.2.4's source.
+
+**Verified** (roastery, 2026-10-03, `powershell -ExecutionPolicy Bypass -File scripts\test.ps1` after the last code change):
+```
+=== perch: ruff + pytest (3.12)  All checks passed!   665 passed in 409.55s
+=== kitten: unittest (3.13)      Ran 44 tests ... OK (skipped=3: the inotify ones)
+=== kitten: unittest (3.14)      Ran 44 tests ... OK (skipped=3)
+=== kitten: real inotifywait     Ran 30 tests ... OK   (python 3.13 + inotify-tools, KITTEN_REQUIRE_INOTIFY=1)
+=== windowsill: Playwright       33 passed, 0 failed ; live: all ok
+=== real-socket drill            budget, drill and leak check: ok
+=== summary                      ok x8
+```
+- **Gate, `test_GATE_a_dropped_file_and_a_door_event_both_reach_an_open_trail_within_5_seconds`:** kitten really watches a folder (polling) and really
+  posts to a real perch on a loopback port; perch really speaks WebSocket to a fake Home Assistant; a stream is open on `/trail`. Output: `GATE: door 0.12 s,
+  file 2.25 s after they happened`; the file row is `bl-tailFlick` ("settings changed: pounce.env appeared"), the door row `bl-earTwitch` ("Front door: open"); what was
+  already in the folder produced no event. The same through the **real `inotifywait`** into a real kitten report: `test_the_whole_way_a_drop_reaches_perch_within_5_seconds` (under 5 s).
+- **In a real browser (`live.py`), 1400 dark, 1400 light, 390:** a new pounce event shows on an open `/trail` in 0.5 to 0.6 s without a reload, scroll unchanged, no
+  announcement for a tailFlick; with focus on a new row's link, a second event arrives and the focus stays, the list holds both once; a trail filtered to glare lists none of
+  them; a failed backup reported meanwhile appears as a hiss row and `#announce` says `New hiss: ...` exactly once; no console errors; no sideways scroll; nothing animates under
+  `prefers-reduced-motion`; with JavaScript off the section is hidden and the list is as of load.
+- **S4:** `test_S4_*` (order auth, subscribe_events, get_states; every reconnect; eight forbidden messages refused and nothing sent; one `.send(` in the source) and the drill:
+  `S4 over a real socket: perch said only ['auth', 'get_states', 'subscribe_events'] to Home Assistant`.
+- **Pounce reads nothing:** `test_no_open_of_a_watched_file_while_pounce_sees_it_change` (audit hook on `open`, a canary in the file's content, never in an event) and
+  `test_the_pounce_module_has_no_call_that_reads_content`.
+- **Vendored extension:** `test_the_vendored_sse_extension_is_exactly_the_pinned_file` (2,853 bytes, SHA-256 `98a46496...0136`); I checked the tarball's sha512 against npm's
+  `integrity` first (it matched), then the SHA-256 (it matched); the committed blob has the same hash.
+- **Drill:** `perch memory: VmRSS 63.6 MB, peak 63.6 MB (budget 300 MB)`; `leak check: looked in 12 places (4362 KB): nothing found`, now also the Home Assistant token and its signature.
+- **Screenshots looked at by eye** (`trail-live-*`, `overview-m4-*`, `scentTrail-*`, both themes and 390 px): the section reads well, the focus ring stays on the kept link, the Home card
+  sits between Disks and Outside. Looking found one wart, fixed: "UPS UPS: On Battery" in Needs a look (the name was said twice).
+
+**web-design-guidelines review** (AGENTS 3.1; guidelines fetched fresh 2026-10-03 from the skill's source URL; **one pass, no sub-agents**, over `trail.html`, `live/trailNew.html`,
+`_macros.html` (whiskersCard, subjectLink, event), `base.html`, `perch.css` (`.event .body`), `trail-live.js`).
+- Passed: headings in order (`h2` under the page `h1`; the section is labelled by its heading); `translate="no"` on subjects and entity names; marks and badges carry words; no `transition`;
+  decorative glyphs `aria-hidden`; no new control to focus except the existing links, which keep stable ids (`nw-` prefix in the live list so an id never repeats the list below);
+  flex children `min-width: 0`; empty, waiting and not-configured states are sentences; URL holds the filters and the stream reads them; `prefers-reduced-motion` has nothing to stop.
+- Fixed: duplicate ids were possible if an event landed between the page's cursor and its list (the same row in both lists): the live rows now use their own id prefix.
+- Not applied, with reasons: *`aria-live` on async updates* (the live list is deliberately not a live region: one sentence for a new hiss through `#announce`, docs/06 rule 20, ADR 0011);
+  *Title Case headings* (docs/06 section 2: sentence case); *`Intl` dates* (docs/06 section 2); *curly quotes* (docs/06 section 2; the commit subject, which perch quotes, does use them);
+  *virtualize lists over 50* (the live list is capped at 50 with "and N more").
+
+**Pre-push checks** (2026-10-03, before the push):
+```
+$ git log origin/main..HEAD --format="%ae %ce" | sort | uniq -c
+      4 jyotirmoy.github@jyotirmoy.cc jyotirmoy.github@jyotirmoy.cc     (the commit holding this entry is the next, same identity)
+$ git diff origin/main | grep '^+' | grep -ciE 'C:\\Users|jyotirmoyc|192\.168\.[0-9]|@[a-z0-9-]+\.(cc|com|io|net)|tk_[A-Za-z0-9]{20,}|BEGIN .*KEY|eyJ[A-Za-z0-9_-]{20,}'
+1       <- the made-up JWT-shaped TOKEN in tests/haFake.py (this block's own quoted pattern aside); nothing else
+$ git diff origin/main | grep '^+' | grep -oE '(domain-shaped words)' | sort | uniq -c
+      only: python module names, developers.home-assistant.io, htmx.org, healthchecks.io, ghcr.io, example.home.arpa, ha.example.home.arpa, and the owner's allowed commit address in this block
+$ the only IP addresses in the diff: 127.0.0.1 and 192.0.2.13 (documentation range)
+```
+The only made-up credentials are `fake-*` values, the JWT-shaped `TOKEN` in `tests/haFake.py` (made up, not real) and addresses in `127.0.0.1`, `192.0.2.x` and `example.home.arpa`. Tests S5 (empty `secrets.env`), S6 (hostnames),
+S8 (ASCII PowerShell) passed in the 665. No real Home Assistant, registry, Gatus or other request was ever made; the only network reads were public documentation, npm, PyPI metadata and the guidelines.
+
+**Surprises.**
+- Starlette's `TestClient` cannot test a stream that never ends (it waits for the response to finish), so the stream tests run a real uvicorn on loopback (`tests/liveServer.py`).
+- Playwright's `networkidle` never arrives on `/trail` (the stream is always open); `shoot.py` and `live.py` wait for the stream request instead.
+- YAML 1.1 reads a bare `on`/`off` as booleans; `whiskers.example.yml` quotes them and perch maps both back to the words.
+- Events written in the same millisecond sort by their random ULIDs (known): the whiskers tests advance the fake clock a second between changes.
+
+**Not done / next.**
+- [ ] Owner: open the pull request, verify it, merge with a merge commit, then `git pull` the main checkout (owner)
+- [ ] **Owner decision:** should a change under `/etc/purrbrews` (design plan 4.4: tailFlick, "unexpected outside a deploy") also push through ntfy? Pounce events are events, so meow does not push them (ADR 0010); it needs a state with an expiry.
+- [ ] **Owner decision:** whiskers' collector hisses after 5 min without Home Assistant (M1's rule for every collector); keep, or soften to a tailFlick for whiskers.
+- [ ] M6 `ROLLOUT.md` (owner): `inotify-tools` on each Linux node and a `kitten` user that can list `/srv/dumps`, `/srv/data/paperless/consume`, `/etc/purrbrews` and read `/opt/purrbrews/.git` (A10: not worked around: say which are not listable);
+  `git` on the nodes for the commit subject; `KITTEN_POUNCE_PATHS` per node only if the defaults need changing; roastery's snapshots folder `C:\purrbrews\restic\snapshots`;
+  **the Traefik router for perch must not buffer or compress `/trail/stream`** (`text/event-stream`); `PERCH_WHISKERS_URL`, `PERCH_WHISKERS_TOKEN` (a non-admin Home Assistant user's long-lived token),
+  `PERCH_WHISKERS_ENTITIES` (a copy of `whiskers.example.yml` with the real entity ids, mounted at `/config/whiskers.yml`); drill: the `perch` user can subscribe and read states, and a real leak sensor test
+- [ ] M6 prepare only, on the owner's go-ahead (agent)
+
+— Claude (Claude Code, Sonnet 5.5)
 
 ---
 

@@ -25,6 +25,18 @@ PAGES = {
     "groom": "/groom",
     "scentTrail": "/trail",
 }
+# Fonts differ (Linux fallbacks here, whatever a phone has): a page must not scroll sideways at the width its
+# fonts happen to give, so every page is measured twice, the second time with every glyph about 5 % wider
+# (M5 task 0: the overview's rows ended 3 px past a 390 px viewport with slightly wider fonts).
+WIDER = "body *{letter-spacing:.05em !important}"
+MEASURE = """() => {
+  const limit = document.documentElement.clientWidth;
+  const over = [...document.querySelectorAll('body *')].filter(e => e.getBoundingClientRect().right > limit + 0.5
+    && e.offsetParent !== null && !e.closest('.tablewrap, nav.main'))
+    .slice(0, 4).map(e => (e.tagName + '.' + e.className).slice(0, 40) + ' '
+      + Math.round(e.getBoundingClientRect().right));
+  return [document.documentElement.scrollWidth, limit, over];
+}"""
 VIEWS = [("1400-dark", 1400, "dark"), ("1400-light", 1400, "light"), ("390-dark", 390, "dark")]
 
 
@@ -41,19 +53,27 @@ def main() -> int:
             page.on("pageerror", lambda e, errors=errors: errors.append(str(e)))
             for name, path in PAGES.items():
                 errors.clear()
-                response = page.goto(BASE + path, wait_until="networkidle")
+                # the trail holds a server-sent stream open for ever, so the network is never idle there
+                response = page.goto(BASE + path, wait_until="load" if path == "/trail" else "networkidle")
+                if path == "/trail":
+                    page.wait_for_timeout(600)
                 status = response.status if response else 0
-                scroll = page.evaluate("[document.documentElement.scrollWidth, window.innerWidth]")
+                scroll = page.evaluate(MEASURE)
                 file = f"{OUT}/{name}-{view}.png"
                 page.screenshot(path=file, full_page=True)
+                page.add_style_tag(content=WIDER)
+                wide = page.evaluate(MEASURE)
                 problems = []
                 if status != 200:
                     problems.append(f"HTTP {status}")
                 if scroll[0] > scroll[1]:
-                    problems.append(f"horizontal scroll {scroll[0]} > {scroll[1]}")
+                    problems.append(f"horizontal scroll {scroll[0]} > {scroll[1]} {scroll[2]}")
+                if wide[0] > wide[1]:
+                    problems.append(f"horizontal scroll with wider fonts {wide[0]} > {wide[1]} {wide[2]}")
                 if errors:
                     problems.append(f"console errors: {errors}")
-                line = f"{'FAIL' if problems else 'ok  '} {view:10} {path:28} scrollWidth={scroll[0]} -> {file}"
+                mark = "FAIL" if problems else "ok  "
+                line = f"{mark} {view:10} {path:28} scrollWidth={scroll[0]}/{wide[0]} -> {file}"
                 print(line + (f"  {problems}" if problems else ""))
                 if problems:
                     failures.append(line)

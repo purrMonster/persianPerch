@@ -26,9 +26,20 @@ from perch.senses.registries import parseImage
 from perch.settings import Settings
 from perch.vitals import Vitals
 
+HOUSE = (  # whiskers' entities as Home Assistant reports them: (entity, name, level, the word, the state)
+    ("binary_sensor.front_door", "Front door", B.earTwitch, "open", "on"),
+    ("binary_sensor.kitchen_water_leak", "Kitchen leak sensor", B.slowBlink, "dry", "off"),
+    ("binary_sensor.pet_fountain_low_water", "Water fountain", B.slowBlink, "full enough", "off"),
+    ("sensor.ups_status", "UPS", B.tailFlick, "On Battery", "On Battery"),
+)
+
 settings = Settings.fromEnv()
 trail = ScentTrail(settings.trailDb)
 now = datetime.now(UTC)
+
+LONG_RELEASE = "release/ghcr.io/example-organisation/an-image-name-with-no-break-points-at-all-for-the-wrap-check"
+LONG_ENDPOINT = "a-deliberately-long-endpoint-name-with-no-break-points-at-all-for-the-wrap-check"
+LONG_ENDPOINT_KEY = f"apps_{LONG_ENDPOINT}"
 
 # events from senses that arrive in later milestones (the trail page needs rows to show)
 samples = [
@@ -38,6 +49,9 @@ samples = [
     (5.5, "glare", "app:percolator/vaultwarden", B.slowBlink, "back: 200 · was down 3 min 30 s", "L6"),
     (5.6, "glare", "app:percolator/vaultwarden", B.hiss, "502 for 3 checks", "L6"),
     (26.0, "binocs", "node:sieve", B.earTwitch, "new upstream release: an image pinned in the repo", None),
+    # the longest subjects perch can show: no break points at all, as real release and endpoint names are
+    # (M5 task 0: a phone must not scroll sideways because of them, whatever the font is)
+    (0.2, "binocs", LONG_RELEASE, B.earTwitch, "newer release: 10.20.30-flavour is out (pinned 10.19.2-flavour)", None),
 ]
 for hoursAgo, sense, subject, level, title, litter in samples:
     trail.addEvent(sense, subject, level, title, litterId=litter, seenAt=now - timedelta(hours=hoursAgo))
@@ -104,14 +118,16 @@ for name, group in (
     ("authelia", "identity"),
     ("vaultwarden", "apps"),
     ("nextcloud", "apps"),
+    (LONG_ENDPOINT, "apps"),
 ):
     gatus.add(name, group)
 glare = Glare(gatus.client(), trail, clock=outside)
 for _ in range(12):
     gatus.tick()
     loop.run_until_complete(glare.cycle())
-for _ in range(2):  # vaultwarden fails twice: tailFlick
+for _ in range(2):  # vaultwarden and the long-named endpoint fail twice: tailFlick
     gatus.check("apps_vaultwarden", up=False, why="HTTP 502")
+    gatus.check(LONG_ENDPOINT_KEY, up=False, why="HTTP 503: " + "no-break-points-in-this-reason-either-" * 2)
     outside.advance(seconds=60)
     loop.run_until_complete(glare.cycle())
 
@@ -164,7 +180,15 @@ binocs = Binocs(
     pause=nap,
 )
 loop.run_until_complete(binocs.cycle())
-for name in ("glare", "disks", "binocs"):  # what the runner writes for a collector that is on time
+for entity, name, level, word, state in HOUSE:  # what whiskers keeps from a Home Assistant (no real one is ever asked)
+    trail.setState(
+        f"whiskers:{entity}",
+        level,
+        title=f"{name}: {word}",
+        seenAt=now,
+        detail={"entity": entity, "name": name, "state": state, "word": word, "level": level.value},
+    )
+for name in ("glare", "disks", "binocs", "whiskers"):  # what the runner writes for a collector that is on time
     trail.setState(f"collector:{name}", B.slowBlink, title="on time", seenAt=now)
 for closing in (glare, disks, binocs):
     loop.run_until_complete(closing.aclose())
@@ -173,6 +197,6 @@ loop.run_until_complete(purr.aclose())
 loop.close()
 trail.close()
 print(
-    f"seeded {len(samples)} sample events, 16 purr cycles, a week of vitals, glare, disks and binocs "
+    f"seeded {len(samples)} sample events, 16 purr cycles, a week of vitals, glare, disks, binocs and whiskers "
     f"into {settings.trailDb}"
 )

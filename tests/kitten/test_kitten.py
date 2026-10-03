@@ -120,7 +120,7 @@ class KittenTest(unittest.TestCase):
         self.assertEqual(path, "/api/kitten")
         self.assertEqual(headers["Authorization"], "Bearer fake-token-not-real")
         self.assertEqual(body["node"], "grinder")
-        self.assertEqual(body["heartbeat"]["version"], "0.1.0")
+        self.assertEqual(body["heartbeat"]["version"], "0.2.0")
         self.assertEqual(list(body["heartbeat"]["stamps"]), ["drive-sync.ok"])
         self.assertEqual([r["job"] for r in body["records"]], ["nightly"])
 
@@ -203,7 +203,7 @@ class ZipappTest(unittest.TestCase):
             run = subprocess.run(
                 [sys.executable, str(target), "--version"], capture_output=True, text=True, timeout=60, check=False
             )
-            self.assertEqual((run.returncode, run.stdout.strip()), (0, "kitten 0.1.0"), run.stderr)
+            self.assertEqual((run.returncode, run.stdout.strip()), (0, "kitten 0.2.0"), run.stderr)
             env = {k: v for k, v in os.environ.items() if not k.startswith("KITTEN_")}
             env["KITTEN_TOKEN"] = "fake-token-not-real"
             bad = subprocess.run(
