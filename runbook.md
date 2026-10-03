@@ -98,7 +98,7 @@ seed, live, shoot and budget extended, `scripts/test.ps1` gets the drill step an
 === real-socket drill            budget, drill and leak check: ok
 === summary                      ok x7 (fleet repo pinned, build test image, pytest, kitten 3.13, 3.14, Playwright, drill)
 ```
-The first full run failed twice and I fixed both: S6 flagged a made-up `quay.io` image in a test and a host spelled through an f-string in the registry fake
+The first full run failed twice and I fixed both: S6 flagged a made-up image on a registry not in its allow-list in a test and a host spelled through an f-string in the registry fake
 (both replaced by `example.home.arpa`); and the drill expected "grinder back" as its own push while meow, correctly, sent grinder's and pihole's recoveries as one
 ("perch: 2 things are back"), so the drill now accepts exactly one recovery push, either form.
 - **Gate, by test:** `test_GATE_smart_attribute_9_wins_when_the_summary_disagrees` (20000 h beats 3 h); `test_GATE_8_days_of_30_second_samples_leave_exactly_7_days_of_5_minute_rows_plus_hourly_rows`
