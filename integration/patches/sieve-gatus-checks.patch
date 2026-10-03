@@ -1,0 +1,40 @@
+diff --git a/stacks/sieve/gatus/config/config.yaml b/stacks/sieve/gatus/config/config.yaml
+index dcccd49..a1db349 100644
+--- a/stacks/sieve/gatus/config/config.yaml
++++ b/stacks/sieve/gatus/config/config.yaml
+@@ -233,3 +233,35 @@
+     interval: 2m
+     conditions: ["[CONNECTED] == true"]
+     alerts: [{type: ntfy}]
++
++  # ── persianPerch (cellar) ─────────────────────────────────────────────────
++  # perch watches everything else; these two watch perch. /healthz is allowed from the fleet's node
++  # addresses (sieve is one) without Authelia; the page itself must still be behind it.
++  - name: perch
++    group: fleet
++    url: https://perch.${DOMAIN}/healthz
++    interval: 1m
++    client:
++      dns-resolver: udp://${NODE_IP}:53
++    conditions:
++      - "[CONNECTED] == true"
++      - "[STATUS] == 200"
++      - "[BODY].ok == true"
++    alerts:
++      - type: ntfy
++        description: persianPerch is down or unhealthy - nothing else is watching the fleet
++
++  - name: perch page is behind sso
++    group: fleet
++    url: https://perch.${DOMAIN}/
++    interval: 15m
++    client:
++      dns-resolver: udp://${NODE_IP}:53
++      ignore-redirect: true
++    conditions:
++      - "[CONNECTED] == true"
++      - "[CERTIFICATE_EXPIRATION] > 240h"
++      - "[STATUS] == any(302, 401)"
++    alerts:
++      - type: ntfy
++        description: perch.${DOMAIN} is answering without a login, or its certificate is about to expire

@@ -90,6 +90,53 @@ Step 'kitten: real inotifywait (3.13 + inotify-tools)' {
     docker run --rm --label $label -v "${root}:/src" -w /src -e PYTHONDONTWRITEBYTECODE=1 -e KITTEN_REQUIRE_INOTIFY=1 persian-perch-kitten:inotify python -m unittest discover -s tests/kitten -p "test_pounce.py"
 }
 
+# M6 gate: the fleet repo's OWN tests, on a fresh copy of the pinned clone with integration/ applied
+# (integration/apply.sh). They run once as an unprivileged user (their Secrets, Render and Firewall tests skip
+# themselves under root) and once as root (their real-backup test needs it). .cache\fleet-scratch is ours.
+Step 'fleet: its own tests with integration/ applied' {
+    docker build --quiet --label $label -f tests/fleet/Dockerfile -t persian-perch-fleet:test tests/fleet | Out-Null
+    $scratch = Join-Path $root '.cache\fleet-scratch'
+    if (Test-Path $scratch) { Remove-Item -Recurse -Force $scratch }
+    git clone --quiet --config core.autocrlf=false $fleetDir $scratch
+    git -C $scratch -c advice.detachedHead=false checkout --quiet $fleetCommit
+    $mounts = @('-v', "${scratch}:/scratch:ro", '-v', "${root}\integration:/integration:ro")
+    $inside = 'cp -r /scratch "$HOME/fleet" && cd "$HOME/fleet" && bash /integration/apply.sh . && python3 -m unittest discover -s tests'
+    docker run --rm --label $label @mounts persian-perch-fleet:test sh -c $inside
+    if ($LASTEXITCODE -ne 0) { return }
+    docker run --rm -u 0 --label $label @mounts persian-perch-fleet:test sh -c $inside
+}
+
+# M6: the Linux installer for kitten, and the one ROLLOUT.md block that edits a secrets file (A3), run for real as root in the fleet
+# image (Debian, Python 3.13) with a fake systemctl, apt-get, sudo and docker. The second needs the scratch copy of the pinned fleet repo.
+Step 'rollout: install-kitten.sh and the ntfy block, in a Debian container' {
+    docker build --quiet --label $label -f tests/fleet/Dockerfile -t persian-perch-fleet:test tests/fleet | Out-Null
+    docker run --rm -u 0 --label $label -v "${root}:/src:ro" -v "${root}\integration:/integration:ro" persian-perch-fleet:test bash /src/tests/fleet/installKitten.test.sh
+    if ($LASTEXITCODE -ne 0) { return }
+    docker run --rm -u 0 --label $label -v "${root}:/src:ro" -v "${root}\.cache\fleet-scratch:/scratch:ro" persian-perch-fleet:test bash /src/tests/fleet/rolloutSnippets.test.sh
+}
+
+# M6: roastery's kitten task. Nothing is registered: the three scripts must parse, and install-kitten.ps1 -DryRun
+# must walk through its checks against a fake fleet clone (a made-up domain and token in a temp folder of ours).
+Step 'roastery: kitten scripts parse and install-kitten.ps1 dry-runs' {
+    $bad = 0
+    foreach ($f in @('integration\roastery\install-kitten.ps1', 'integration\roastery\run-kitten.ps1', 'scripts\buildKitten.ps1')) {
+        $errors = $null
+        [void][System.Management.Automation.Language.Parser]::ParseFile((Join-Path $root $f), [ref]$null, [ref]$errors)
+        if ($errors.Count -gt 0) { Write-Host "$f : $($errors.Count) parse error(s): $($errors[0].Message)"; $bad++ }
+    }
+    $tmp = Join-Path $env:TEMP 'pp-kitten-dryrun'
+    if (Test-Path $tmp) { Remove-Item -Recurse -Force $tmp }
+    New-Item -ItemType Directory -Force -Path (Join-Path $tmp 'stacks\roastery') | Out-Null
+    Set-Content -Path (Join-Path $tmp 'stacks\roastery\.env.local') -Value @('DOMAIN=test.example.home.arpa', 'KITTEN_TOKEN=fake-not-a-token')
+    Set-Content -Path (Join-Path $tmp 'kitten.pyz') -Value 'not a real archive'
+    $out = & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $root 'integration\roastery\install-kitten.ps1') -FleetRoot $tmp -Pyz (Join-Path $tmp 'kitten.pyz') -DryRun 2>&1 | Out-String
+    $dryExit = $LASTEXITCODE
+    Remove-Item -Recurse -Force $tmp
+    Write-Host $out
+    if ($dryExit -ne 0 -or $out -notmatch 'dry run\] register the task' -or $out -match 'fake-not-a-token') { Write-Host 'dry run did not behave'; $bad++ }
+    $global:LASTEXITCODE = $bad
+}
+
 if (-not $SkipUi) {
     Step 'windowsill: Playwright UI check' {
         New-Item -ItemType Directory -Force -Path (Join-Path $root 'screenshots') | Out-Null

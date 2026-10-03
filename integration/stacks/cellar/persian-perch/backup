@@ -1,0 +1,7 @@
+# persianPerch: scentTrail, perch's own SQLite (events, states, litters, rollups, vitals).
+# It runs in WAL mode, so the live file must never be copied as a file (no path line); the
+# sqlite line takes a consistent .dump instead (stacks/README.md -> backup). Everything else
+# perch holds is rebuilt from the fleet within minutes of a restart, so this is the whole
+# data backup. The settings (secrets.env.local) are backed up by backup.sh with every node's
+# other settings. `optional`: the database only exists once perch has started.
+sqlite  persian-perch  persian-perch/scentTrail.db  optional

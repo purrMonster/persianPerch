@@ -1,0 +1,51 @@
+# Which Home Assistant entities perch watches, and how bad each state is.
+# Mounted into the container at /config/whiskers.yml (PERCH_WHISKERS_ENTITIES).
+# Format and every option: https://github.com/purrMonster/persianPerch/blob/main/whiskers.example.yml
+#
+# EVERY ENTITY ID BELOW IS A PLACEHOLDER (the change_me part). Replace each with a real one from
+# Home Assistant (Settings -> Devices & services -> Entities), delete what you don't want
+# watched, and keep the levels you do. Until then nothing matches, so nothing is reported:
+# perch will say "0 sensors watched" on its Home card. Entity ids are not secrets; the access
+# token is (PERCH_WHISKERS_TOKEN, never in this file).
+#
+# Everything NOT listed is dropped the moment it arrives. perch only reads (auth,
+# subscribe_events, get_states); it never calls a service.
+#
+# Levels: slowBlink (fine), earTwitch (a notice, trail only), tailFlick (warn, pushed),
+# hiss (critical, pushed at once and repeated until acknowledged). Quote "on" and "off".
+entities:
+  # doors and windows: a notice, never a push
+  binary_sensor.change_me_front_door:
+    name: Front door
+    states: {"on": earTwitch}
+    words: {"on": open, "off": closed}
+  binary_sensor.change_me_back_window:
+    name: Back window
+    states: {"on": earTwitch}
+    words: {"on": open, "off": closed}
+
+  # the cat's feeder and fountain
+  binary_sensor.change_me_pet_feeder_jam:
+    name: Pet feeder
+    states: {"on": tailFlick}
+    words: {"on": jammed, "off": fine}
+  binary_sensor.change_me_pet_fountain_low_water:
+    name: Water fountain
+    states: {"on": tailFlick}
+    words: {"on": low on water, "off": full enough}
+
+  # water leak and smoke: critical
+  binary_sensor.change_me_kitchen_water_leak:
+    name: Kitchen leak sensor
+    states: {"on": hiss}
+    words: {"on": wet, "off": dry}
+  binary_sensor.change_me_hall_smoke:
+    name: Hall smoke alarm
+    states: {"on": hiss, unavailable: tailFlick}
+    words: {"on": smoke, "off": clear}
+
+  # a UPS (the Network UPS Tools integration reports a status word)
+  sensor.change_me_ups_status:
+    name: UPS
+    states: {"On Battery": tailFlick, "Low Battery": hiss, "Online": slowBlink}
+    default: earTwitch

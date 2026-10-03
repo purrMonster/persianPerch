@@ -1,0 +1,12 @@
+diff --git a/stacks/percolator/homepage/dashboard/services.yaml b/stacks/percolator/homepage/dashboard/services.yaml
+index 2764af0..9d64489 100644
+--- a/stacks/percolator/homepage/dashboard/services.yaml
++++ b/stacks/percolator/homepage/dashboard/services.yaml
+@@ -61,3 +61,7 @@
+     - Traefik (sieve):
+         href: https://traefik-sieve.{{HOMEPAGE_VAR_DOMAIN}}
+         icon: traefik.svg
++    - persianPerch:
++        href: https://perch.{{HOMEPAGE_VAR_DOMAIN}}
++        icon: mdi-cat
++        description: The fleet's watcher (cellar)

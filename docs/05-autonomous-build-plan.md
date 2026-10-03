@@ -215,6 +215,12 @@ both appear in the trail within 5 s with the right body language.
 own `python3 -m unittest discover -s tests` passes (catches an unset variable, an
 un-ignored template, an app missing from `node.conf`).
 
+*As prepared (2026-10-03, [ADR 0012](adr/0012-m6-how-perch-reaches-the-fleet.md)):* the routers are compose labels (not
+`dynamic.yml.template`); the image is built on cellar from a pinned persianPerch ref; kitten is delivered by pull (a clone, a
+zipapp built on the node, an installer), not rolled out by `_lib`/`init`; `integration/apply.sh` applies the files and eight
+patches; the fleet's tests run unprivileged and as root in `scripts/test.ps1`. The owner's two M5 decisions are in:
+`/etc/purrbrews` changes are digest-only, whiskers never hisses about itself.
+
 ## 6. Tests that must always pass
 
 | # | Test |

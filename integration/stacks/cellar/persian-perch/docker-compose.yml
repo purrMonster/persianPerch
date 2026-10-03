@@ -1,0 +1,143 @@
+# persianPerch (perch): the unified watcher. One private page, shaped like this repo, that
+# shows what the fleet does: containers and node vitals, backups, disks, endpoints, files
+# dropped, smart-home events. It only watches; nothing in it changes anything on the fleet.
+# Source and docs: https://github.com/purrMonster/persianPerch
+#
+# Runs on cellar, next to Komodo and Scrutiny, because cellar is always on and already reads
+# both. It joins cellar_net, so Komodo is http://komodo-core:9120 and Scrutiny is
+# http://scrutiny:8080 by container name.
+#
+# Image: built here from the public repo at a pinned ref (PERSIAN_PERCH_REF in .env.local: a
+# release tag or a full commit, never a branch name), so there is no registry to publish to.
+# To update: change the ref, then ./compose.sh persian-perch up -d --build.
+#
+# No port is published, on purpose. perch has no login of its own, so the only ways in are
+# the three Traefik routers below. Two of them skip Authelia and say why next to them.
+#
+# Every setting is spelled out under environment (the fleet's pattern); the values come from
+# secrets.conf (generated or asked for by ./setup-secrets.sh) and fleet.env.
+services:
+  persian-perch:
+    build:
+      context: https://github.com/purrMonster/persianPerch.git#${PERSIAN_PERCH_REF:?set PERSIAN_PERCH_REF in .env.local (a tag or full commit of persianPerch)}
+    image: persian-perch:local
+    container_name: persian-perch
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 300m   # the design budget (design plan 2.1); the real-socket drill measures about 64 MB
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/healthz', timeout=4)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.services.perch.loadbalancer.server.port=8080"
+      # /trail/stream is a long-lived text/event-stream. Nothing here buffers or compresses it: no
+      # compress or buffering middleware sits on any router, and the service flushes at once.
+      - "traefik.http.services.perch.loadbalancer.responseforwarding.flushinterval=1ms"
+
+      # 1. The page: every person, behind Authelia (an admin host in its access rules).
+      - "traefik.http.routers.perch.rule=Host(`perch.${DOMAIN}`)"
+      - "traefik.http.routers.perch.priority=10"
+      - "traefik.http.routers.perch.entrypoints=websecure"
+      - "traefik.http.routers.perch.tls.certresolver=cloudflare"
+      - "traefik.http.routers.perch.middlewares=authelia-forwardauth@file"
+      - "traefik.http.routers.perch.service=perch"
+
+      # 2. kitten's report (and /healthz for Gatus): the nodes only. A kitten has no browser session,
+      # so Authelia can't be asked; instead the source address must be a fleet node (roastery included)
+      # and perch still demands that node's own bearer token.
+      - "traefik.http.routers.perch-nodes.rule=Host(`perch.${DOMAIN}`) && (Path(`/api/kitten`) || Path(`/healthz`))"
+      - "traefik.http.routers.perch-nodes.priority=100"
+      - "traefik.http.routers.perch-nodes.entrypoints=websecure"
+      - "traefik.http.routers.perch-nodes.tls.certresolver=cloudflare"
+      - "traefik.http.routers.perch-nodes.middlewares=perch-nodes"
+      - "traefik.http.routers.perch-nodes.service=perch"
+      - "traefik.http.middlewares.perch-nodes.ipallowlist.sourcerange=${SIEVE_LAN_IP},${PERCOLATOR_LAN_IP},${CELLAR_LAN_IP},${MOCHAPOT_LAN_IP},${GRINDER_LAN_IP},${ROASTERY_LAN_IP}"
+
+      # 3. The acknowledge button on a push: one path prefix, no Authelia (a phone's ntfy action can't
+      # log in). The link is signed, single-use and can only stop one alert repeating; perch checks it,
+      # and this limit (10 a minute) is the second lock.
+      - "traefik.http.routers.perch-ack.rule=Host(`perch.${DOMAIN}`) && PathPrefix(`/ack/t/`)"
+      - "traefik.http.routers.perch-ack.priority=100"
+      - "traefik.http.routers.perch-ack.entrypoints=websecure"
+      - "traefik.http.routers.perch-ack.tls.certresolver=cloudflare"
+      - "traefik.http.routers.perch-ack.middlewares=perch-ack-limit"
+      - "traefik.http.routers.perch-ack.service=perch"
+      - "traefik.http.middlewares.perch-ack-limit.ratelimit.average=10"
+      - "traefik.http.middlewares.perch-ack-limit.ratelimit.period=1m"
+      - "traefik.http.middlewares.perch-ack-limit.ratelimit.burst=5"
+    environment:
+      TZ: ${TZ}
+      PERCH_TZ: ${TZ}
+      # Only Traefik can reach this container (cellar_net, nothing published), so it may set the
+      # forwarded headers perch believes (https and the host, for the same-origin check on the Acknowledge form).
+      PERCH_TRUSTED_PROXIES: "*"
+      PERCH_REPO_DIR: ${PERCH_REPO_DIR}
+      PERCH_TRAIL_DB: ${PERCH_TRAIL_DB}
+      PERCH_TRAIL_DAYS: ${PERCH_TRAIL_DAYS}
+      PERCH_ROLLUP_DAYS: ${PERCH_ROLLUP_DAYS}
+      # purr: Komodo's read API
+      PERCH_PURR_URL: ${PERCH_PURR_URL}
+      PERCH_PURR_KEY: ${PERCH_PURR_KEY}
+      PERCH_PURR_SECRET: ${PERCH_PURR_SECRET}
+      PERCH_PURR_EVERY: ${PERCH_PURR_EVERY}
+      # glare: Gatus on sieve, through its Basic-auth router (the ollama pattern)
+      PERCH_GLARE_URL: https://gatus-api.${DOMAIN}
+      PERCH_GLARE_USER: ${PERCH_GLARE_USER}
+      PERCH_GLARE_PASSWORD: ${PERCH_GLARE_PASSWORD}
+      PERCH_GLARE_EVERY: ${PERCH_GLARE_EVERY}
+      # disks: the Scrutiny hub
+      PERCH_DISKS_URL: ${PERCH_DISKS_URL}
+      PERCH_DISKS_EVERY: ${PERCH_DISKS_EVERY}
+      # whiskers: Home Assistant on mochaPot
+      PERCH_WHISKERS_URL: ws://${MOCHAPOT_LAN_IP}:8123/api/websocket
+      PERCH_WHISKERS_TOKEN: ${PERCH_WHISKERS_TOKEN}
+      PERCH_WHISKERS_ENTITIES: ${PERCH_WHISKERS_ENTITIES}
+      PERCH_WHISKERS_EVERY: ${PERCH_WHISKERS_EVERY}
+      # binocs: far away
+      PERCH_BINOCS_SPEEDTEST_URL: http://${GRINDER_LAN_IP}:8765
+      PERCH_BINOCS_SPEEDTEST_TOKEN: ${PERCH_BINOCS_SPEEDTEST_TOKEN}
+      PERCH_BINOCS_RELEASES_EVERY: ${PERCH_BINOCS_RELEASES_EVERY}
+      PERCH_BINOCS_EVERY: ${PERCH_BINOCS_EVERY}
+      # groom: the records the backup units leave on this node
+      PERCH_GROOM_DIR: ${PERCH_GROOM_DIR}
+      # kitten: one push token per node
+      PERCH_KITTEN_TOKEN_SIEVE: ${PERCH_KITTEN_TOKEN_SIEVE}
+      PERCH_KITTEN_TOKEN_PERCOLATOR: ${PERCH_KITTEN_TOKEN_PERCOLATOR}
+      PERCH_KITTEN_TOKEN_CELLAR: ${PERCH_KITTEN_TOKEN_CELLAR}
+      PERCH_KITTEN_TOKEN_MOCHAPOT: ${PERCH_KITTEN_TOKEN_MOCHAPOT}
+      PERCH_KITTEN_TOKEN_GRINDER: ${PERCH_KITTEN_TOKEN_GRINDER}
+      PERCH_KITTEN_TOKEN_ROASTERY: ${PERCH_KITTEN_TOKEN_ROASTERY}
+      # meow: ntfy on sieve (write-only user), the public critical topic, the signed acknowledge links
+      PERCH_MEOW_NTFY_URL: https://ntfy.${DOMAIN}/purrbrews-alerts
+      PERCH_MEOW_NTFY_TOKEN: ${PERCH_MEOW_NTFY_TOKEN}
+      PERCH_MEOW_QUIET: ${PERCH_MEOW_QUIET}
+      PERCH_MEOW_DIGEST: ${PERCH_MEOW_DIGEST}
+      PERCH_MEOW_CRITICAL_URL: ${PERCH_MEOW_CRITICAL_URL}
+      PERCH_ACK_SECRET: ${PERCH_ACK_SECRET}
+      PERCH_PUBLIC_URL: https://perch.${DOMAIN}
+      # nineLives: the heartbeat that reports perch itself being down
+      PERCH_NINELIVES_URL: ${PERCH_NINELIVES_URL}
+    volumes:
+      # The node's checkout of this repo, read-only: catTree lists it, perch never writes to it.
+      - /opt/purrbrews:/opt/purrbrews:ro
+      # scentTrail (perch's own SQLite). Backed up with a sqlite line, never as a file (see ./backup).
+      - ${DATA_DIR:?}/persian-perch:/data
+      # The parent, not .../groom: the recorder creates groom/ on its first run, and a mount of a
+      # missing path would be made root-owned by Docker.
+      - /var/lib/purrbrews:/var/lib/purrbrews:ro
+      # Which Home Assistant entities are watched (placeholders until edited; see config/whiskers.yml).
+      - ./config/whiskers.yml:/config/whiskers.yml:ro
+
+networks:
+  default:
+    name: cellar_net
+    external: true

@@ -1,0 +1,11 @@
+diff --git a/stacks/roastery/local.env.example b/stacks/roastery/local.env.example
+index 0bfb537..6d2540e 100644
+--- a/stacks/roastery/local.env.example
++++ b/stacks/roastery/local.env.example
+@@ -17 +17,6 @@
+ PERIPHERY_ONBOARDING_KEY=
++
++# ── persianPerch's kitten (the Scheduled Task from persianPerch's integration/roastery) ─
++# The token cellar made for roastery (PERCH_KITTEN_TOKEN_ROASTERY in cellar's
++# persian-perch/secrets.env.local). setup-secrets.ps1 asks for it; nothing else holds it.
++KITTEN_TOKEN=REPLACE_ME

@@ -1,0 +1,14 @@
+diff --git a/stacks/cellar/local.env.example b/stacks/cellar/local.env.example
+index 69ed60c..a75d4cc 100644
+--- a/stacks/cellar/local.env.example
++++ b/stacks/cellar/local.env.example
+@@ -22,3 +22,9 @@
+ # roastery's USB NIC (the Realtek dongle, not the onboard I211), e.g.
+ # aa:bb:cc:dd:ee:ff. `Get-NetAdapter` on roastery shows it.
+ ROASTERY_WOL_MAC=REPLACE_ME
++
++# ── persianPerch ────────────────────────────────────────────────────────────
++# Which version of github.com/purrMonster/persianPerch cellar builds: a release tag or a full
++# commit, never a branch name. To update, change it and run
++# ./compose.sh persian-perch up -d --build.
++PERSIAN_PERCH_REF=REPLACE_ME
