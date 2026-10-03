@@ -100,6 +100,11 @@ class Status:
         names = {n.name.lower() for n in self.fleet.nodes}
         return [s for s in self.disks() if (s.detail or {}).get("host", "").lower() not in names]
 
+    def whiskers(self) -> list[State]:
+        """The smart-home entities on the owner's list, as whiskers last judged them: worst first, then by name."""
+        found = [s for s in self.states.values() if s.subject.startswith("whiskers:")]
+        return sorted(found, key=lambda s: (-s.bodyLanguage.rank, (s.detail or {}).get("name", s.subject).lower()))
+
     def binocs(self) -> list[State]:
         """Notices only (earTwitch at most): shown on the overview, never part of the fleet's level."""
         return sorted((s for s in self.states.values() if s.subject.startswith("binocs:")), key=lambda s: s.subject)
@@ -112,6 +117,9 @@ class Status:
         levels += [s.bodyLanguage for s in self.collectors().values()]
         levels += [s.bodyLanguage for s in self.glare()]
         levels += [s.bodyLanguage for s in self.looseDisks()]
+        # a door open is a notice and a sensor Home Assistant can't reach is the collector's tailFlick: only a
+        # smoke, leak or power problem the house itself reports moves the fleet
+        levels += [s.bodyLanguage for s in self.whiskers() if s.bodyLanguage.rank >= BodyLanguage.tailFlick.rank]
         return worstOf(levels)
 
     # -- counts, for the overview ---------------------------------------------------
@@ -132,7 +140,7 @@ class Status:
     def unknownApps(self, nodeName: str) -> int:
         return sum(1 for a in self._watchedApps(nodeName) if self.app(nodeName, a.name) is BodyLanguage.unknown)
 
-    def attention(self) -> list[Attention]:
+    def attention(self) -> list[Attention]:  # noqa: PLR0912 - one loop per kind of thing that can need a look
         """tailFlick and hiss, worst first, then the longest-standing first."""
         items: list[Attention] = []
         for node in self.fleet.nodes:
@@ -153,6 +161,9 @@ class Status:
             if state.bodyLanguage.rank >= BodyLanguage.tailFlick.rank:
                 label = (state.detail or {}).get("name") or self._diskLabel(state)
                 items.append(self._item(state, label, None))
+        for state in self.whiskers():
+            if state.bodyLanguage.rank >= BodyLanguage.tailFlick.rank:
+                items.append(self._item(state, (state.detail or {}).get("name") or state.subject, None))
         for _name, state in sorted(self.collectors().items()):
             if state.bodyLanguage.rank >= BodyLanguage.tailFlick.rank:
                 items.append(self._item(state, "", None))  # its title already names it ("purr is late: ...")

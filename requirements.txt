@@ -7,3 +7,6 @@ tzdata==2026.4
 # purr, glare and binocs read other services over HTTP (ADR 0002). The same version the
 # tests have always pinned: starlette's TestClient already needed it.
 httpx2==2.13.1
+# whiskers (M5, ADR 0009): Home Assistant is spoken to over a WebSocket, and its entity list is YAML.
+websockets==17.1
+PyYAML==6.0.3

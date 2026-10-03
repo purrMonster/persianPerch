@@ -1,0 +1,55 @@
+# whiskers.example.yml - which Home Assistant entities perch watches, and how bad each state is.
+#
+# Copy it to the file PERCH_WHISKERS_ENTITIES points at (default /config/whiskers.yml in the container),
+# replace the generic entity ids with your own, and keep only what you want watched. NO VALUES THAT ARE
+# SECRET belong here: the access token is PERCH_WHISKERS_TOKEN (a non-admin Home Assistant user's
+# long-lived token, 05 plan Q14), never this file.
+#
+# Everything NOT listed here is dropped the moment it arrives: perch never stores or looks at another
+# entity. perch only reads (auth, subscribe_events for state_changed, get_states); it never calls a service.
+#
+# Per entity (entity id is the key):
+#   name:     what the page and the push call it
+#   states:   Home Assistant state -> level. Levels: slowBlink (fine), earTwitch (a notice, trail only),
+#             tailFlick (warn, pushed), hiss (critical, pushed at once and repeated until acknowledged)
+#   default:  the level of any listed state not in `states` (slowBlink when left out)
+#   words:    Home Assistant state -> what the page says ("on" -> "open")
+# Quote on and off ("on": ...): in YAML a bare on or off is a yes/no, not a word. perch accepts both,
+# quoting is just clearer. `unavailable` and `unknown` (the device is offline) show as unknown unless
+# you give them a level here.
+entities:
+  # doors and windows: a notice, never a push
+  binary_sensor.front_door:
+    name: Front door
+    states: {"on": earTwitch}
+    words: {"on": open, "off": closed}
+  binary_sensor.back_window:
+    name: Back window
+    states: {"on": earTwitch}
+    words: {"on": open, "off": closed}
+
+  # the cat's feeder and fountain
+  binary_sensor.pet_feeder_jam:
+    name: Pet feeder
+    states: {"on": tailFlick}
+    words: {"on": jammed, "off": fine}
+  binary_sensor.pet_fountain_low_water:
+    name: Water fountain
+    states: {"on": tailFlick}
+    words: {"on": low on water, "off": full enough}
+
+  # water leak and smoke: critical
+  binary_sensor.kitchen_water_leak:
+    name: Kitchen leak sensor
+    states: {"on": hiss}
+    words: {"on": wet, "off": dry}
+  binary_sensor.hall_smoke:
+    name: Hall smoke alarm
+    states: {"on": hiss, unavailable: tailFlick}
+    words: {"on": smoke, "off": clear}
+
+  # a UPS (the Network UPS Tools integration reports a status word)
+  sensor.ups_status:
+    name: UPS
+    states: {"On Battery": tailFlick, "Low Battery": hiss, "Online": slowBlink}
+    default: earTwitch

@@ -54,7 +54,7 @@ HISS_CAP = 9  # a hiss may use all but the last slot, which is the summary's
 OTHER_CAP = 7  # everything else leaves three: a hiss is never the one held while a lower level could be
 DIGEST_LINES = 12
 DIGEST_WINDOW = timedelta(hours=4)  # how late in the morning a missed digest may still go
-SUBJECT_KINDS = ("app", "node", "groom", "kitten", "collector", "glare", "disk", "binocs")
+SUBJECT_KINDS = ("app", "node", "groom", "kitten", "collector", "glare", "disk", "binocs", "whiskers")
 CHANNELS = ("ntfy", "critical")
 
 
@@ -117,10 +117,12 @@ def findProblems(states: dict[str, State], fleet: Fleet) -> Found:
             found.absorbed.add(subject)
             continue
         level = state.bodyLanguage
+        if kind == "whiskers" and level is B.earTwitch:
+            continue  # a door opened is for the trail; the house only pushes what is a problem
         if level is B.unknown:
             found.keepOpen.add(subject)
         elif level.rank >= B.tailFlick.rank or level is B.earTwitch:
-            name = f"{rest} kitten" if kind == "kitten" else "" if kind in ("collector", "binocs") else rest
+            name = f"{rest} kitten" if kind == "kitten" else "" if kind in ("collector", "binocs", "whiskers") else rest
             if kind == "glare":
                 name = (state.detail or {}).get("name") or rest  # the endpoint's own name, not its key
             title = f"{name}: {state.title}" if name and state.title else (state.title or name or subject)
