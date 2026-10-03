@@ -296,7 +296,7 @@ def test_a_leak_is_a_hiss_that_moves_the_fleet_and_meow_pushes_it_but_a_door_is_
     fleet = fleetTree.fleet()
     status = Status(fleet, rig.trail)
     assert status.fleetLevel() is B.hiss
-    assert [a.label for a in status.attention() if a.subject.startswith("whiskers:")] == ["Kitchen leak sensor"]
+    assert [a.title for a in status.attention() if a.subject.startswith("whiskers:")] == ["Kitchen leak sensor: wet"]
     problems = findProblems(rig.trail.states(), fleet).problems
     assert [(p.level, p.title) for p in problems if "whiskers" in p.key] == [(B.hiss, "Kitchen leak sensor: wet")]
 

@@ -22,12 +22,12 @@ from collections.abc import Callable
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 from pathlib import Path
-from urllib.parse import parse_qs, urlsplit
+from urllib.parse import parse_qs, urlencode, urlsplit
 from zoneinfo import ZoneInfo
 
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.exception_handlers import http_exception_handler
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -52,6 +52,8 @@ from .spark import sparkline
 
 HERE = Path(__file__).parent
 GROOM_NIGHTS = (7, 14, 30, 90)
+LIVE_ROWS = 50  # how many new events the open trail lists before it says "and N more"
+KEEP_ALIVE = 15.0  # seconds of silence after which the stream sends a comment, so a proxy keeps it open
 
 SENSE_MEANING = {
     "purr": "containers, node vitals, drive health",
@@ -117,6 +119,7 @@ def createApp(
         try:
             yield
         finally:
+            app.state.stopping = True
             for running in (task, beat):
                 if running:
                     running.cancel()
@@ -130,6 +133,8 @@ def createApp(
 
     app = FastAPI(title="persianPerch", docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
     app.state.settings = settings
+    app.state.stopping = False  # set at shutdown so open streams end instead of holding the server up
+    app.state.streamPoll = 1.0  # seconds between looks at the trail for the live stream (tests make it shorter)
     app.state.trail = trail
     app.state.tree = tree
     app.state.runner = runner
@@ -360,7 +365,8 @@ def createApp(
         things = "thing needs" if count == 1 else "things need"
         needs = f"{count} {things} a look." if count else "Nothing needs a look."
         lastNight = groomer.lastNight(clock())
-        notices = [s for s in (*status.glare(), *status.disks()) if s.bodyLanguage.rank >= BodyLanguage.tailFlick.rank]
+        watchers = (*status.glare(), *status.disks(), *status.whiskers())
+        notices = [s for s in watchers if s.bodyLanguage.rank >= BodyLanguage.tailFlick.rank]
         signature = digest([signature, *(f"{s.subject}={s.bodyLanguage.value}" for s in notices)])
         context = {
             "sparks": {
@@ -371,6 +377,7 @@ def createApp(
             },
             "glareOn": "glare" in status.collectors(),
             "disksOn": "disks" in status.collectors(),
+            "whiskersOn": "whiskers" in status.collectors(),
             "binocsOn": "binocs" in status.collectors(),
             "releases": releasesInfo(),
             "greeting": greeting,
@@ -548,6 +555,12 @@ def createApp(
             noJobs=not jobs,
         )
 
+    def trailFilters(sense: list[str], level: list[str]) -> tuple[list[str], list[str]]:
+        """The trail's filters, from the address: the page and its live stream read them the same way."""
+        senses = [s for s in sense if s in SENSES] or list(SENSES)
+        levels = [lv for lv in level if lv in BodyLanguage.__members__] or [lv.value for lv in LEVELS]
+        return senses, levels
+
     @app.get("/trail", response_class=HTMLResponse)
     def scentTrailView(
         request: Request,
@@ -555,10 +568,77 @@ def createApp(
         level: list[str] = Query(default=[]),
         hours: int = Query(default=48, ge=1, le=24 * 90),
     ):
-        senses = [s for s in sense if s in SENSES] or list(SENSES)
-        levels = [lv for lv in level if lv in BodyLanguage.__members__] or [lv.value for lv in LEVELS]
+        senses, levels = trailFilters(sense, level)
+        cursor = trail.lastRowid()  # read first: an event stored while the page is built is listed twice at worst
         events = trail.events(since=clock() - timedelta(hours=hours), senses=senses, levels=levels, limit=500)
-        return render(request, "trail.html", "scentTrail", events=events, senses=senses, levels=levels, hours=hours)
+        stream = urlencode([("sense", s) for s in senses] + [("level", lv) for lv in levels] + [("after", cursor)])
+        return render(
+            request,
+            "trail.html",
+            "scentTrail",
+            events=events,
+            senses=senses,
+            levels=levels,
+            hours=hours,
+            streamUrl=f"/trail/stream?{stream}",
+        )
+
+    def liveTrail(rows: list, total: int, fleet: Fleet, announce: str | None) -> str:
+        return templates.get_template("live/trailNew.html").render(
+            rows=rows, more=max(0, total - len(rows)), fleet=fleet, announce=announce
+        )
+
+    def hissSentence(hisses: list) -> str:
+        if len(hisses) == 1:
+            return f"New hiss: {hisses[0].title}."
+        return f"{len(hisses)} new hisses, the latest: {hisses[-1].title}."
+
+    @app.get("/trail/stream")
+    async def trailStream(
+        request: Request,
+        sense: list[str] = Query(default=[]),
+        level: list[str] = Query(default=[]),
+        after: int = Query(default=0, ge=0),
+    ):
+        """The live scentTrail (M5, ADR 0011): server-sent events carrying the list of events stored since the
+        page was built (``after``), through the same filters as the page. Every message is the whole list, so a
+        reconnect can never list a row twice. A hiss that arrives while the stream is open is also said once, in
+        a sentence for the polite live region. A comment goes out every 15 s so a proxy doesn't close it.
+        A GET that reads: S7 is untouched."""
+        senses, levels = trailFilters(sense, level)
+        fleet = fleetOr503()
+        header = request.headers.get("last-event-id", "")
+        loop = asyncio.get_running_loop()
+
+        async def frames():
+            yield "retry: 3000\n\n"
+            heard = int(header) if header.isdigit() else await asyncio.to_thread(trail.lastRowid)
+            shown: tuple[int, int] | None = None
+            quiet = loop.time()
+            while not app.state.stopping and not await request.is_disconnected():
+                newest = await asyncio.to_thread(trail.lastRowid)
+                rows, total = await asyncio.to_thread(
+                    trail.eventsSince, after, senses=senses, levels=levels, limit=LIVE_ROWS
+                )
+                key = (rows[-1][0], total) if rows else None
+                if key is not None and key != shown:
+                    shown = key
+                    hisses = [s for rid, s in rows if rid > heard and s.bodyLanguage is BodyLanguage.hiss]
+                    html = liveTrail([s for _rid, s in rows], total, fleet, hissSentence(hisses) if hisses else None)
+                    data = "".join(f"data: {line}\n" for line in html.splitlines() or [""])
+                    yield f"event: new\nid: {newest}\n{data}\n"
+                    quiet = loop.time()
+                heard = max(heard, newest)
+                if loop.time() - quiet >= KEEP_ALIVE:
+                    yield ": keep-alive\n\n"
+                    quiet = loop.time()
+                await asyncio.sleep(app.state.streamPoll)
+
+        return StreamingResponse(
+            frames(),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache, no-transform", "X-Accel-Buffering": "no"},
+        )
 
     MAX_KITTEN_BODY = 1024 * 1024
     MAX_KITTEN_RECORDS = 100

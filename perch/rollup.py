@@ -163,7 +163,7 @@ class Status:
                 items.append(self._item(state, label, None))
         for state in self.whiskers():
             if state.bodyLanguage.rank >= BodyLanguage.tailFlick.rank:
-                items.append(self._item(state, (state.detail or {}).get("name") or state.subject, None))
+                items.append(self._item(state, "", None))  # its title already names it ("UPS: On Battery")
         for _name, state in sorted(self.collectors().items()):
             if state.bodyLanguage.rank >= BodyLanguage.tailFlick.rank:
                 items.append(self._item(state, "", None))  # its title already names it ("purr is late: ...")

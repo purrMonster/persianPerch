@@ -411,6 +411,40 @@ class ScentTrail:
             rows = self._db.execute(sql, args).fetchall()
         return [self._scent(r) for r in rows]
 
+    def lastRowid(self) -> int:
+        """The position of the newest event: a cursor for ``eventsSince`` (the live trail, M5). The table's own
+        row number grows with every insert, including events whose ``seenAt`` is in the past (a node's clock)."""
+        with self._lock:
+            return self._db.execute("SELECT COALESCE(MAX(rowid), 0) FROM events").fetchone()[0]
+
+    def eventsSince(
+        self,
+        cursor: int,
+        *,
+        senses: "Iterable[str] | None" = None,
+        levels: "Iterable[str | BodyLanguage] | None" = None,
+        limit: int = 50,
+    ) -> tuple[list[tuple[int, Scent]], int]:
+        """The newest ``limit`` events stored after ``cursor`` that pass the filters, as ``(rowid, event)`` oldest
+        first, and how many there are in all."""
+        where, args = ["rowid > ?"], [int(cursor)]
+        if senses is not None:
+            senses = list(senses)
+            where.append(f"sense IN ({','.join('?' * len(senses))})" if senses else "0")
+            args.extend(senses)
+        if levels is not None:
+            names = [BodyLanguage.parse(v).value for v in levels]
+            where.append(f"bodyLanguage IN ({','.join('?' * len(names))})" if names else "0")
+            args.extend(names)
+        clause = " AND ".join(where)
+        with self._lock:
+            total = self._db.execute(f"SELECT COUNT(*) FROM events WHERE {clause}", args).fetchone()[0]  # noqa: S608 - placeholders only
+            rows = self._db.execute(
+                f"SELECT rowid AS rid, * FROM events WHERE {clause} ORDER BY rowid DESC LIMIT ?",  # noqa: S608
+                [*args, int(limit)],
+            ).fetchall()
+        return [(r["rid"], self._scent(r)) for r in reversed(rows)], total
+
     @staticmethod
     def _scent(row: sqlite3.Row) -> Scent:
         return Scent(

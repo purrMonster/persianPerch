@@ -201,6 +201,12 @@ from (found in M1). It stays one SQLite file, not a time-series database (§2.3 
 
 - Debounced (2 s), rate-limited (max 60 events/min per path, then one "storm" tailFlick).
 
+**M5 addendum (2026-10-03; 05 plan A5 and C2 win where they differ).** The last row watches the branch's ref
+(`.git/refs/heads/main`) and `packed-refs`, not `.git/HEAD` (C2). roastery polls `C:\purrbrews\restic\snapshots`
+every 10 s. kitten reports names and change types only and never opens a watched file; the pull event's commit
+subject is asked of `git`. Events travel in the kitten report, as events (not states), so meow does not push them
+yet. Details and the one open owner question: [ADR 0010](adr/0010-pounce-names-only-events-over-the-kitten-report.md).
+
 ### 4.5 whiskers (smart-home)
 
 - **Source:** Home Assistant WebSocket API on mochaPot, a dedicated **read-only HA user**
@@ -208,6 +214,13 @@ from (found in M1). It stays one SQLite file, not a time-series database (§2.3 
   (door sensors, feeders, water, smoke/leak, UPS if any).
 - Entity → severity map in config (a leak sensor `on` is hiss; a door opening is earTwitch).
 - Later: MQTT on catnipCorner, if a broker is added.
+
+**M5 addendum (2026-10-03).** The map lives in `whiskers.example.yml` (`states` and `words` per entity, a `default`
+level, an allow-list: everything else is dropped before it is stored). Each listed entity is a state
+`whiskers:<entity_id>`; a change worth knowing is an event; a hiss or tailFlick from the house moves the fleet and
+meow pushes it, a notice (a door) is for the trail only. Home Assistant unreachable is one tailFlick from
+the collector's rhythm and every entity `unknown`, never a hiss per entity. perch sends only `auth`,
+`subscribe_events` and `get_states` (S4). [ADR 0009](adr/0009-whiskers-websockets-and-pyyaml.md).
 
 ### 4.6 binocs (far away)
 

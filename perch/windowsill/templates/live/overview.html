@@ -1,4 +1,4 @@
-{% from "_macros.html" import badge, dot, mark, event, note, meter, asOf, liveSeen, subjectLink, ackForm, sparkRow, glareCard, disksCard, binocsCard %}
+{% from "_macros.html" import badge, dot, mark, event, note, meter, asOf, liveSeen, subjectLink, ackForm, sparkRow, glareCard, disksCard, binocsCard, whiskersCard %}
 {%- set counts = status.counts() %}
 {%- set attention = status.attention() %}
 {%- set pill = purrPill(status) %}
@@ -83,6 +83,7 @@
       {%- else %}<p class="empty">Nothing on the trail yet. Events appear here as they happen.</p>{% endif %}</div>
     {{ glareCard(status, glareOn) }}
     {{ disksCard(status.disks(), disksOn, fleet) }}
+    {{ whiskersCard(status, whiskersOn) }}
     {{ binocsCard(status, binocsOn, releases) }}
   </aside>
 </div>

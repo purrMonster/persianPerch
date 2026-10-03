@@ -108,7 +108,8 @@ Step 'real-socket drill: budget + leak check' {
         '-v', "${root}\.cache\purrbrews-containers:/fleet:ro",
         '-v', "${root}\tests\ui\budget.py:/app/budget.py:ro",
         '-v', "${root}\tests\komodoFake.py:/app/komodoFake.py:ro",
-        '-v', "${root}\tests\outsideFakes.py:/app/outsideFakes.py:ro"
+        '-v', "${root}\tests\outsideFakes.py:/app/outsideFakes.py:ro",
+        '-v', "${root}\tests\haFake.py:/app/haFake.py:ro"
     )
     docker run --rm --label $label -e PERCH_REPO_DIR=/fleet @mounts -w /app persian-perch:ui-test python budget.py
 }

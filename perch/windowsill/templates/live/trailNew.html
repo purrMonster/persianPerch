@@ -1,0 +1,12 @@
+{% from "_macros.html" import event -%}
+<ul class="feed" role="list">
+{%- for s in rows|reverse %}
+{{ event(s, fleet, 'nw-') }}
+{%- endfor %}
+</ul>
+{%- if more %}
+<p class="faint small" style="margin:6px 12px 0">and {{ more }} more. Reload to see them all in the list below.</p>
+{%- endif %}
+{%- if announce %}
+<div id="announce" hx-swap-oob="innerHTML">{{ announce }}</div>
+{%- endif %}

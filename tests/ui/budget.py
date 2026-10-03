@@ -13,6 +13,7 @@ This is the M1 gate's drill with a real socket and a real clock instead of a fak
 perch image (see the runbook, M1 entry); exits non-zero if a drill step, a leak or the budget fails.
 """
 
+import asyncio
 import base64
 import http.server
 import json
@@ -27,6 +28,8 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import httpx2
+from haFake import TOKEN as HA_TOKEN
+from haFake import HAFake
 from komodoFake import KEY, SECRET, FleetFake
 from outsideFakes import GATUS_PASSWORD, GATUS_USER, SPEEDTEST_TOKEN, ScrutinyFake, SpeedtestFake, gatusKey, stamp
 
@@ -48,6 +51,20 @@ NTFY_TOPIC, CRIT_TOPIC, PING_ID = "budget-fake-topic", "budget-fake-critical", "
 GATUS_PORT, SCRUTINY_PORT, SPEED_PORT = 9204, 9205, 9206
 FAILS = {"network_pihole": 0}  # how many of pihole's newest Gatus results fail
 ENDPOINTS = (("cloudflare tunnel", "network"), ("pihole", "network"), ("authelia", "identity"))
+# M5: a fake Home Assistant (WebSocket) on a loopback port; perch's whiskers talks to it, no real one is ever asked
+HA_PORT = 9207
+HA_ENTITIES = """
+entities:
+  binary_sensor.front_door:
+    name: Front door
+    states: {"on": earTwitch}
+    words: {"on": open, "off": closed}
+  binary_sensor.kitchen_water_leak:
+    name: Kitchen leak sensor
+    states: {"on": hiss}
+    words: {"on": wet, "off": dry}
+"""
+HA_FILE = "/tmp/budget-whiskers.yml"
 pushes = {"ntfy": [], "critical": []}
 pings: list[str] = []
 
@@ -246,6 +263,18 @@ def main() -> int:
         "0x5000cca000000001", "sda", "cellar", "WDC WD40EFRX", summaryHours=3, attrs={"9": scrutiny.attr(9, 20000)}
     )
     others += [gatus, fakeServer(scrutiny, SCRUTINY_PORT), fakeServer(speed, SPEED_PORT)]
+    ha, haLoop = HAFake(), asyncio.new_event_loop()
+    ha.port = HA_PORT
+    ha.set("binary_sensor.front_door", "off")
+    ha.set("binary_sensor.kitchen_water_leak", "off")
+    ha.set("light.kitchen", "on")  # not on perch's list
+    threading.Thread(target=haLoop.run_forever, daemon=True).start()
+
+    def onHa(coro):
+        return asyncio.run_coroutine_threadsafe(coro, haLoop).result(10)
+
+    onHa(ha.start())
+    Path(HA_FILE).write_text(HA_ENTITIES, encoding="utf-8")
     env = {
         **os.environ,
         "PERCH_PURR_URL": f"http://127.0.0.1:{PORT}",
@@ -271,6 +300,10 @@ def main() -> int:
         "PERCH_BINOCS_SPEEDTEST_URL": f"http://127.0.0.1:{SPEED_PORT}",
         "PERCH_BINOCS_SPEEDTEST_TOKEN": SPEEDTEST_TOKEN,
         "PERCH_BINOCS_EVERY": "2s",
+        "PERCH_WHISKERS_URL": f"http://127.0.0.1:{HA_PORT}",
+        "PERCH_WHISKERS_TOKEN": HA_TOKEN,
+        "PERCH_WHISKERS_ENTITIES": HA_FILE,
+        "PERCH_WHISKERS_EVERY": "2s",
     }
     perch = subprocess.Popen(  # noqa: S603
         [sys.executable, "-m", "perch"], env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
@@ -344,6 +377,33 @@ def main() -> int:
         )
         FAILS["network_pihole"] = 0
         failed += not waitFor("pihole answers again: 3 of 3 answering", lambda: "3 of 3 answering" in get("/"))
+        # M5: whiskers reads the fake Home Assistant over a real WebSocket; a leak hisses and is pushed
+        failed += not waitFor(
+            "whiskers read the fake Home Assistant: 2 sensors watched", lambda: "2 sensors watched" in get("/")
+        )
+        onHa(ha.change("light.kitchen", "off"))  # not on the list: dropped
+        onHa(ha.change("binary_sensor.front_door", "on"))
+        onHa(ha.change("binary_sensor.kitchen_water_leak", "on"))
+        failed += not waitFor(
+            "a leak is a hiss on the overview, a door is not",
+            lambda: "Kitchen leak sensor" in get("/") and "fleet: hiss" in get("/") and "light.kitchen" not in get("/"),
+        )
+        failed += not waitFor(
+            "meow pushed the leak",
+            lambda: any("Kitchen leak sensor: wet" in t for t in titles("ntfy")),
+            seconds=90,
+        )
+        onHa(ha.change("binary_sensor.kitchen_water_leak", "off"))
+        onHa(ha.change("binary_sensor.front_door", "off"))
+        failed += not waitFor(
+            "the leak dried: 2 sensors, none out of place",
+            lambda: "Everything on the list is in its usual state" in get("/"),
+        )
+        sent = set(ha.types())
+        allowed = sent <= {"auth", "subscribe_events", "get_states"}
+        mark = "ok  " if allowed else "FAIL"
+        print(f"{mark}  S4 over a real socket: perch said only {sorted(sent)} to Home Assistant")
+        failed += not allowed
         with lock:
             fake.nodeUp("grinder")
         failed += not waitFor("grinder back: slowBlink", lambda: "fleet: slowBlink" in get("/"))
@@ -399,6 +459,8 @@ def main() -> int:
             ("Gatus password", GATUS_PASSWORD),
             ("Gatus Basic credential", base64.b64encode(f"{GATUS_USER}:{GATUS_PASSWORD}".encode()).decode()),
             ("speedtest-tracker token", SPEEDTEST_TOKEN),
+            ("Home Assistant token", HA_TOKEN),
+            ("Home Assistant token (its signature)", HA_TOKEN.rsplit(".", 1)[-1]),
         )
         found = leaks(places, extra)
         print(
@@ -412,6 +474,8 @@ def main() -> int:
         server.shutdown()
         for other in others:
             other.shutdown()
+        onHa(ha.stop())
+        haLoop.call_soon_threadsafe(haLoop.stop)
     print("budget, drill and leak check: " + ("FAILED" if failed else "ok"))
     return 1 if failed else 0
 

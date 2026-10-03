@@ -9,6 +9,9 @@
 - the change is **announced once** through the polite live region, never again while nothing changes;
 - with prefers-reduced-motion, nothing animates.
 
+M5 adds the live scentTrail: an open /trail shows a new event within 5 s without a reload, keeps focus and
+scroll, respects its filters, and says a new hiss once through the polite live region.
+
 Runs in the Playwright image after shoot.py (tests/ui/compose.yml); exit code 0 only if all hold.
 """
 
@@ -79,10 +82,48 @@ SPARK_CHECK = r"""() => {
 SIDEWAYS = "[document.documentElement.scrollWidth, document.documentElement.clientWidth]"
 
 
+def openPage(page, path: str) -> None:
+    """goto, then wait until the page is quiet. The trail keeps its event stream open for ever, so there the
+    network is never idle: wait for the stream request to have been made, and give it a moment to connect."""
+    if path.startswith("/trail"):
+        seen: list[str] = []
+        page.on("request", lambda r: seen.append(r.url) if "/trail/stream" in r.url else None)
+        page.goto(BASE + path, wait_until="load")
+        end = time.time() + 5
+        while not seen and time.time() < end:
+            page.wait_for_timeout(100)
+        page.wait_for_timeout(600)
+    else:
+        page.goto(BASE + path, wait_until="networkidle")
+
+
 def check(name: str, ok: bool, detail: str = "") -> None:
     print(f"{'ok  ' if ok else 'FAIL'} {name}{'  ' + detail if detail and not ok else ''}")
     if not ok:
         failures.append(name)
+
+
+def pounceEvent(name: str, level: str = "tailFlick") -> None:
+    """sieve's kitten reports one filesystem event through the one write endpoint."""
+    eventId = os.urandom(6).hex()
+    status = postKitten(
+        {
+            "node": "sieve",
+            "events": [
+                {
+                    "id": eventId,
+                    "at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                    "path": "/etc/purrbrews",
+                    "name": name,
+                    "change": "modified",
+                    "level": level,
+                    "why": "settings changed",
+                }
+            ],
+        }
+    )
+    if status != 200:
+        failures.append(f"pounce event {name} was refused: HTTP {status}")
 
 
 def lastNightlySlot() -> datetime:
@@ -102,6 +143,94 @@ def postKitten(body: dict) -> int:
     )
     with urllib.request.urlopen(request, timeout=10) as response:  # noqa: S310
         return response.status
+
+
+def liveTrail(browser) -> None:  # noqa: PLR0915
+    """M5 gate, in a real browser: an open /trail shows a new event within 5 s without a reload, keeps focus
+    and scroll, and respects its filters."""
+    if not TOKEN:
+        check("UI_KITTEN_TOKEN_SIEVE is set for the live trail check", False)
+        return
+    for view, width, scheme in (("1400-dark", 1400, "dark"), ("1400-light", 1400, "light"), ("390-dark", 390, "dark")):
+        ctx = browser.new_context(viewport={"width": width, "height": 700}, color_scheme=scheme)
+        page, other = ctx.new_page(), ctx.new_page()
+        problems: list[str] = []
+        page.on("console", lambda m, problems=problems: problems.append(m.text) if m.type == "error" else None)
+        page.on("pageerror", lambda e, problems=problems: problems.append(str(e)))
+        openPage(page, "/trail?sense=pounce&sense=whiskers")
+        openPage(other, "/trail?sense=glare")
+        check(
+            f"the trail at {view} loaded the pinned SSE extension",
+            page.evaluate("typeof htmx === 'object' && typeof htmx.createEventSource === 'function'"),
+        )
+        page.evaluate("window.__sameDocument = 'yes'")
+        page.evaluate("window.scrollTo(0, 60)")
+        scroll = page.evaluate("window.scrollY")
+        first = f"first-{view}.env"
+        started = time.time()
+        pounceEvent(first)
+        try:
+            page.wait_for_function(
+                "t => document.querySelector('#new-events').innerText.includes(t)", arg=first, timeout=5_000
+            )
+            took = time.time() - started
+        except Exception:  # a timeout is the failure being reported
+            took = 99.0
+        check(f"a new event showed on the open trail at {view} within 5 s ({took:.1f} s)", took <= 5.0)
+        check("... without a reload", page.evaluate("window.__sameDocument") == "yes")
+        check("... without moving the scroll position", page.evaluate("window.scrollY") == scroll)
+        check("... and without announcing a tailFlick", page.locator("#announce").inner_text().strip() == "")
+        check(
+            "the new row has the tailFlick body language",
+            page.locator("#new-events li.event.bl-tailFlick").count() >= 1,
+        )
+        # focus: put it on the new row's link, send another event, the swap must not take it away
+        link = page.locator("#new-events li.event a").first
+        linkId = link.get_attribute("id")
+        link.focus()
+        check("the new row's link has a stable id", bool(linkId), str(linkId))
+        pounceEvent(f"second-{view}.env")
+        page.wait_for_function(
+            "t => document.querySelector('#new-events').innerText.includes(t)", arg=f"second-{view}.env", timeout=5_000
+        )
+        check(
+            "a second event arrived and the focused link kept focus through the swap",
+            page.evaluate("document.activeElement && document.activeElement.id") == linkId,
+            str(page.evaluate("document.activeElement && document.activeElement.id")),
+        )
+        check(
+            "... and the list has both events, each once",
+            page.locator("#new-events li.event").count() == 2,
+            str(page.locator("#new-events li.event").count()),
+        )
+        page.wait_for_timeout(3_500)  # past the filter-free window: the glare-only page must have shown nothing
+        check(
+            "a trail filtered to glare did not list the pounce events",
+            other.locator("#new-events li.event").count() == 0 and "Nothing new yet" in other.inner_text("#new-events"),
+        )
+        widths = page.evaluate(SIDEWAYS)
+        check(f"the live trail at {view}: no horizontal scroll", widths[0] <= widths[1], str(widths))
+        page.screenshot(path=f"{OUT}/trail-live-{view}.png", full_page=True)
+        check(f"no console errors on the live trail at {view}", not problems, str(problems))
+        ctx.close()
+    reduced = browser.new_context(viewport={"width": 1400, "height": 700}, reduced_motion="reduce")
+    quiet = reduced.new_page()
+    openPage(quiet, "/trail")
+    moving = quiet.evaluate(
+        "[...document.querySelectorAll('body *')].filter(e => { const s = getComputedStyle(e);"
+        " return (parseFloat(s.transitionDuration) > 0 && s.transitionProperty !== 'none') ||"
+        " (parseFloat(s.animationDuration) > 0 && s.animationName !== 'none'); }).length"
+    )
+    check("under prefers-reduced-motion nothing animates on the live trail", moving == 0, f"{moving} elements")
+    reduced.close()
+    off = browser.new_context(viewport={"width": 1400, "height": 700}, java_script_enabled=False)
+    plain = off.new_page()
+    plain.goto(BASE + "/trail", wait_until="load")
+    check(
+        "with JavaScript off the trail still lists events as of load and hides the live section",
+        plain.locator("#main li.event").count() > 3 and not plain.locator("#new-h").is_visible(),
+    )
+    off.close()
 
 
 def main() -> int:  # noqa: PLR0912 - one long scripted walk through the pages
@@ -149,6 +278,8 @@ def main() -> int:  # noqa: PLR0912 - one long scripted walk through the pages
         else:
             slot = lastNightlySlot()
             before = page.locator("#fleet-badge").inner_text()
+            watching = context.new_page()  # an open trail while the failed backup is reported (M5)
+            openPage(watching, "/trail")
             status = postKitten(
                 {
                     "node": "sieve",
@@ -197,6 +328,17 @@ def main() -> int:  # noqa: PLR0912 - one long scripted walk through the pages
                 "a poll with nothing new says nothing new (same sentence, set once)",
                 page.locator("#announce").inner_text().strip() == said,
             )
+            # the open trail got the hiss without a reload, and said it once through the polite live region
+            watching.wait_for_selector("#new-events .feed", timeout=5_000)
+            rows = watching.locator("#new-events li.event.bl-hiss").count()
+            spoken = watching.locator("#announce").inner_text().strip()
+            check("the open trail listed the failed backup as a hiss row", rows >= 1, f"{rows} rows")
+            check(
+                "... and said one new hiss through the polite live region",
+                spoken.startswith("New hiss:") and spoken.count("New hiss") == 1,
+                spoken,
+            )
+            watching.close()
 
         # 2b. Acknowledge, in a real browser: htmx posts the form (CSRF token, same-origin headers) and the
         # button is replaced by one line; a reload shows the litter acknowledged
@@ -275,7 +417,7 @@ def main() -> int:  # noqa: PLR0912 - one long scripted walk through the pages
             # M5 task 0: the longest seeded subjects (no break points) on every list that shows subjects, at the
             # page's own font width and with every glyph 5 % and 12 % wider (a phone's fonts are not ours)
             for path in ("/", "/trail", "/tree/cellar", "/tree/percolator/vaultwarden"):
-                outside.goto(BASE + path, wait_until="networkidle")
+                openPage(outside, path)
                 if path in ("/", "/trail"):
                     body = outside.inner_text("main")
                     check(
@@ -354,6 +496,7 @@ def main() -> int:  # noqa: PLR0912 - one long scripted walk through the pages
                     str(glyphs["lowest"]),
                 )
                 shot.close()
+        liveTrail(browser)
         browser.close()
     print(f"live: {'FAILED' if failures else 'all ok'}")
     return 1 if failures else 0

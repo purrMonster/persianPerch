@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% from "_macros.html" import dot, event %}
 {% block title %}scentTrail{% endblock %}
+{% block head %}<script src="/static/vendor/htmx-ext-sse-2.2.4.min.js" defer></script><script src="/static/trail-live.js" defer></script>{% endblock %}
 {% block main %}
 <div class="row between" style="flex-wrap:wrap;gap:12px;margin-bottom:14px">
   <div><h1>scentTrail</h1><div class="muted">Everything the senses noticed, newest first.</div></div>
@@ -16,6 +17,10 @@
 </div>
 </form>
 <div class="card" style="padding:6px 8px">
+<section class="needs-js" aria-labelledby="new-h" hx-ext="sse" sse-connect="{{ streamUrl }}">
+  <h2 class="dayhead" id="new-h" style="margin-top:12px">Since you opened this page</h2>
+  <div id="new-events" sse-swap="new" hx-swap="innerHTML"><p class="empty small" style="padding:0 12px 6px">Nothing new yet. New events appear here as they happen, with these filters.</p></div>
+</section>
 {%- if events %}{% set ns = namespace(day=None) %}
 {%- for s in events %}{% set day = s.seenAt|local('%A %d %b') %}{% if day != ns.day %}{% if ns.day %}</ul>{% endif %}<h2 class="dayhead">{{ day }}</h2><ul class="feed" role="list">{% set ns.day = day %}{% endif %}{{ event(s, fleet) }}{% endfor %}</ul>
 {%- else %}<p class="empty" style="padding:10px 12px">Nothing on the trail for these filters yet.</p>{% endif %}

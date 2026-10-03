@@ -52,23 +52,25 @@
 <form class="ack" method="post" action="/ack/{{ lt.litterId }}" hx-post="/ack/{{ lt.litterId }}" hx-swap="outerHTML">
 <input type="hidden" name="csrf" value="{{ csrf }}"><button type="submit" class="primary" id="ack-{{ lt.litterId }}" aria-label="Acknowledge {{ lt.name }}">Acknowledge</button></form>
 {%- endmacro %}
-{% macro event(scent, fleet) -%}
+{% macro event(scent, fleet, idPrefix='sj-') -%}
 {%- set bl = scent.bodyLanguage -%}
 <li class="row event bl-{{ bl.value }}">
   <time class="mono muted when" datetime="{{ scent.seenAt|local('%Y-%m-%dT%H:%M:%S%z') }}">{{ scent.seenAt|local('%H:%M:%S') }}</time>
   <div class="stripe" aria-hidden="true"></div>
-  <div class="body"><div class="row" style="gap:8px;flex-wrap:wrap">{{ badge(bl) }}<span class="chip static" translate="no" title="{{ SENSE_MEANING[scent.sense] }}">{{ scent.sense }}</span>{{ subjectLink(scent.subject, fleet) }}</div>
+  <div class="body"><div class="row" style="gap:8px;flex-wrap:wrap">{{ badge(bl) }}<span class="chip static" translate="no" title="{{ SENSE_MEANING[scent.sense] }}">{{ scent.sense }}</span>{{ subjectLink(scent.subject, fleet, idPrefix ~ scent.scentId) }}</div>
   <div class="title">{{ scent.title }}</div>
   {%- if scent.litterId %}<div class="faint small" style="margin-top:2px">litter <span class="mono" translate="no">{{ scent.litterId }}</span></div>{% endif %}</div>
 </li>
 {%- endmacro %}
-{% macro subjectLink(subject, fleet) -%}
+{% macro subjectLink(subject, fleet, anchorId='') -%}
 {%- set kind, _, rest = subject.partition(':') -%}
+{%- set idAttr = (' id="' ~ anchorId ~ '"') if anchorId else '' -%}
 {%- if kind == 'app' and '/' in rest -%}{%- set n, _, a = rest.partition('/') -%}
-{%- if fleet.node(n) and fleet.node(n).app(a) %}<a class="mono" translate="no" href="/tree/{{ n }}/{{ a }}">{{ rest }}</a>{% else %}<span class="mono" translate="no">{{ rest }}</span>{% endif -%}
-{%- elif kind == 'groom' %}<a class="mono" translate="no" href="/groom">{{ rest }}</a>
-{%- elif kind == 'kitten' and fleet.node(rest) %}<a class="mono" translate="no" href="/tree/{{ rest }}">kitten {{ rest }}</a>
-{%- elif kind == 'node' and fleet.node(rest) %}<a class="mono" translate="no" href="/tree/{{ rest }}">{{ rest }}</a>
+{%- if fleet.node(n) and fleet.node(n).app(a) %}<a class="mono" translate="no"{{ idAttr|safe }} href="/tree/{{ n }}/{{ a }}">{{ rest }}</a>{% else %}<span class="mono" translate="no">{{ rest }}</span>{% endif -%}
+{%- elif kind == 'groom' %}<a class="mono" translate="no"{{ idAttr|safe }} href="/groom">{{ rest }}</a>
+{%- elif kind == 'kitten' and fleet.node(rest) %}<a class="mono" translate="no"{{ idAttr|safe }} href="/tree/{{ rest }}">kitten {{ rest }}</a>
+{%- elif kind == 'pounce' and fleet.node(rest.partition('/')[0]) %}<a class="mono" translate="no"{{ idAttr|safe }} href="/tree/{{ rest.partition('/')[0] }}">{{ rest }}</a>
+{%- elif kind == 'node' and fleet.node(rest) %}<a class="mono" translate="no"{{ idAttr|safe }} href="/tree/{{ rest }}">{{ rest }}</a>
 {%- else %}<span class="mono" translate="no">{{ rest or subject }}</span>{% endif -%}
 {%- endmacro %}
 {# vitals history (M4): three sparklines under the three meters, same grid; each carries its own text alternative #}
@@ -104,6 +106,23 @@
 <ul class="feed" role="list">
 {%- for s in disks %}{% set d = s.detail or {} %}
   <li class="row small">{{ mark(s.bodyLanguage) }}<span><span class="mono" translate="no">{% if d.host and fleet.node(d.host) %}<a href="/tree/{{ fleet.node(d.host).name }}">{{ d.host }}</a>{% else %}{{ d.host or 'unnamed host' }}{% endif %} {{ d.device }}</span> <span class="muted">{{ d.model }}: {{ s.title }}</span></span></li>
+{%- endfor %}
+</ul>
+{%- endif %}</div>
+{%- endmacro %}
+{# whiskers: the smart-home entities on the owner's list. Anything not in its usual state is listed in words. #}
+{% macro whiskersCard(status, on) -%}
+{%- set items = status.whiskers() -%}
+<div class="card" id="whiskers"><div class="section-title"><h2>Home <span class="faint" translate="no">whiskers</span></h2></div>
+{%- if not on %}<p class="empty">whiskers isn't watching: it needs <span class="mono" translate="no">PERCH_WHISKERS_URL</span>, <span class="mono" translate="no">PERCH_WHISKERS_TOKEN</span> and the entity list.</p>
+{%- elif not items %}<p class="empty">whiskers is waiting for its first look at Home Assistant. The sensors on your list appear here when it has them.</p>
+{%- else %}
+<p class="row small" style="margin:0 0 8px">{{ badge(items[0].bodyLanguage, items|length ~ (' sensor' if items|length == 1 else ' sensors') ~ ' watched') }}</p>
+<ul class="feed" role="list">
+{%- for s in items if s.bodyLanguage.value != 'slowBlink' %}
+  <li class="row small">{{ mark(s.bodyLanguage) }}<span><span class="mono" translate="no">{{ (s.detail or {}).name or s.subject }}</span> <span class="muted">{{ (s.detail or {}).word }}{% if s.bodyLanguage.value == 'unknown' %}: {{ s.title }}{% endif %}</span></span></li>
+{%- else %}
+  <li class="muted small">Everything on the list is in its usual state.</li>
 {%- endfor %}
 </ul>
 {%- endif %}</div>

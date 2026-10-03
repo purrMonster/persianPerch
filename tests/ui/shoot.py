@@ -53,7 +53,10 @@ def main() -> int:
             page.on("pageerror", lambda e, errors=errors: errors.append(str(e)))
             for name, path in PAGES.items():
                 errors.clear()
-                response = page.goto(BASE + path, wait_until="networkidle")
+                # the trail holds a server-sent stream open for ever, so the network is never idle there
+                response = page.goto(BASE + path, wait_until="load" if path == "/trail" else "networkidle")
+                if path == "/trail":
+                    page.wait_for_timeout(600)
                 status = response.status if response else 0
                 scroll = page.evaluate(MEASURE)
                 file = f"{OUT}/{name}-{view}.png"

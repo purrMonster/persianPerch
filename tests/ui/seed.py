@@ -26,6 +26,13 @@ from perch.senses.registries import parseImage
 from perch.settings import Settings
 from perch.vitals import Vitals
 
+HOUSE = (  # whiskers' entities as Home Assistant reports them: (entity, name, level, the word, the state)
+    ("binary_sensor.front_door", "Front door", B.earTwitch, "open", "on"),
+    ("binary_sensor.kitchen_water_leak", "Kitchen leak sensor", B.slowBlink, "dry", "off"),
+    ("binary_sensor.pet_fountain_low_water", "Water fountain", B.slowBlink, "full enough", "off"),
+    ("sensor.ups_status", "UPS", B.tailFlick, "On Battery", "On Battery"),
+)
+
 settings = Settings.fromEnv()
 trail = ScentTrail(settings.trailDb)
 now = datetime.now(UTC)
@@ -173,7 +180,15 @@ binocs = Binocs(
     pause=nap,
 )
 loop.run_until_complete(binocs.cycle())
-for name in ("glare", "disks", "binocs"):  # what the runner writes for a collector that is on time
+for entity, name, level, word, state in HOUSE:  # what whiskers keeps from a Home Assistant (no real one is ever asked)
+    trail.setState(
+        f"whiskers:{entity}",
+        level,
+        title=f"{name}: {word}",
+        seenAt=now,
+        detail={"entity": entity, "name": name, "state": state, "word": word, "level": level.value},
+    )
+for name in ("glare", "disks", "binocs", "whiskers"):  # what the runner writes for a collector that is on time
     trail.setState(f"collector:{name}", B.slowBlink, title="on time", seenAt=now)
 for closing in (glare, disks, binocs):
     loop.run_until_complete(closing.aclose())
@@ -182,6 +197,6 @@ loop.run_until_complete(purr.aclose())
 loop.close()
 trail.close()
 print(
-    f"seeded {len(samples)} sample events, 16 purr cycles, a week of vitals, glare, disks and binocs "
+    f"seeded {len(samples)} sample events, 16 purr cycles, a week of vitals, glare, disks, binocs and whiskers "
     f"into {settings.trailDb}"
 )

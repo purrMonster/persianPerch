@@ -31,7 +31,7 @@ changed?", mostly at a glance, sometimes on a phone.
 | design-analysis is Anthropic's own brand | We borrow its logic (tokens, type split, surfaces). We never use the Anthropic spike mark, the Claude wordmark or Anthropic's licensed fonts (Copernicus, StyreneB); system substitutes below. persianPerch's mark is its own cat on a perch. |
 | web-design-guidelines: "Title Case for headings" | Not adopted for headings: every heading in the mockups the owner approved is sentence case ("Overnight grooming", "Needs a look"). Title Case is for **buttons** only (§7.10). |
 | web-design-guidelines: curly quotes | perch's own copy and the event text it stores use straight apostrophes ("isn't"), so a person can search, quote and grep them. Typographic quotes are used where perch quotes something (the commit subject). Revisit if the owner wants them everywhere. |
-| web-design-guidelines: `Intl.DateTimeFormat` for dates | The page has no JavaScript; times are formatted on the server in the owner's `PERCH_TZ`, so every view agrees. |
+| web-design-guidelines: `Intl.DateTimeFormat` for dates | The page has no JavaScript of its own; times are formatted on the server in the owner's `PERCH_TZ`, so every view agrees. The one exception is `static/trail-live.js` (ADR 0011), ten lines that close the live trail's stream when the page is left. |
 | design-analysis is light-only | Both themes, following `prefers-color-scheme`; dark mode uses the system's dark surfaces as the page. |
 
 ## 3. Tokens
@@ -173,6 +173,15 @@ renders the same with no network.
 - **Outside card (`#binocs`, M4):** a `dl` of tunnel (Gatus's own check, so no request of its own), speedtest and
   releases, then the newer releases as lines. Notices only: nothing here is ever worse than earTwitch, and none of it
   moves the fleet badge.
+- **Home card (`#whiskers`, M5):** `N sensors watched` as a badge, then one line per entity not in its usual state
+  (mark, name, the word the owner chose for that state, such as `wet`); when all are, one sentence. Not configured and
+  waiting are each said in words. Only a tailFlick or hiss from the house moves the fleet badge; a door is a notice.
+- **Live trail (`#new-events`, M5):** on `/trail`, above the day groups, "Since you opened this page": the events
+  that arrived while the page was open, newest first, in the same rows as the list below, delivered by a
+  server-sent stream ([ADR 0011](adr/0011-live-scenttrail-sse-extension.md)) through the page's own filters. Each
+  message replaces the whole list (so a reconnect never doubles a row); the rows' links have stable ids, so focus
+  and scroll stay; nothing is announced except one sentence for a new hiss; nothing animates. With JavaScript off the
+  section is hidden and the page is the list as of load.
 - **Unknown is a state with a reason.** Grey never stands alone: the overview says why
   ("purr isn't configured", "waiting for purr's first look", "purr can't see them. <why>").
 
@@ -211,4 +220,8 @@ From web-design-guidelines, applied to this product; a reviewer checks these.
     vitals numbers are `nowrap`. Stored event text keeps plain spaces so it stays searchable.
 19. Errors are pages: HTML with what is wrong, what to check and a way on, never bare JSON.
 20. A region that refreshes keeps `id`s on what can hold focus, says when its state is from, never
-    announces a poll that found nothing new, and has no motion of its own (M2, ADR 0003).
+    announces a poll that found nothing new, and has no motion of its own (M2, ADR 0003). The live trail follows
+    the same rule: a stream announces a new hiss once and nothing else (M5, ADR 0011).
+21. A name with no break points (an image, an endpoint, a release) wraps: `overflow-wrap: anywhere` on the row's
+    body and `min-width: 0` on its flex children. Playwright measures `scrollWidth <= clientWidth` at 0, 5 and 12 %
+    wider glyphs, because a phone's fonts are not ours (M5, task 0).
