@@ -43,6 +43,7 @@ from ..rollup import Status
 from ..scentTrail import SENSES, ScentTrail, parseUtc, utcNow
 from ..senses.binocs import releasesSummary
 from ..senses.groom import Groom, RecordError, parseRecord
+from ..senses.pounce import MAX_EVENTS, Pounce, parseEvent
 from ..senses.purr import DISK_CRIT, DISK_WARN
 from ..settings import Settings
 from ..vitals import Vitals
@@ -106,6 +107,7 @@ def createApp(
         except ValueError as exc:
             trail.addEvent("perch", "ninelives", BodyLanguage.tailFlick, f"nineLives is switched off: {exc}")
     store = Litters(trail)
+    pouncer = Pounce(trail)
     history = Vitals(trail, clock)  # reads only: purr's own instance writes
 
     @asynccontextmanager
@@ -578,10 +580,37 @@ def createApp(
                 found = node
         return found
 
+    def readReport(body: dict, node: str) -> "tuple[dict | None, list, list] | JSONResponse":  # noqa: PLR0911
+        """The heartbeat, the groom runs and the pounce events of a report, checked; or the refusal."""
+        heartbeat, records, events = body.get("heartbeat"), body.get("records", []), body.get("events", [])
+        if heartbeat is not None and not isinstance(heartbeat, dict):
+            return kittenError(422, "heartbeat must be an object")
+        if not isinstance(records, list) or len(records) > MAX_KITTEN_RECORDS:
+            return kittenError(422, f"records must be a list of at most {MAX_KITTEN_RECORDS}")
+        if not isinstance(events, list) or len(events) > MAX_EVENTS:
+            return kittenError(422, f"events must be a list of at most {MAX_EVENTS}")
+        if heartbeat is None and not records and not events:
+            return kittenError(422, "send a heartbeat, records or events")
+        runs, seen = [], []
+        for index, record in enumerate(records):
+            try:
+                run = parseRecord(record)
+            except RecordError as exc:
+                return kittenError(422, f"record {index}: {exc}")
+            if run.node != node:
+                return kittenError(403, f"record {index} is for another node")
+            runs.append(run)
+        for index, event in enumerate(events):
+            try:
+                seen.append(parseEvent(event, clock()))
+            except RecordError as exc:
+                return kittenError(422, f"event {index}: {exc}")
+        return heartbeat, runs, seen
+
     @app.post("/api/kitten")
     async def kittenApi(request: Request):  # noqa: PLR0911 - one early return per way to refuse
-        """kitten's report: a heartbeat and the groom records it hasn't had acknowledged. The one write
-        endpoint besides the acknowledgements (05 plan A11, test S7); it writes only perch's own database.
+        """kitten's report: a heartbeat, the groom records and the pounce events it hasn't had acknowledged.
+        The one write endpoint besides the acknowledgements (05 plan A11, test S7); it writes only perch's own database.
         401 without a token the node list knows, 403 with another node's token (test S3)."""
         node = kittenNode(request)
         if node is None:
@@ -599,24 +628,15 @@ def createApp(
             return kittenError(422, "the body must be a JSON object")
         if body.get("node") != node:
             return kittenError(403, "this token belongs to another node")
-        heartbeat, records = body.get("heartbeat"), body.get("records", [])
-        if heartbeat is not None and not isinstance(heartbeat, dict):
-            return kittenError(422, "heartbeat must be an object")
-        if not isinstance(records, list) or len(records) > MAX_KITTEN_RECORDS:
-            return kittenError(422, f"records must be a list of at most {MAX_KITTEN_RECORDS}")
-        if heartbeat is None and not records:
-            return kittenError(422, "send a heartbeat, records, or both")
-        runs = []
-        for index, record in enumerate(records):
-            try:
-                run = parseRecord(record)
-            except RecordError as exc:
-                return kittenError(422, f"record {index}: {exc}")
-            if run.node != node:
-                return kittenError(403, f"record {index} is for another node")
-            runs.append(run)
+        parsed = readReport(body, node)
+        if isinstance(parsed, JSONResponse):
+            return parsed
+        heartbeat, runs, seen = parsed
         stored = await asyncio.to_thread(groomer.ingest, node, heartbeat, runs)
-        return {"ok": True, "stored": stored}
+        answer: dict = {"ok": True, "stored": stored}
+        if seen:
+            answer["events"] = await asyncio.to_thread(pouncer.ingest, node, seen)
+        return answer
 
     def sameOrigin(request: Request) -> bool:
         """The request came from a page on perch's own address (ADR 0005). Browsers send Sec-Fetch-Site and

@@ -33,7 +33,8 @@ MEASURE = """() => {
   const limit = document.documentElement.clientWidth;
   const over = [...document.querySelectorAll('body *')].filter(e => e.getBoundingClientRect().right > limit + 0.5
     && e.offsetParent !== null && !e.closest('.tablewrap, nav.main'))
-    .slice(0, 4).map(e => (e.tagName + '.' + e.className).slice(0, 40) + ' ' + Math.round(e.getBoundingClientRect().right));
+    .slice(0, 4).map(e => (e.tagName + '.' + e.className).slice(0, 40) + ' '
+      + Math.round(e.getBoundingClientRect().right));
   return [document.documentElement.scrollWidth, limit, over];
 }"""
 VIEWS = [("1400-dark", 1400, "dark"), ("1400-light", 1400, "light"), ("390-dark", 390, "dark")]
@@ -68,7 +69,8 @@ def main() -> int:
                     problems.append(f"horizontal scroll with wider fonts {wide[0]} > {wide[1]} {wide[2]}")
                 if errors:
                     problems.append(f"console errors: {errors}")
-                line = f"{'FAIL' if problems else 'ok  '} {view:10} {path:28} scrollWidth={scroll[0]}/{wide[0]} -> {file}"
+                mark = "FAIL" if problems else "ok  "
+                line = f"{mark} {view:10} {path:28} scrollWidth={scroll[0]}/{wide[0]} -> {file}"
                 print(line + (f"  {problems}" if problems else ""))
                 if problems:
                     failures.append(line)

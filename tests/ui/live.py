@@ -76,6 +76,9 @@ SPARK_CHECK = r"""() => {
 }"""
 
 
+SIDEWAYS = "[document.documentElement.scrollWidth, document.documentElement.clientWidth]"
+
+
 def check(name: str, ok: bool, detail: str = "") -> None:
     print(f"{'ok  ' if ok else 'FAIL'} {name}{'  ' + detail if detail and not ok else ''}")
     if not ok:
@@ -101,7 +104,7 @@ def postKitten(body: dict) -> int:
         return response.status
 
 
-def main() -> int:
+def main() -> int:  # noqa: PLR0912 - one long scripted walk through the pages
     with sync_playwright() as p:
         browser = p.chromium.launch()
         context = browser.new_context(viewport={"width": 1400, "height": 500}, color_scheme="dark")
@@ -267,7 +270,7 @@ def main() -> int:
                     not found["recoloured"],
                     str(found["recoloured"]),
                 )
-                widths = outside.evaluate("[document.documentElement.scrollWidth, document.documentElement.clientWidth]")
+                widths = outside.evaluate(SIDEWAYS)
                 check(f"sparklines on {where}: no horizontal scroll", widths[0] <= widths[1], str(widths))
             # M5 task 0: the longest seeded subjects (no break points) on every list that shows subjects, at the
             # page's own font width and with every glyph 5 % and 12 % wider (a phone's fonts are not ours)
@@ -282,9 +285,7 @@ def main() -> int:
                 for extra in (0, 0.05, 0.12):
                     if extra:
                         outside.add_style_tag(content=f"body *{{letter-spacing:{extra}em !important}}")
-                    widths = outside.evaluate(
-                        "[document.documentElement.scrollWidth, document.documentElement.clientWidth]"
-                    )
+                    widths = outside.evaluate(SIDEWAYS)
                     check(
                         f"{path} at {view} with fonts {int(extra * 100)} % wider: scrollWidth <= clientWidth",
                         widths[0] <= widths[1],
@@ -332,7 +333,7 @@ def main() -> int:
                     "console", lambda m, problems=problems: problems.append(m.text) if m.type == "error" else None
                 )
                 groomPage.goto(f"{BASE}/groom?cell=sieve/nightly@{night}", wait_until="networkidle")
-                widths = groomPage.evaluate("[document.documentElement.scrollWidth, document.documentElement.clientWidth]")
+                widths = groomPage.evaluate(SIDEWAYS)
                 groomPage.screenshot(path=f"{OUT}/groom-run-{view}.png", full_page=True)
                 check(f"groom grid at {view}: no horizontal scroll", widths[0] <= widths[1], str(widths))
                 check(

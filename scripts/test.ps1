@@ -85,6 +85,11 @@ Step 'kitten: unittest (3.14)' {
     docker run --rm --label $label -v "${root}:/src" -w /src -e PYTHONDONTWRITEBYTECODE=1 $py314 python -m unittest discover -s tests/kitten
 }
 
+Step 'kitten: real inotifywait (3.13 + inotify-tools)' {
+    docker build --quiet --label $label -f tests/kitten/Dockerfile -t persian-perch-kitten:inotify tests/kitten | Out-Null
+    docker run --rm --label $label -v "${root}:/src" -w /src -e PYTHONDONTWRITEBYTECODE=1 -e KITTEN_REQUIRE_INOTIFY=1 persian-perch-kitten:inotify python -m unittest discover -s tests/kitten -p "test_pounce.py"
+}
+
 if (-not $SkipUi) {
     Step 'windowsill: Playwright UI check' {
         New-Item -ItemType Directory -Force -Path (Join-Path $root 'screenshots') | Out-Null
