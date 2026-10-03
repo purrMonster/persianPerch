@@ -106,7 +106,7 @@ rules and admin hosts, Homepage tile, roastery `local.env.example`), `apply.sh` 
 **Pre-push checks** (before the push):
 ```
 $ git log origin/main..HEAD --format="%ae %ce" | sort | uniq -c
-(filled in below, after the commits)
+      3 jyotirmoy.github@jyotirmoy.cc jyotirmoy.github@jyotirmoy.cc     (the commit holding this line is a fourth, same identity)
 $ added lines of the diff grepped for C:\Users, jyotirmoyc, 192.168, e-mail addresses, tk_ tokens, key blocks, JWTs
 only the test's own "PRIVATE KEY" pattern
 hostnames in added lines: github.com, ntfy.sh, healthchecks.io, hc-ping.com, ghcr.io, test.example.home.arpa. IPs: 127.0.0.1 only
