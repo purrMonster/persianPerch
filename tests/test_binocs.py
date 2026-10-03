@@ -53,7 +53,7 @@ def test_a_pinned_release_is_read_as_a_registry_repository_and_tag(ref, registry
         "klutchell/unbound:main",
         "purrbrews/embedding-worker:local",
         "pgvector/pgvector:pg16",
-        "quay.io/example/thing:1.2.3",  # a registry perch doesn't read
+        "registry.example.home.arpa/example/thing:1.2.3",  # a registry perch doesn't read
         "nginx",  # no tag at all
     ],
 )

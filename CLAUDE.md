@@ -79,7 +79,4 @@ it never changes anything.
 
 ## Status
 
-2026-10-02: M0 (litter), M1 (first purr) and M2 (grooming: htmx live regions, groom, kitten v0,
-`/api/kitten`, the recorder prepared in `integration/groom/`) are built, and M3 (meow: litters, pushes,
-Acknowledge, nineLives) is built and waits for the owner's merge; the other senses (glare, pounce, whiskers)
-and M6 are not. The runbook's Backlog is the live status.
+2026-10-03: M0 (litter), M1 (first purr), M2 (grooming) and M3 (meow) are merged; M4 (glare: Gatus, disks: Scrutiny, binocs: tunnel, speedtest and weekly releases, vitals history with sparklines) is built and waits for the owner's merge; the other senses (pounce, whiskers) and M6 are not. The runbook's Backlog is the live status.

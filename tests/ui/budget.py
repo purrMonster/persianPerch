@@ -347,11 +347,15 @@ def main() -> int:
         with lock:
             fake.nodeUp("grinder")
         failed += not waitFor("grinder back: slowBlink", lambda: "fleet: slowBlink" in get("/"))
-        failed += not waitFor(
+        recovered = waitFor(
             "meow announced the recovery once",
-            lambda: sum("grinder back" in t for t in titles("ntfy")) == 1,
+            # grinder and pihole recovered close together: meow sends the two as one push (design plan 5)
+            lambda: sum("grinder back" in t or "things are back" in t for t in titles("ntfy")) == 1,
             seconds=90,
         )
+        if not recovered:
+            print("      ntfy titles:", titles("ntfy"))
+        failed += not recovered
 
         LEAKY["on"] = True  # Komodo now answers 500 and echoes the credentials back
         failed += not waitFor(

@@ -292,9 +292,8 @@ class RegistryFake:
             return httpx2.Response(200, json={"token": "fake-anon-token", "expires_in": 300})
         assert host in self.TOKEN_HOSTS, f"unexpected host {host}"
         if request.headers.get("authorization") != "Bearer fake-anon-token":
-            realm = (
-                "https://evil.example.home.arpa/token" if self.evilRealm else f"https://{self.TOKEN_HOSTS[host]}/token"
-            )
+            tokenHost = "evil.example.home.arpa" if self.evilRealm else self.TOKEN_HOSTS[host]
+            realm = "https://" + tokenHost + "/token"
             scope = path.removeprefix("/v2/").removesuffix("/tags/list")
             challenge = f'Bearer realm="{realm}",service="{host}",scope="repository:{scope}:pull"'
             return httpx2.Response(401, headers={"www-authenticate": challenge})

@@ -7,7 +7,7 @@
 ## Context
 
 For every image pinned in the fleet repo's compose files binocs asks "is a newer release out?", anonymously, from
-cellar, once a week. The fleet pins 50 images on Docker Hub, `ghcr.io` and `lscr.io`. Nothing in this repository may
+cellar, once a week. The fleet pins about 45 images on Docker Hub, `ghcr.io` and `lscr.io`. Nothing in this repository may
 ever make a real registry request in a test (the owner's rule for M4), and perch must not hammer a public service.
 
 ## Options for Docker Hub
