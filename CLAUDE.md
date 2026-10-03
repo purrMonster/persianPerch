@@ -79,4 +79,4 @@ it never changes anything.
 
 ## Status
 
-2026-10-03: M0 (litter), M1 (first purr), M2 (grooming) and M3 (meow) are merged; M4 (glare: Gatus, disks: Scrutiny, binocs: tunnel, speedtest and weekly releases, vitals history with sparklines) is built and waits for the owner's merge; the other senses (pounce, whiskers) and M6 are not. The runbook's Backlog is the live status.
+2026-10-03: M0 (litter), M1 (first purr), M2 (grooming), M3 (meow) and M4 (glare, disks, binocs, vitals) are merged; M5 (pounce: kitten file events; whiskers: Home Assistant; the live scentTrail over SSE) is built and waits for the owner's merge; M6 is not. The runbook's Backlog is the live status.
