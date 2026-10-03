@@ -3,8 +3,8 @@
 "Silence is a signal" (design plan 3.4). Each collector (today only purr) has a rhythm; the
 runner calls its ``cycle`` on that rhythm with a little jitter, and records whether it
 succeeded. A separate watchdog compares each collector's last success with its rhythm:
-late after 3 missed cycles (tailFlick), missing after 10 (hiss), with perch's own events
-saying which and why. The watchdog doesn't depend on the collector running, so a hung or
+late after 3 missed cycles (tailFlick), missing after 10 (hiss; a collector with a ``maxLevel`` stops at
+it), with perch's own events saying which and why. The watchdog doesn't depend on the collector running, so a hung or
 dead one is noticed too.
 
 The state ``collector:<name>`` goes into scentTrail, where the rollup counts it toward the
@@ -145,6 +145,9 @@ class Runner:
             health = self._health[collector.name]
             since = health.lastOkAt or health.startedAt
             level = collector.rhythm.level(since, now)
+            cap = getattr(collector, "maxLevel", None)  # whiskers never hisses about itself (owner, 2026-10-03)
+            if cap is not None and level.rank > cap.rank:
+                level = cap
             if health.lastOkAt is None and level is B.slowBlink:
                 level = B.unknown
             title = self._title(collector, health, level, now)

@@ -31,8 +31,12 @@ harmless). [A second endpoint: a new write route for S7 to allow and S3 to cover
 
 **4. An event is an event, not a state.** A file that was dropped has no "now" to keep, so pounce adds no subject to
 the rollup and meow, which reads states, does not push it. Level is clamped to tailFlick on perch's side.
-**Open for the owner:** should a change under `/etc/purrbrews` (tailFlick by design plan 4.4: "unexpected outside a
-deploy") also push through ntfy? It needs a state with an expiry; not built in M5.
+**Decided by the owner, 2026-10-03:** a change under `/etc/purrbrews` (design plan 4.4: tailFlick) is a line in the
+**07:30 morning digest** and stays on the page and the trail, **never an immediate push**. Only the owner changes those
+settings and perch can't tell a deploy from an unexpected change. meow's digest reads the pounce events of
+`/etc/purrbrews` since the last digest (one line per node, names only, at most three) beside the litters it already
+carries; no state with an expiry was needed. [An immediate tailFlick push: noise on every deploy. A state with an
+expiry: more machinery for something the owner has ruled out.]
 
 ## Mechanics (from the owner's brief)
 

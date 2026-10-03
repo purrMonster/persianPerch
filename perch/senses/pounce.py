@@ -7,8 +7,8 @@ file's contents, and a name is scrubbed like any title.
 - the level is clamped to **tailFlick**: a changed file is never a hiss (design plan 4.4 gives earTwitch and
   tailFlick only);
 - an event is an *event*, not a state: a file dropped has no "now" to keep, so pounce adds no subject to the
-  rollup and meow, which reads states, does not push it. Pushing ``/etc/purrbrews`` changes is an owner
-  decision left open in the M5 runbook entry;
+  rollup and meow, which reads states, does not push it. A change under ``/etc/purrbrews`` is a line in meow's
+  07:30 digest and never a push (owner, 2026-10-03, ADR 0010);
 - a resent event (kitten asks again when it didn't hear the answer) is stored once: perch remembers the last
   few thousand event ids per node, in memory.
 """
