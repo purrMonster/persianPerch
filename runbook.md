@@ -32,9 +32,132 @@ changes can be made later without re-deriving the reasoning. How to write entrie
 - [x] M3 meow + nineLives: alerts, litters, quiet hours, Acknowledge (page and push), outside heartbeat (2026-10-02, gate green on roastery, M3 entry; pull request to open)
 - [ ] Owner: review and merge the M3 pull request (merge commit), then `git pull` the main checkout (M3 entry)
 - [ ] M6: Traefik router for `/ack/t/` only, around Authelia; `PERCH_PUBLIC_URL`, `PERCH_ACK_SECRET`, the ntfy token, the critical URL and the ping URL entered on cellar (M3 entry)
-- [ ] M4 glare + binocs + disks + vitals: Gatus, Scrutiny, tunnel, speedtest, upstream releases, vitals history and sparklines (A13)
+- [x] M4 glare + binocs + disks + vitals: Gatus, Scrutiny, tunnel, speedtest, upstream releases, vitals history and sparklines (2026-10-03, gate green on roastery, M4 entry; pull request to open)
+- [ ] Owner: review and merge the M4 pull request (merge commit), then `git pull` the main checkout (M4 entry)
+- [ ] M6: Gatus router and Authelia rule for perch-svc; `PERCH_GLARE_*`, `PERCH_DISKS_URL`, `PERCH_BINOCS_SPEEDTEST_*` and `PERCH_BINOCS_RELEASES_EVERY=7d` entered on cellar (M4 entry)
+- [ ] Owner: should glare and disks stop nineLives' ping when late? (M4 entry, Notes)
 - [ ] M5 pounce + whiskers: kitten file events, Home Assistant, the scentTrail view
 - [ ] M6 Into the fleet: prepared in `integration/` with `ROLLOUT.md`; deployed by the owner
+
+---
+
+## 2026-10-03 — M4 glare + binocs + disks + vitals: Gatus, Scrutiny, tunnel, speedtest, releases, vitals history; gate green
+
+**Context.** The owner gave M4 its go-ahead and a first task: make the M3 container incident impossible to repeat.
+Claude Code (Sonnet 5.5), branch `claude/m4-glare-binocs-disks-vitals-1a383e`, started 2026-10-03 00:40 IST. Pre-flight passed
+(Docker 29.7.2, `main` at M3's merge `47dad4a`, clean, identity right, origin answered, the three skills present).
+Running on roastery at the start: `purrbrews-bootstrap`, `komodo-periphery`, `immich-machine-learning`; I touched none.
+
+**Decided** (reasons; losing alternatives in brackets).
+- **Container safety (AGENTS 2.8).** Only objects this project created may be stopped, killed, removed or pruned, identified by the label
+  `com.purrbrews.project=persianperch` or the compose project; commands that select all or unnamed objects are forbidden.
+  Every container and image `scripts/test.ps1` and `tests/ui/compose.yml` start carries the label; `tests/test_containerSafety.py` greps
+  tracked scripts (14 forbidden forms caught, 7 safe forms pass). Pointer added to CLAUDE.md.
+- **Gatus read at v5.36.0 (source, tag v5.36.0):** `GET /api/v1/endpoints/statuses?page=&pageSize=` returns a JSON array; page and pageSize
+  page each endpoint's *results* (default 50). Fields: `name`, `group`, `key`, `results[]` (`success`, `timestamp`, `duration` in ns,
+  `status`, `errors`, `conditionResults`), `events`. **Uptime is `json:"-"`**, so it is not in that JSON (separate plain-text routes
+  `/uptimes/{1h,24h,7d,30d}`); glare judges the newest results itself, one request for everything [calling the uptime route per endpoint:
+  N more requests for a number the results already give]. Rules: 2 failed checks in a row tailFlick, 5 hiss, 0 or 1 slowBlink (the title says
+  "last check failed"); no result for 3 of its own intervals (min 5 min) unknown; Gatus unreachable: after 2 failed cycles every endpoint
+  unknown, no per-endpoint event, one tailFlick from the collector rhythm ("glare is late ... can't see Gatus"). A refused login
+  (302, 401, 403) has its own message; the password is never in a message.
+- **Scrutiny read at v0.9.3 (source):** `GET /api/summary` (`data.summary` keyed by wwn: `device` with `device_status` bit flag 1 failed SMART,
+  2 failed Scrutiny's thresholds, `host_id`, `device_name`, `model_name`; `smart` with `collector_date`, `temp`, `power_on_hours`) and
+  `GET /api/device/<scrutiny_uuid>/details?duration_key=week` (`smart_results` newest first, `attrs` keyed by id as text, attribute `status` bit
+  flag 1 failed SMART, 2 warning, 4 failed Scrutiny; `metadata` with `display_name`). **Mapping:** device_status not 0 is hiss; no device failure
+  but an attribute in Scrutiny's warning band is tailFlick; no SMART report for 3 days is tailFlick; else slowBlink. **Power-on hours: attribute 9
+  (`raw_value`; NVMe `power_on_hours`, `value`) beats the summary's**; the page shows the summary's figure in small type when they disagree. A drive
+  counts toward the node named by its `host_id` (case-insensitive), else toward the fleet. Disk events use sense `purr` ("node vitals, drive health"):
+  no new sense name [a new sense `disks`: touches the trail filter, the SENSES tuple and two docs for no gain].
+- **speedtest-tracker read at v1.15.0 (source; the fleet runs the linuxserver `v1.15.0-ls170` build):** `GET /api/v1/results/latest`, Bearer
+  token with `results:read`, `{"data": {...}}`, 404 when empty; `download_bits` and `upload_bits` in bits/s, `ping` in ms, `healthy`, `status`,
+  `created_at` as `YYYY-MM-DD HH:MM:SS` in the app timezone (taken as `PERCH_TZ`). Failed, unhealthy or older than 6 h is earTwitch;
+  unreachable, forbidden or empty is unknown.
+- **Registries (ADR 0007).** Read: Docker's published OpenAPI (tag listing there is bearer-authenticated, no `ordering` for tags), the OCI distribution
+  spec (`tags/list?n=`, `Link rel=next`, lexical order), Docker's rate-limit docs (429 and Retry-After). **So Docker Hub is read through its
+  registry (`registry-1.docker.io` with the anonymous token from `auth.docker.io`), the same code as ghcr.io; lscr.io is ghcr.io/linuxserver.** One list
+  per repository, a pause between, a 429 stops the run and it resumes after Retry-After. Only `[v]X.Y.Z[-flavour]` pins compare; `-lsNNN` is ignored;
+  line pins and moving tags are counted as "can't be compared". **Off unless `PERCH_BINOCS_RELEASES_EVERY` is set** (the default was 7 d), so no
+  development run ever touches a registry. S6 allow-list: `ghcr.io` and `lscr.io` (one-line reasons in `test_repoHygiene.py`; `*.docker.io` was already there).
+- **Tunnel (C7):** Gatus's `cloudflare tunnel` check (key `network_cloudflare-tunnel`), shown from the glare state; binocs makes no request and
+  writes no state for it. **binocs states never count toward the fleet level or "Needs a look"** (earTwitch ranks above slowBlink, so a weekly notice
+  would turn the badge); glare and disks do.
+- **Vitals (ADR 0008):** two tables, both keep the highest reading of all three metrics (the plan said disk only); written from purr's stats.
+- **Sparklines:** fixed 0 to 100 % scale, `--muted`, gaps break the line, `role="img"` with `RAM 24 h: 41-63 %, now 58 %`; docs/06 sections 4 and 6.
+- New settings `PERCH_GLARE_EVERY`, `PERCH_DISKS_EVERY`, `PERCH_BINOCS_EVERY` (empty keys in `secrets.env`) so the drill can run on a 2 s rhythm.
+
+**Done.** `perch/vitals.py`, scentTrail migration 5, `senses/{gatus,glare,scrutiny,disks,speedtest,registries,binocs}.py`, `windowsill/spark.py`,
+rollup, meow, collectors and settings wiring, the Endpoints, Disks and Outside cards and the sparklines (templates, CSS), fakes in `tests/outsideFakes.py`,
+seed, live, shoot and budget extended, `scripts/test.ps1` gets the drill step and labels, ADRs 0007 and 0008, docs 02 and 06.
+
+**Verified** (roastery, 2026-10-03; the quiet-hours rule was lifted for this run by the owner in chat, so `scripts\test.ps1 -Force`):
+```
+=== perch: ruff + pytest (3.12)  All checks passed!   585 passed in 367.93s
+=== kitten: unittest (3.13) and (3.14)               ok, ok
+=== windowsill: Playwright       33 passed, 0 failed ; live: all ok
+=== real-socket drill            budget, drill and leak check: ok
+=== summary                      ok x7 (fleet repo pinned, build test image, pytest, kitten 3.13, 3.14, Playwright, drill)
+```
+The first full run failed twice and I fixed both: S6 flagged a made-up image on a registry not in its allow-list in a test and a host spelled through an f-string in the registry fake
+(both replaced by `example.home.arpa`); and the drill expected "grinder back" as its own push while meow, correctly, sent grinder's and pihole's recoveries as one
+("perch: 2 things are back"), so the drill now accepts exactly one recovery push, either form.
+- **Gate, by test:** `test_GATE_smart_attribute_9_wins_when_the_summary_disagrees` (20000 h beats 3 h); `test_GATE_8_days_of_30_second_samples_leave_exactly_7_days_of_5_minute_rows_plus_hourly_rows`
+  (2016 and 192); `test_GATE_the_database_stays_under_20_MB_at_400_days_of_6_nodes` (**7.43 MB**); `test_GATE_gatus_unreachable_is_one_tailFlick_and_unknown_never_a_hiss_per_endpoint`
+  (exactly one tailFlick event, no hiss, no per-endpoint event); `test_the_overview_shows_glare_from_the_fixture_and_the_placeholder_is_gone`;
+  `tests/test_containerSafety.py` (14 forbidden forms caught, 7 safe forms pass, every `docker run` and `build` in `test.ps1` carries the label, no tracked script has a forbidden form).
+- **Playwright (`tests/ui/live.py`), 1400 dark, 1400 light, 390 px:** the overview has 15 sparklines (5 nodes with vitals), grinder's and cellar's node pages 6 each (7 days and 90 days); every one drawn with data,
+  `role="img"` with a text alternative (e.g. "CPU 24 h: 10-36 %, now 20 % | RAM 24 h: 31-40 %, now 40 % | disk 24 h: 50-61 %, now 50 %"), the line's computed stroke equal to `--muted`
+  (never a state colour), no horizontal scroll, **no console errors**; cellar's seeded 4-hour gap reads "with gaps"; the overview shows Endpoints, Disks and Outside, and "833 d powered on"
+  (attribute 9), not the summary's 3 h.
+- **The real-socket drill** (`tests/ui/budget.py`, now a step of `test.ps1`; loopback fakes of Komodo, ntfy, Gatus with Basic auth, Scrutiny and speedtest-tracker):
+  ```
+  ok    glare read the fake Gatus: 3 of 3 answering
+  ok    disks read the fake Scrutiny; SMART attribute 9 (20000 h) beat the summary (3 h)
+  ok    binocs read the fake speedtest-tracker
+  ok    five failed Gatus checks: pihole is a hiss on the overview
+  ok    meow pushed the failing endpoint by its name
+  ok    pihole answers again: 3 of 3 answering
+  perch memory: VmRSS 61.2 MB, peak 61.2 MB (budget 300 MB)
+  leak check: looked in 12 places (4354 KB): nothing found    <- now also the Gatus password and its Basic credential, and the speedtest token
+  ```
+- **Screenshots looked at by eye** (`overview-m4-*`, `cellar-m4-*`, `catTree-node-disks-*`; both themes and 390 px): the sparklines sit under the three meters and keep their shape; the 7-day line on
+  cellar breaks where perch saw nothing; the 90-day line shows only the eight seeded days; the three new cards read well and wrap on a phone. Nothing to fix by eye. Because the scale is fixed 0 to 100 %,
+  a node idling at 5 % draws a flat line near the bottom: intended (docs/06 section 6), say so if you would rather autoscale.
+
+**web-design-guidelines review** (AGENTS 3.1; guidelines fetched fresh 2026-10-03 from the skill's source URL; **one pass, no sub-agents**, over `_macros.html` (sparkRow, glareCard, disksCard, binocsCard),
+`live/overview.html`, `live/node.html`, `perch.css`, `windowsill/spark.py`'s output). Findings and what happened:
+- Content handling: long endpoint or drive names in the `.feed` rows and long text in `.kv dd` could overflow a phone-width card -> **fixed**: `min-width:0; overflow-wrap:anywhere` on both.
+- Passed: the sparkline is `role="img"` with an `aria-label` and `focusable="false"`, its paths carry no meaning of their own; headings in order (the node page's History is an `h3` under the `h2`);
+  `translate="no"` on endpoint names, hosts and devices; marks (glyph plus label) instead of bare dots; no `transition`; nothing new to focus; `tabular-nums` through the existing `.num`; empty and
+  not-configured states are sentences; the link in the Disks card is a real `<a>`; no hex outside the token block (the sparkline uses `currentColor` and `var(--line)`).
+- Not applied, with reasons: *non-breaking space inside "312.4 Mbit/s"* (stored titles keep plain spaces so they stay searchable, docs/06 rule 18); *`Intl` numbers* (docs/06 section 2: no JavaScript on the page).
+
+**Pre-push checks** (2026-10-03, before the push):
+```
+$ git log origin/main..HEAD --format="%ae %ce" | sort | uniq -c
+      4 jyotirmoy.github@jyotirmoy.cc jyotirmoy.github@jyotirmoy.cc     (the commit holding this entry is the next, same identity)
+$ git diff origin/main | grep '^+' | grep -ciE 'C:\\Users|jyotirmoyc|192\.168\.[0-9]|@[a-z0-9-]+\.(cc|com|io|net)|tk_[A-Za-z0-9]{20,}|BEGIN .*KEY'
+0
+```
+No domain, secret, token, local path or LAN address in the diff; the only made-up credentials are `fake-gatus-password-not-real`, `fake-speedtest-token-not-real`, `fake-anon-token`
+and addresses in `192.0.2.x` and `example.home.arpa`. Tests S5 (empty `secrets.env`), S6 (hostnames) and S8 (ASCII PowerShell) passed in the 585. No real Gatus, Scrutiny, speedtest-tracker or registry
+request was ever made; the only network reads were public documentation and source (Gatus, Scrutiny, speedtest-tracker, Docker, the OCI spec, the guidelines).
+
+**Not done / next.**
+- [ ] Owner: open the pull request, verify it, merge with a merge commit, then `git pull` the main checkout (owner)
+- [ ] M5 pounce + whiskers, on the owner's go-ahead (agent)
+- [ ] M6 `ROLLOUT.md` additions (owner): the Gatus `gatus-api` router and the `perch-svc` Authelia rule (A8), `PERCH_GLARE_URL/_USER/_PASSWORD`, `PERCH_DISKS_URL=http://scrutiny:8080`,
+  `PERCH_BINOCS_SPEEDTEST_URL/_TOKEN` (a `results:read` token), `PERCH_BINOCS_RELEASES_EVERY=7d`; check the real Gatus key of the tunnel check is `network_cloudflare-tunnel`, and that
+  Scrutiny's collectors report `host_id` as the node names
+- [ ] Owner decision: glare and disks late stopping nineLives' ping (see Notes below)
+
+**Notes for the next agent.**
+- `ScentTrail.retention()` is not called by perch itself (only by tests); vitals retention runs inside `Vitals.maintain`. Events and rollups retention is an M0 gap worth a look.
+- nineLives holds its ping back while any collector is late, so a Gatus or Scrutiny outage of 3 cycles stops the outside heartbeat (M3's rule, now reached by glare
+  and disks). Owner decision: keep, or exempt glare and disks.
+- `ruff format .` reformats files this project never formatted (`tests/test_groomPage.py`, `tests/ui/budget.py`); format only the files you touch.
+
+— Claude (Claude Code, Sonnet 5.5)
 
 ---
 

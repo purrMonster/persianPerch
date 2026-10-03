@@ -45,6 +45,17 @@ and record.
    owner, if something really has to go.
 7. **Ask before anything irreversible or outside the task:** installing system-wide
    software, changing OS settings, creating accounts, spending money, sending messages.
+8. **Containers: touch only your own.** roastery runs fleet services (Komodo's periphery, the bootstrap, others)
+   next to the build; stopping one is touching the fleet. An agent may stop, kill, remove or prune **only
+   containers, images, volumes and networks this project created**, identified by its compose project name
+   (`persian-perch-ui`) or its label `com.purrbrews.project=persianperch`, which every container, image and
+   volume the project's scripts start carries. To stop a hung run, use its own container ids (`docker ps -q
+   --filter label=com.purrbrews.project=persianperch`) or `docker compose -p persian-perch-ui down`.
+   **Forbidden:** any command that selects all or unnamed objects, e.g. `docker ps -q | xargs docker kill`,
+   `docker kill $(docker ps -q)`, `docker rm -f $(...)`, `docker stop $(...)` on an unfiltered list, and
+   `docker system|container|image|volume|network prune` without a `--filter label=com.purrbrews.project=persianperch`.
+   A test (`tests/test_containerSafety.py`) greps tracked scripts for these. Why: in M3 one such command killed
+   every running container on roastery, including a fleet service (runbook, 2026-10-02).
 
 ## 3. How to work
 

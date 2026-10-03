@@ -18,6 +18,10 @@ $py314 = 'python:3.14-slim@sha256:51dafde81dbdb6ebde285137a295cf18a47ca95234fe38
 $fleetCommit = 'f94efdfb1995d7217ec2be33e45b33720a0a0b3b'
 $fleetDir = Join-Path $root '.cache\purrbrews-containers'
 
+# Container-safety rule (AGENTS.md 2.8): every container this script starts carries this label, and
+# anything it cleans up is selected by it (or by the compose project), never "all containers".
+$label = 'com.purrbrews.project=persianperch'
+
 # In a git worktree, .git is a file that points at the main repo's .git by a host path
 # the container can't see, so tests S5/S6/S8 (git ls-files) would fail with exit 128.
 # Mount the main .git read-only and tell the tests where this worktree's own git directory
@@ -67,18 +71,18 @@ Step 'fleet repo pinned' {
     else { Write-Host "fleet repo at $head" }
 }
 
-Step 'build test image' { docker build --quiet -f tests/Dockerfile -t persian-perch-test:dev . }
+Step 'build test image' { docker build --quiet --label $label -f tests/Dockerfile -t persian-perch-test:dev . }
 
 Step 'perch: ruff + pytest (3.12)' {
-    docker run --rm @gitArgs -v "${root}:/src" -w /src persian-perch-test:dev sh -c 'ruff check . && pytest'
+    docker run --rm --label $label @gitArgs -v "${root}:/src" -w /src persian-perch-test:dev sh -c 'ruff check . && pytest'
 }
 
 Step 'kitten: unittest (3.13)' {
-    docker run --rm -v "${root}:/src" -w /src -e PYTHONDONTWRITEBYTECODE=1 $py313 python -m unittest discover -s tests/kitten
+    docker run --rm --label $label -v "${root}:/src" -w /src -e PYTHONDONTWRITEBYTECODE=1 $py313 python -m unittest discover -s tests/kitten
 }
 
 Step 'kitten: unittest (3.14)' {
-    docker run --rm -v "${root}:/src" -w /src -e PYTHONDONTWRITEBYTECODE=1 $py314 python -m unittest discover -s tests/kitten
+    docker run --rm --label $label -v "${root}:/src" -w /src -e PYTHONDONTWRITEBYTECODE=1 $py314 python -m unittest discover -s tests/kitten
 }
 
 if (-not $SkipUi) {
@@ -89,6 +93,19 @@ if (-not $SkipUi) {
         docker compose -f tests/ui/compose.yml down --volumes --remove-orphans | Out-Null
         $global:LASTEXITCODE = $code
     }
+}
+
+# The real-socket drill (05 plan 4 step 9): perch with every sense really running over loopback sockets against
+# fakes of Komodo, ntfy, Gatus, Scrutiny and speedtest-tracker; memory budget; leak check. Exits non-zero on any failure.
+Step 'real-socket drill: budget + leak check' {
+    docker build --quiet --label $label -t persian-perch:ui-test . | Out-Null
+    $mounts = @(
+        '-v', "${root}\.cache\purrbrews-containers:/fleet:ro",
+        '-v', "${root}\tests\ui\budget.py:/app/budget.py:ro",
+        '-v', "${root}\tests\komodoFake.py:/app/komodoFake.py:ro",
+        '-v', "${root}\tests\outsideFakes.py:/app/outsideFakes.py:ro"
+    )
+    docker run --rm --label $label -e PERCH_REPO_DIR=/fleet @mounts -w /app persian-perch:ui-test python budget.py
 }
 
 Write-Host ''

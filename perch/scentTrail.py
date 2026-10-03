@@ -126,6 +126,35 @@ MIGRATIONS: tuple[str, ...] = (
         spentAt  TEXT NOT NULL
     );
     """,
+    # 5: vitals history (M4, design plan 3.5). One row per node per 5 minutes for 7 days, one per hour for
+    # 400 days; every figure is an average of the samples in the bucket, with the bucket's highest reading
+    # beside it and the number of samples (n) so an hour is the weighted mean of its 5-minute rows
+    """
+    CREATE TABLE vitals5m (
+        node    TEXT NOT NULL,
+        at      TEXT NOT NULL,
+        cpu     REAL NOT NULL,
+        mem     REAL NOT NULL,
+        disk    REAL NOT NULL,
+        cpuMax  REAL NOT NULL,
+        memMax  REAL NOT NULL,
+        diskMax REAL NOT NULL,
+        n       INTEGER NOT NULL,
+        PRIMARY KEY (node, at)
+    ) WITHOUT ROWID;
+    CREATE TABLE vitalsHour (
+        node    TEXT NOT NULL,
+        at      TEXT NOT NULL,
+        cpu     REAL NOT NULL,
+        mem     REAL NOT NULL,
+        disk    REAL NOT NULL,
+        cpuMax  REAL NOT NULL,
+        memMax  REAL NOT NULL,
+        diskMax REAL NOT NULL,
+        n       INTEGER NOT NULL,
+        PRIMARY KEY (node, at)
+    ) WITHOUT ROWID;
+    """,
 )
 
 _CROCKFORD = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"

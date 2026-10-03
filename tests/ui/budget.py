@@ -13,6 +13,7 @@ This is the M1 gate's drill with a real socket and a real clock instead of a fak
 perch image (see the runbook, M1 entry); exits non-zero if a drill step, a leak or the budget fails.
 """
 
+import base64
 import http.server
 import json
 import os
@@ -22,11 +23,12 @@ import threading
 import time
 import urllib.error
 import urllib.request
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import httpx2
 from komodoFake import KEY, SECRET, FleetFake
+from outsideFakes import GATUS_PASSWORD, GATUS_USER, SPEEDTEST_TOKEN, ScrutinyFake, SpeedtestFake, gatusKey, stamp
 
 from perch.catTree import CatTree
 
@@ -42,6 +44,10 @@ NTFY_PORT, CRIT_PORT, HC_PORT = 9201, 9202, 9203
 NTFY_TOKEN = "tk_budgetfake1234"
 ACK_SECRET = "fake-budget-ack-secret-not-real-0123456789"
 NTFY_TOPIC, CRIT_TOPIC, PING_ID = "budget-fake-topic", "budget-fake-critical", "00000000-budget-fake-uuid"
+# M4: fake Gatus (Basic auth), fake Scrutiny and fake speedtest-tracker on loopback ports; no real service is ever asked
+GATUS_PORT, SCRUTINY_PORT, SPEED_PORT = 9204, 9205, 9206
+FAILS = {"network_pihole": 0}  # how many of pihole's newest Gatus results fail
+ENDPOINTS = (("cloudflare tunnel", "network"), ("pihole", "network"), ("authelia", "identity"))
 pushes = {"ntfy": [], "critical": []}
 pings: list[str] = []
 
@@ -79,6 +85,60 @@ class Komodo(http.server.BaseHTTPRequestHandler):
 
     def log_message(self, *_):
         pass
+
+
+class Gatus(http.server.BaseHTTPRequestHandler):
+    """Gatus v5.36.0's statuses, behind Basic auth as Authelia's forward-auth-basic would have it."""
+
+    def do_GET(self):
+        want = "Basic " + base64.b64encode(f"{GATUS_USER}:{GATUS_PASSWORD}".encode()).decode()
+        if self.headers.get("authorization") != want or not self.path.startswith("/api/v1/endpoints/statuses"):
+            self.send_response(401)
+            self.end_headers()
+            return
+        now, body = datetime.now(UTC), []
+        for name, group in ENDPOINTS:
+            key = gatusKey(group, name)
+            bad = FAILS.get(key, 0)
+            results = [
+                {
+                    "status": 200 if i >= bad else 503,
+                    "duration": 9_000_000,
+                    "success": i >= bad,
+                    "conditionResults": [{"condition": "[STATUS] == 200", "success": i >= bad}],
+                    "timestamp": stamp(now - timedelta(seconds=60 * i)),
+                    **({} if i >= bad else {"errors": ["HTTP 503"]}),
+                }
+                for i in range(9, -1, -1)  # i = 0 is the newest; the newest `bad` ones fail
+            ]
+            body.append({"name": name, "group": group, "key": key, "results": results})
+        self.send_response(200)
+        self.send_header("content-type", "application/json")
+        self.end_headers()
+        self.wfile.write(json.dumps(body).encode())
+
+    def log_message(self, *_):
+        pass
+
+
+def fakeServer(fake, port):
+    """An httpx2 MockTransport fake (Scrutiny, speedtest-tracker) behind a real loopback socket."""
+
+    class Handler(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            url = "http://192.0.2.1" + self.path
+            answer = fake(httpx2.Request("GET", url, headers={k: v for k, v in self.headers.items()}))
+            self.send_response(answer.status_code)
+            self.send_header("content-type", "application/json")
+            self.end_headers()
+            self.wfile.write(answer.content)
+
+        def log_message(self, *_):
+            pass
+
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", port), Handler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    return server
 
 
 def pushServer(channel, port, token=""):
@@ -179,6 +239,13 @@ def main() -> int:
         http.server.ThreadingHTTPServer(("127.0.0.1", HC_PORT), Healthchecks),
     ]
     threading.Thread(target=others[2].serve_forever, daemon=True).start()
+    gatus = http.server.ThreadingHTTPServer(("127.0.0.1", GATUS_PORT), Gatus)
+    threading.Thread(target=gatus.serve_forever, daemon=True).start()
+    scrutiny, speed = ScrutinyFake(Clock()), SpeedtestFake(Clock())
+    scrutiny.add(
+        "0x5000cca000000001", "sda", "cellar", "WDC WD40EFRX", summaryHours=3, attrs={"9": scrutiny.attr(9, 20000)}
+    )
+    others += [gatus, fakeServer(scrutiny, SCRUTINY_PORT), fakeServer(speed, SPEED_PORT)]
     env = {
         **os.environ,
         "PERCH_PURR_URL": f"http://127.0.0.1:{PORT}",
@@ -195,6 +262,15 @@ def main() -> int:
         "PERCH_ACK_SECRET": ACK_SECRET,
         "PERCH_PUBLIC_URL": f"http://127.0.0.1:{PERCH_PORT}",
         "PERCH_NINELIVES_URL": f"http://127.0.0.1:{HC_PORT}/{PING_ID}",
+        "PERCH_GLARE_URL": f"http://127.0.0.1:{GATUS_PORT}",
+        "PERCH_GLARE_USER": GATUS_USER,
+        "PERCH_GLARE_PASSWORD": GATUS_PASSWORD,
+        "PERCH_GLARE_EVERY": "2s",
+        "PERCH_DISKS_URL": f"http://127.0.0.1:{SCRUTINY_PORT}",
+        "PERCH_DISKS_EVERY": "2s",
+        "PERCH_BINOCS_SPEEDTEST_URL": f"http://127.0.0.1:{SPEED_PORT}",
+        "PERCH_BINOCS_SPEEDTEST_TOKEN": SPEEDTEST_TOKEN,
+        "PERCH_BINOCS_EVERY": "2s",
     }
     perch = subprocess.Popen(  # noqa: S603
         [sys.executable, "-m", "perch"], env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
@@ -224,8 +300,10 @@ def main() -> int:
         # M3: meow pushes it once to each channel, the button acknowledges once, a replay is refused
         failed += not waitFor(
             "meow pushed grinder unreachable to the fake ntfy and the fake critical topic",
-            lambda: any("grinder unreachable" in t for t in titles("ntfy"))
-            and any("grinder unreachable" in t for t in titles("critical")),
+            lambda: (
+                any("grinder unreachable" in t for t in titles("ntfy"))
+                and any("grinder unreachable" in t for t in titles("critical"))
+            ),
             seconds=90,
         )
         with lock:
@@ -244,14 +322,40 @@ def main() -> int:
         print(f"{'ok  ' if good else 'FAIL'}  tampered {tampered}, button {first}, replay {replay} (want 403 200 403)")
         failed += not good
         failed += not waitFor("nineLives pinged the fake healthchecks endpoint", lambda: bool(pings), seconds=90)
+
+        # M4: glare, disks and binocs read their fakes over real sockets; a failing endpoint hisses and is pushed
+        failed += not waitFor("glare read the fake Gatus: 3 of 3 answering", lambda: "3 of 3 answering" in get("/"))
+        failed += not waitFor(
+            "disks read the fake Scrutiny; SMART attribute 9 (20000 h) beat the summary (3 h)",
+            lambda: "833 d powered on" in get("/") and "3 h powered on" not in get("/"),
+        )
+        failed += not waitFor(
+            "binocs read the fake speedtest-tracker", lambda: "down 312.4 Mbit/s" in get("/"), seconds=20
+        )
+        FAILS["network_pihole"] = 5
+        failed += not waitFor(
+            "five failed Gatus checks: pihole is a hiss on the overview",
+            lambda: "failed 5 checks in a row" in get("/") and "2 of 3 answering" in get("/"),
+        )
+        failed += not waitFor(
+            "meow pushed the failing endpoint by its name",
+            lambda: any("pihole: failed 5 checks in a row" in t for t in titles("ntfy")),
+            seconds=90,
+        )
+        FAILS["network_pihole"] = 0
+        failed += not waitFor("pihole answers again: 3 of 3 answering", lambda: "3 of 3 answering" in get("/"))
         with lock:
             fake.nodeUp("grinder")
         failed += not waitFor("grinder back: slowBlink", lambda: "fleet: slowBlink" in get("/"))
-        failed += not waitFor(
+        recovered = waitFor(
             "meow announced the recovery once",
-            lambda: sum("grinder back" in t for t in titles("ntfy")) == 1,
+            # grinder and pihole recovered close together: meow sends the two as one push (design plan 5)
+            lambda: sum("grinder back" in t or "things are back" in t for t in titles("ntfy")) == 1,
             seconds=90,
         )
+        if not recovered:
+            print("      ntfy titles:", titles("ntfy"))
+        failed += not recovered
 
         LEAKY["on"] = True  # Komodo now answers 500 and echoes the credentials back
         failed += not waitFor(
@@ -292,6 +396,9 @@ def main() -> int:
             ("ntfy topic", NTFY_TOPIC),
             ("critical topic", CRIT_TOPIC),
             ("healthchecks ping id", PING_ID),
+            ("Gatus password", GATUS_PASSWORD),
+            ("Gatus Basic credential", base64.b64encode(f"{GATUS_USER}:{GATUS_PASSWORD}".encode()).decode()),
+            ("speedtest-tracker token", SPEEDTEST_TOKEN),
         )
         found = leaks(places, extra)
         print(
@@ -303,6 +410,8 @@ def main() -> int:
         perch.terminate()
         perch.wait(timeout=15)
         server.shutdown()
+        for other in others:
+            other.shutdown()
     print("budget, drill and leak check: " + ("FAILED" if failed else "ok"))
     return 1 if failed else 0
 

@@ -1,4 +1,4 @@
-{% from "_macros.html" import badge, dot, mark, note, meter, asOf, liveSeen %}
+{% from "_macros.html" import badge, dot, mark, note, meter, asOf, liveSeen, sparkRow %}
 {%- set own = status.nodeState(node.name) %}
 {%- set v = status.vitals(node.name) %}
 {%- set flag = status.nodeNote(node.name) %}
@@ -15,7 +15,18 @@
   {%- elif own %}<p class="empty">{% if own.title and not flag %}{{ own.title }}. {% endif %}No vitals until purr can see <span class="mono" translate="no">{{ node.name }}</span>.</p>
   {%- else %}<p class="empty">purr hasn't read vitals for <span class="mono" translate="no">{{ node.name }}</span> yet. They appear after its first look.</p>{% endif %}
   {%- if flag %}{{ note(flag[0], flag[1]) }}{% endif %}
+  <h3 class="small muted" style="margin:14px 0 4px">History</h3>
+  {{ sparkRow(week, '7 days') }}
+  {{ sparkRow(quarter, '90 days') }}
 </div>
+{%- set disks = status.disks(node.name) %}
+{%- if disks %}
+<div class="card" style="margin-bottom:16px"><h2>Disks <span class="faint" translate="no">Scrutiny</span></h2>
+<div class="tablewrap"><table><thead><tr><th><span class="sr">bodyLanguage</span></th><th>drive</th><th>state</th><th class="hide-sm">powered on</th></tr></thead><tbody>
+{%- for s in disks %}{% set d = s.detail or {} %}<tr><td style="width:22px">{{ mark(s.bodyLanguage) }}</td><th scope="row" class="mono" translate="no">{{ d.device }} <span class="muted">{{ d.model }}</span></th><td class="muted">{{ s.title }}</td><td class="num muted hide-sm">{% if d.powerOnHours is not none %}{{ d.powerOnHours }} h{% else %}-{% endif %}{% if d.hoursSource and d.summaryHours is not none and d.summaryHours != d.powerOnHours %} <span class="faint small" title="Scrutiny's summary says {{ d.summaryHours }} h; perch uses the drive's SMART attribute">(summary: {{ d.summaryHours }} h)</span>{% endif %}</td></tr>{% endfor %}
+</tbody></table></div>
+</div>
+{%- endif %}
 <div class="card" style="margin-bottom:16px"><h2>Apps <span class="faint">node.conf order</span></h2>
   {%- if node.apps %}
   <div class="tablewrap"><table><thead><tr><th><span class="sr">bodyLanguage</span></th><th>app</th><th>state</th><th class="hide-sm">images</th></tr></thead><tbody translate="no">

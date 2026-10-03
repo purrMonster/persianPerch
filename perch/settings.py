@@ -47,8 +47,10 @@ class Settings:
     glareUrl: str = ""
     glareUser: str = ""
     glarePassword: str = _secret()
+    glareEvery: int = 60
 
     disksUrl: str = ""
+    disksEvery: int = 900
 
     whiskersUrl: str = ""
     whiskersToken: str = _secret()
@@ -56,7 +58,10 @@ class Settings:
 
     binocsSpeedtestUrl: str = ""
     binocsSpeedtestToken: str = _secret()
-    binocsReleasesEvery: int = 7 * 86400
+    binocsEvery: int = 900
+    binocsReleasesEvery: int = (
+        0  # 0: the weekly look at upstream releases is off until PERCH_BINOCS_RELEASES_EVERY is set
+    )
 
     groomDir: Path = Path("/var/lib/purrbrews/groom")
 
@@ -108,13 +113,16 @@ class Settings:
             glareUrl=get("PERCH_GLARE_URL"),
             glareUser=get("PERCH_GLARE_USER"),
             glarePassword=get("PERCH_GLARE_PASSWORD"),
+            glareEvery=parseDuration(get("PERCH_GLARE_EVERY", "60s")),
             disksUrl=get("PERCH_DISKS_URL"),
+            disksEvery=parseDuration(get("PERCH_DISKS_EVERY", "15m")),
             whiskersUrl=get("PERCH_WHISKERS_URL"),
             whiskersToken=get("PERCH_WHISKERS_TOKEN"),
             whiskersEntities=Path(get("PERCH_WHISKERS_ENTITIES", "/config/whiskers.yml")),
             binocsSpeedtestUrl=get("PERCH_BINOCS_SPEEDTEST_URL"),
             binocsSpeedtestToken=get("PERCH_BINOCS_SPEEDTEST_TOKEN"),
-            binocsReleasesEvery=parseDuration(get("PERCH_BINOCS_RELEASES_EVERY", "7d")),
+            binocsEvery=parseDuration(get("PERCH_BINOCS_EVERY", "15m")),
+            binocsReleasesEvery=parseDuration(get("PERCH_BINOCS_RELEASES_EVERY", "0")),
             groomDir=Path(get("PERCH_GROOM_DIR", "/var/lib/purrbrews/groom")),
             kittenTokens=tokens,
             meowNtfyUrl=get("PERCH_MEOW_NTFY_URL"),

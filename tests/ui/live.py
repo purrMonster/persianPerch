@@ -53,6 +53,29 @@ GLYPH_CHECK = r"""() => {
 }"""
 
 
+# In the page (M4): every sparkline is drawn (a path with data), has a text alternative, and is the muted
+# colour: its stroke is the colour the svg inherits from --muted, never a bodyLanguage colour.
+SPARK_CHECK = r"""() => {
+  const out = { count: 0, undrawn: [], unlabelled: [], recoloured: [], labels: [], tall: 0 };
+  for (const svg of document.querySelectorAll('svg.spark')) {
+    out.count++;
+    const label = svg.getAttribute('aria-label') || '';
+    out.labels.push(label);
+    const wordsOk = /^(CPU|RAM|disk) [\d.]+ (h|days): /.test(label);
+    if (svg.getAttribute('role') !== 'img' || !wordsOk) out.unlabelled.push(label);
+    const line = svg.querySelector('path.line');
+    const box = svg.getBoundingClientRect();
+    const d = line ? (line.getAttribute('d') || '') : '';
+    if (!d.startsWith('M') || box.width < 30 || box.height < 20) out.undrawn.push(label);
+    if (line && getComputedStyle(line).stroke !== getComputedStyle(svg).color) out.recoloured.push(label);
+    if (box.height > 40) out.tall++;
+  }
+  const muted = getComputedStyle(document.documentElement).getPropertyValue('--muted').trim();
+  out.muted = muted;
+  return out;
+}"""
+
+
 def check(name: str, ok: bool, detail: str = "") -> None:
     print(f"{'ok  ' if ok else 'FAIL'} {name}{'  ' + detail if detail and not ok else ''}")
     if not ok:
@@ -215,7 +238,65 @@ def main() -> int:
 
         check("no console errors", not errors, str(errors))
 
-        # 4. the grooming grid with a failed run selected: both themes, and a phone, no sideways scroll
+        # 4. M4: the vitals sparklines, and the glare, disks and binocs cards, in both themes and on a phone
+        for view, width, scheme in (
+            ("1400-dark", 1400, "dark"),
+            ("1400-light", 1400, "light"),
+            ("390-dark", 390, "dark"),
+        ):
+            ctx = browser.new_context(viewport={"width": width, "height": 900}, color_scheme=scheme)
+            outside = ctx.new_page()
+            seen: list[str] = []
+            outside.on("console", lambda m, seen=seen: seen.append(m.text) if m.type == "error" else None)
+            outside.on("pageerror", lambda e, seen=seen: seen.append(str(e)))
+            for path, expected in (("/", 15), ("/tree/grinder", 6), ("/tree/cellar", 6)):
+                outside.goto(BASE + path, wait_until="networkidle")
+                found = outside.evaluate(SPARK_CHECK)
+                where = f"{path} at {view}"
+                check(f"sparklines on {where}: {expected} are drawn", found["count"] == expected, str(found["count"]))
+                check(
+                    f"sparklines on {where}: every one is drawn with data", not found["undrawn"], str(found["undrawn"])
+                )
+                check(
+                    f"sparklines on {where}: every one has a text alternative",
+                    not found["unlabelled"],
+                    str(found["unlabelled"]),
+                )
+                check(
+                    f"sparklines on {where}: the line is the muted colour, never a state colour",
+                    not found["recoloured"],
+                    str(found["recoloured"]),
+                )
+                widths = outside.evaluate("[document.documentElement.scrollWidth, window.innerWidth]")
+                check(f"sparklines on {where}: no horizontal scroll", widths[0] <= widths[1], str(widths))
+            outside.goto(BASE + "/", wait_until="networkidle")
+            outside.screenshot(path=f"{OUT}/overview-m4-{view}.png", full_page=True)
+            text = outside.inner_text("main")
+            check(
+                f"the overview at {view} shows glare, disks and binocs",
+                all(w in text for w in ("Endpoints", "Disks", "Outside", "5 of 6 answering")),
+                text[:200],
+            )
+            check(
+                f"the overview at {view} says SMART attribute 9 hours, not the summary's 3 h",
+                "833 d powered on" in text and "3 h powered on" not in text,
+            )
+            check(f"no console errors on the M4 pages at {view}", not seen, str(seen))
+            if view == "1400-dark":
+                labels = outside.evaluate(SPARK_CHECK)["labels"]
+                print("     e.g.", labels[0], "|", labels[1], "|", labels[2])
+                outside.goto(BASE + "/tree/cellar", wait_until="networkidle")
+                gapped = [x for x in outside.evaluate(SPARK_CHECK)["labels"] if "with gaps" in x]
+                check(
+                    "cellar's 4-hour gap is a gap, said in words (a sparkline that is 'with gaps')",
+                    bool(gapped),
+                    str(gapped),
+                )
+            outside.goto(BASE + "/tree/cellar", wait_until="networkidle")
+            outside.screenshot(path=f"{OUT}/cellar-m4-{view}.png", full_page=True)
+            ctx.close()
+
+        # 5. the grooming grid with a failed run selected: both themes, and a phone, no sideways scroll
         if STATE_CHANGE and TOKEN:
             night = lastNightlySlot().date().isoformat()
             for view, width, scheme in (

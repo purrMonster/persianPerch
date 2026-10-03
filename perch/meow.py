@@ -54,7 +54,7 @@ HISS_CAP = 9  # a hiss may use all but the last slot, which is the summary's
 OTHER_CAP = 7  # everything else leaves three: a hiss is never the one held while a lower level could be
 DIGEST_LINES = 12
 DIGEST_WINDOW = timedelta(hours=4)  # how late in the morning a missed digest may still go
-SUBJECT_KINDS = ("app", "node", "groom", "kitten", "collector")
+SUBJECT_KINDS = ("app", "node", "groom", "kitten", "collector", "glare", "disk", "binocs")
 CHANNELS = ("ntfy", "critical")
 
 
@@ -89,7 +89,7 @@ class Found:
 
 def _owner(subject: str) -> str | None:
     kind, _, rest = subject.partition(":")
-    if kind in ("app", "groom"):
+    if kind in ("app", "groom", "disk"):
         return rest.partition("/")[0]
     return rest if kind in ("node", "kitten") else None
 
@@ -113,14 +113,16 @@ def findProblems(states: dict[str, State], fleet: Fleet) -> Found:
         kind, _, rest = subject.partition(":")
         if kind not in SUBJECT_KINDS:
             continue
-        if _owner(subject) in down:
+        if _owner(subject) in down or (kind == "disk" and _owner(subject).lower() in {d.lower() for d in down}):
             found.absorbed.add(subject)
             continue
         level = state.bodyLanguage
         if level is B.unknown:
             found.keepOpen.add(subject)
         elif level.rank >= B.tailFlick.rank or level is B.earTwitch:
-            name = f"{rest} kitten" if kind == "kitten" else "" if kind == "collector" else rest
+            name = f"{rest} kitten" if kind == "kitten" else "" if kind in ("collector", "binocs") else rest
+            if kind == "glare":
+                name = (state.detail or {}).get("name") or rest  # the endpoint's own name, not its key
             title = f"{name}: {state.title}" if name and state.title else (state.title or name or subject)
             found.problems.append(Problem(subject, "state", level, title))
     return found
@@ -468,7 +470,9 @@ def buildMeow(settings: Any, trail: ScentTrail, tree: CatTree, clock: Any, tz: Z
             clients[channel] = Ntfy(url, token)
         except ValueError:
             log.warning("meow's %s URL isn't usable: it must look like https://host/topic", channel)
-            trail.addEvent("perch", f"meow:{channel}", B.tailFlick, f"meow's {channel} URL isn't usable (https://host/topic)")
+            trail.addEvent(
+                "perch", f"meow:{channel}", B.tailFlick, f"meow's {channel} URL isn't usable (https://host/topic)"
+            )
     return Meow(
         trail, tree, clock=clock, tz=tz, ntfy=clients["ntfy"], critical=clients["critical"],
         ackSecret=settings.ackSecret, publicUrl=settings.publicUrl, quiet=settings.meowQuiet,

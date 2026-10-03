@@ -27,9 +27,17 @@ from .catTree import CatTree
 from .rhythms import Rhythm
 from .scentTrail import ScentTrail, isoUtc
 from .scrub import scrub
+from .senses.binocs import Binocs
+from .senses.disks import Disks
+from .senses.gatus import GatusClient
+from .senses.glare import Glare
 from .senses.komodo import KomodoClient
 from .senses.purr import Purr
+from .senses.registries import Registries
+from .senses.scrutiny import ScrutinyClient
+from .senses.speedtest import SpeedtestClient
 from .settings import Settings
+from .vitals import Vitals
 from .words import duration
 
 log = logging.getLogger("perch.collectors")
@@ -208,6 +216,52 @@ def buildCollectors(settings: Settings, trail: ScentTrail, tree: CatTree, clock:
                     every=settings.purrEvery,
                     sleepers=settings.sleepers,
                     tz=ZoneInfo(settings.tz),
+                    vitals=Vitals(trail, clock),
                 )
             )
+    collectors += _outsideSenses(settings, trail, tree, clock)
     return collectors
+
+
+def _outsideSenses(settings: Settings, trail: ScentTrail, tree: CatTree, clock: Callable[[], datetime]) -> list[Any]:
+    """glare (Gatus), disks (Scrutiny) and binocs (speedtest, upstream releases): each starts only when its
+    setting is there; one that is half set says so on the trail, once, and the rest carry on."""
+    found: list[Any] = []
+    if settings.glareUrl:
+        try:
+            found.append(
+                Glare(
+                    GatusClient(settings.glareUrl, settings.glareUser, settings.glarePassword),
+                    trail,
+                    clock=clock,
+                    every=settings.glareEvery,
+                )
+            )
+        except ValueError as exc:
+            log.warning("glare is off: %s", exc)
+            trail.addEvent("perch", "collector:glare", B.tailFlick, f"glare is switched off: {exc}")
+    if settings.disksUrl:
+        found.append(Disks(ScrutinyClient(settings.disksUrl), trail, clock=clock, every=settings.disksEvery))
+    speedtest = None
+    if settings.binocsSpeedtestUrl or settings.binocsSpeedtestToken:
+        try:
+            speedtest = SpeedtestClient(
+                settings.binocsSpeedtestUrl, settings.binocsSpeedtestToken, tz=ZoneInfo(settings.tz)
+            )
+        except ValueError as exc:
+            log.warning("binocs: no speedtest: %s", exc)
+            trail.addEvent("perch", "collector:binocs", B.tailFlick, f"binocs can't check speedtest: {exc}")
+    releases = settings.binocsReleasesEvery > 0
+    if speedtest is not None or releases:
+        found.append(
+            Binocs(
+                trail,
+                tree,
+                clock=clock,
+                speedtest=speedtest,
+                registries=Registries() if releases else None,
+                releasesEvery=settings.binocsReleasesEvery,
+                every=settings.binocsEvery,
+            )
+        )
+    return found

@@ -41,16 +41,19 @@ from ..meow import Meow, buildMeow
 from ..nineLives import NineLives, footerLine
 from ..rollup import Status
 from ..scentTrail import SENSES, ScentTrail, parseUtc, utcNow
+from ..senses.binocs import releasesSummary
 from ..senses.groom import Groom, RecordError, parseRecord
 from ..senses.purr import DISK_CRIT, DISK_WARN
 from ..settings import Settings
+from ..vitals import Vitals
 from ..words import duration
+from .spark import sparkline
 
 HERE = Path(__file__).parent
 GROOM_NIGHTS = (7, 14, 30, 90)
 
 SENSE_MEANING = {
-    "purr": "containers, node vitals",
+    "purr": "containers, node vitals, drive health",
     "pounce": "filesystem drops",
     "whiskers": "smart-home events",
     "glare": "endpoints",
@@ -103,6 +106,7 @@ def createApp(
         except ValueError as exc:
             trail.addEvent("perch", "ninelives", BodyLanguage.tailFlick, f"nineLives is switched off: {exc}")
     store = Litters(trail)
+    history = Vitals(trail, clock)  # reads only: purr's own instance writes
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
@@ -137,6 +141,37 @@ def createApp(
     env.globals.update(BodyLanguage=BodyLanguage, LEVELS=LEVELS, SENSES=SENSES, SENSE_MEANING=SENSE_MEANING)
     env.filters["local"] = lambda moment, fmt="%H:%M": moment.astimezone(tz).strftime(fmt) if moment else "-"
     env.filters["bl"] = BodyLanguage.parse
+
+    VITALS = (("cpu", "CPU"), ("mem", "RAM"), ("disk", "disk"))
+
+    def sparks(nodeName: str, live: dict | None, *, span: str, table: str, delta: timedelta, cols: int) -> dict:
+        """CPU, RAM and disk of a node as three sparklines over the last ``delta`` (docs/06 6): from the
+        5-minute rows (``table="5m"``) or the hourly ones. ``live`` carries the latest readings for "now"."""
+        end = clock()
+        rows = history.rows(nodeName, table=table, since=end - delta, until=end)
+        live = live or {}
+        drawn = {
+            key: sparkline(
+                [(r.at, getattr(r, key)) for r in rows],
+                start=end - delta,
+                end=end,
+                cols=cols,
+                label=label,
+                span=span,
+                now=live.get(key),
+            )
+            for key, label in VITALS
+        }
+        return {**drawn, "any": any("<svg" in str(v) for v in drawn.values())}
+
+    def releasesInfo() -> dict | None:
+        found = releasesSummary(trail)
+        if not found:
+            return None
+        try:
+            return {**found, "at": parseUtc(found["checkedAt"])}
+        except (KeyError, ValueError):
+            return None
 
     def glue(text: str) -> str:
         """Keep a number with its unit ("36 s", "1 h 10 min"): no line break inside it."""
@@ -323,7 +358,19 @@ def createApp(
         things = "thing needs" if count == 1 else "things need"
         needs = f"{count} {things} a look." if count else "Nothing needs a look."
         lastNight = groomer.lastNight(clock())
+        notices = [s for s in (*status.glare(), *status.disks()) if s.bodyLanguage.rank >= BodyLanguage.tailFlick.rank]
+        signature = digest([signature, *(f"{s.subject}={s.bodyLanguage.value}" for s in notices)])
         context = {
+            "sparks": {
+                n.name: sparks(
+                    n.name, status.vitals(n.name), span="24 h", table="5m", delta=timedelta(hours=24), cols=96
+                )
+                for n in fleet.nodes
+            },
+            "glareOn": "glare" in status.collectors(),
+            "disksOn": "disks" in status.collectors(),
+            "binocsOn": "binocs" in status.collectors(),
+            "releases": releasesInfo(),
             "greeting": greeting,
             "local": now,
             "recent": trail.events(limit=8),
@@ -341,7 +388,14 @@ def createApp(
         level = status.node(nodeName)
         parts = [level.value, *(f"{a.name}={status.app(nodeName, a.name).value}" for a in node.apps)]
         parts += [f"{s.subject}={s.bodyLanguage.value}" for s in status.strays(nodeName)]
-        return {"node": node}, digest(parts), f"{nodeName} is {level.value}."
+        parts += [f"{s.subject}={s.bodyLanguage.value}" for s in status.disks(nodeName)]
+        live = status.vitals(nodeName)
+        context = {
+            "node": node,
+            "week": sparks(nodeName, live, span="7 days", table="5m", delta=timedelta(days=7), cols=168),
+            "quarter": sparks(nodeName, live, span="90 days", table="hour", delta=timedelta(days=90), cols=90),
+        }
+        return context, digest(parts), f"{nodeName} is {level.value}."
 
     def appContext(fleet: Fleet, status: Status, nodeName: str, appName: str) -> tuple[dict, str, str]:
         node = fleet.node(nodeName)

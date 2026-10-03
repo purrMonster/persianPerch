@@ -62,6 +62,7 @@ class Status:
         if own:
             levels.append(own.bodyLanguage)
         levels.extend(s.bodyLanguage for s in self.agents(name))
+        levels.extend(s.bodyLanguage for s in self.disks(name))
         return worstOf(levels)
 
     def agents(self, nodeName: str) -> list[State]:
@@ -74,12 +75,43 @@ class Status:
         beat = self.states.get(f"kitten:{nodeName}")
         return ([beat] if beat else []) + mine
 
+    # -- glare, disks, binocs (M4) ---------------------------------------------------------
+
+    def glare(self) -> list[State]:
+        """Gatus's endpoints, as glare last read them: worst first, then by name."""
+        found = [s for s in self.states.values() if s.subject.startswith("glare:")]
+        return sorted(found, key=lambda s: (-s.bodyLanguage.rank, (s.detail or {}).get("name", s.subject).lower()))
+
+    def tunnel(self) -> State | None:
+        """binocs's tunnel is Gatus's own check of it (05 plan C7): the glare state, never a request of its own."""
+        from .senses.binocs import TUNNEL_KEY
+
+        return self.states.get(f"glare:{TUNNEL_KEY}")
+
+    def disks(self, nodeName: str | None = None) -> list[State]:
+        """Drives Scrutiny reports. With a node: those whose collector host is that node; without: every one."""
+        found = [s for s in self.states.values() if s.subject.startswith("disk:")]
+        if nodeName is not None:
+            found = [s for s in found if (s.detail or {}).get("host", "").lower() == nodeName.lower()]
+        return sorted(found, key=lambda s: s.subject)
+
+    def looseDisks(self) -> list[State]:
+        """Drives whose host isn't a node of the fleet: they count toward the fleet, not toward a node."""
+        names = {n.name.lower() for n in self.fleet.nodes}
+        return [s for s in self.disks() if (s.detail or {}).get("host", "").lower() not in names]
+
+    def binocs(self) -> list[State]:
+        """Notices only (earTwitch at most): shown on the overview, never part of the fleet's level."""
+        return sorted((s for s in self.states.values() if s.subject.startswith("binocs:")), key=lambda s: s.subject)
+
     def collectors(self) -> dict[str, State]:
         return {s.subject.partition(":")[2]: s for s in self.states.values() if s.subject.startswith("collector:")}
 
     def fleetLevel(self) -> BodyLanguage:
         levels = [self.node(n.name) for n in self.fleet.nodes]
         levels += [s.bodyLanguage for s in self.collectors().values()]
+        levels += [s.bodyLanguage for s in self.glare()]
+        levels += [s.bodyLanguage for s in self.looseDisks()]
         return worstOf(levels)
 
     # -- counts, for the overview ---------------------------------------------------
@@ -114,10 +146,22 @@ class Status:
             for state in self.agents(node.name):
                 if state.bodyLanguage.rank >= BodyLanguage.tailFlick.rank:
                     items.append(self._item(state, node.name, "/groom" if state.subject.startswith("groom:") else None))
+            for state in self.disks(node.name):
+                if state.bodyLanguage.rank >= BodyLanguage.tailFlick.rank:
+                    items.append(self._item(state, self._diskLabel(state), f"/tree/{node.name}"))
+        for state in (*self.glare(), *self.looseDisks()):
+            if state.bodyLanguage.rank >= BodyLanguage.tailFlick.rank:
+                label = (state.detail or {}).get("name") or self._diskLabel(state)
+                items.append(self._item(state, label, None))
         for _name, state in sorted(self.collectors().items()):
             if state.bodyLanguage.rank >= BodyLanguage.tailFlick.rank:
                 items.append(self._item(state, "", None))  # its title already names it ("purr is late: ...")
         return sorted(items, key=lambda i: (-i.level.rank, i.since))
+
+    @staticmethod
+    def _diskLabel(state: State) -> str:
+        detail = state.detail or {}
+        return f"{detail.get('device', '')} {detail.get('model', '')}".strip() or state.subject
 
     @staticmethod
     def _item(state: State, label: str, href: str | None) -> Attention:
@@ -137,6 +181,9 @@ class Status:
         for state in self.agents(nodeName):
             if state.bodyLanguage.rank >= BodyLanguage.tailFlick.rank:
                 found.append((state.bodyLanguage, state.title or ""))
+        for state in self.disks(nodeName):
+            if state.bodyLanguage.rank >= BodyLanguage.tailFlick.rank:
+                found.append((state.bodyLanguage, f"{self._diskLabel(state)}: {state.title or ''}"))
         if found:
             return max(found, key=lambda item: item[0].rank)  # max keeps the first of equals: the node's own
         if own and (own.detail or {}).get("mode") == "asleep":
