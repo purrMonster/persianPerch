@@ -129,7 +129,8 @@ Each milestone ends with something usable on the real fleet and a runbook entry.
 ### M6 — Into the fleet · ~2 days
 - [ ] `stacks/cellar/persian-perch/` in `purrbrews-containers`: compose, `secrets.conf`,
   `backup`, `firewall`, `data-dirs`, README; Authelia admin rule; Homepage tile
-- [ ] kitten unit rolled out by `_lib`/`init` to every node
+- [ ] kitten unit rolled out by `_lib`/`init` to every node *(as prepared: each node pulls the persianPerch repo and runs
+  `integration/kitten/install-kitten.sh`; ADR 0012)*
 - [ ] runbook entry; MAP updated
 - **Done when:** it has run a full week on the fleet with no false hiss.
 

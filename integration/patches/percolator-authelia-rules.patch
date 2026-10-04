@@ -1,0 +1,37 @@
+diff --git a/stacks/percolator/authelia/config/configuration.yml.template b/stacks/percolator/authelia/config/configuration.yml.template
+index b85d053..5ed1a57 100644
+--- a/stacks/percolator/authelia/config/configuration.yml.template
++++ b/stacks/percolator/authelia/config/configuration.yml.template
+@@ -1,7 +1,7 @@
+ # Rendered by ../../render-configs.sh — edit the .template.
+ #
+ # Policy: ${AUTH_POLICY} for human access and OIDC (.env.local AUTH_POLICY).
+-# Ollama and Nextcloud service accounts use explicit one_factor rules.
++# Ollama, Nextcloud and persianPerch (Gatus's API) service accounts use explicit one_factor rules.
+ # Nextcloud bot accounts are denied access to other ForwardAuth/OIDC apps.
+ # Move human access to two-factor after everyone has enrolled.
+ #
+@@ -72,6 +72,13 @@
+         - 'group:ollama_api_group'
+       policy: one_factor
+ 
++    # persianPerch's service account: password authentication for Gatus's API only (sieve's
++    # gatus-api route, the same shape as Ollama above).
++    - domain: 'gatus-api.${DOMAIN}'
++      subject:
++        - 'group:perch_api_group'
++      policy: one_factor
++
+     # Rules are checked in order, and a rule whose subject doesn't match is
+     # skipped, not final. So admin-only hosts need two rules: allow admins,
+     # then deny everyone else, or the household catch-all below lets them in.
+@@ -89,6 +96,9 @@
+         - 'scrutiny.${DOMAIN}'
+         # Other Ollama clients require an admin login.
+         - 'ollama.${DOMAIN}'
++        # persianPerch (cellar), and Gatus's API for its service account: admins otherwise.
++        - 'perch.${DOMAIN}'
++        - 'gatus-api.${DOMAIN}'
+       subject: ['group:${LLDAP_ADMIN_GROUP}']
+       policy: ${AUTH_POLICY}
+     - domain: *admin_hosts

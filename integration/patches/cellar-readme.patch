@@ -1,0 +1,18 @@
+diff --git a/stacks/cellar/README.md b/stacks/cellar/README.md
+index 64e0d58..484052f 100644
+--- a/stacks/cellar/README.md
++++ b/stacks/cellar/README.md
+@@ -13,3 +13,4 @@
+ | [Scrutiny](scrutiny/) | `scrutiny.${DOMAIN}` (admins), or `:8080` | SMART disk health; the hub every node's collector reports to |
+-| [Traefik](traefik/) | — | HTTPS for the two above |
++| [Traefik](traefik/) | — | HTTPS for the two above, and persianPerch |
++| [persianPerch](persian-perch/) | `perch.${DOMAIN}` (admins) | The fleet's watcher: containers, backups, disks, endpoints, files dropped, the house. Read-only; alerts to ntfy |
+ | [Samba](smb/) | `\\cellar\household`, `\\cellar\archive` | File shares. Built, not in use yet (no firewall rule) |
+@@ -36,5 +37,6 @@
+ | 4 | `./compose.sh smb up -d` | only when the shares are wanted; add the rule in `smb/firewall` first |
++| 5 | `./compose.sh persian-perch up -d --build` | its [README](persian-perch/README.md) checklist; read persianPerch's `integration/ROLLOUT.md` before the first run |
+ | — | `sudo ./nfs/setup-nfs.sh`, then [restic/README.md](restic/README.md) | host-native, whenever needed |
+ 
+-`./compose.sh --all up -d` does 1–4 in that order once everything has been up once.
++`./compose.sh --all up -d` does 1–5 in that order once everything has been up once.
+ 

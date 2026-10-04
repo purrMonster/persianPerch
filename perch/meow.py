@@ -39,7 +39,7 @@ from .litters import Litter, Litters, label
 from .ntfy import Ntfy, PushError
 from .rhythms import Rhythm
 from .rollup import Status
-from .scentTrail import ScentTrail, State
+from .scentTrail import ScentTrail, State, isoUtc
 from .scrub import scrub
 from .words import duration
 
@@ -56,6 +56,8 @@ DIGEST_LINES = 12
 DIGEST_WINDOW = timedelta(hours=4)  # how late in the morning a missed digest may still go
 SUBJECT_KINDS = ("app", "node", "groom", "kitten", "collector", "glare", "disk", "binocs", "whiskers")
 CHANNELS = ("ntfy", "critical")
+SETTINGS_PATH = "/etc/purrbrews"  # pounce's tailFlick that is a digest line and never a push (owner, 2026-10-03)
+DIGEST_SEEN = "meow.digestSeen"  # how far the last digest looked for those changes
 
 
 def parseQuiet(text: str) -> tuple[time, time]:
@@ -144,6 +146,7 @@ class Out:
     channels: tuple[str, ...]
     button: Litter | None = None  # the one litter an acknowledge button on the ntfy copy would stop
     repeat: bool = False
+    extra: int = 0  # digest lines that are not litters (settings changes)
 
 
 class Meow:
@@ -327,14 +330,43 @@ class Meow:
         if not start <= local < start + DIGEST_WINDOW or self.store.meta("meow.digestDay") == today:
             return None  # it is a morning thing: a perch that was down at 07:30 doesn't send it at midnight
         items = self.store.pendingDigest()
-        if not items:
+        changes = self._settingsChanges(now)
+        if not items and not changes:
             self.store.setMeta("meow.digestDay", today)  # nothing overnight: no push, and not asked again today
+            self.store.setMeta(DIGEST_SEEN, isoUtc(now))
             return None
         lines = [f"{lt.peak.value}: {lt.title}" + ("" if lt.isOpen else " (cleared)") for lt in items[:DIGEST_LINES]]
         if len(items) > DIGEST_LINES:
             lines.append(f"and {len(items) - DIGEST_LINES} more")
-        title = f"perch: morning digest, {len(items)} thing{'s' if len(items) != 1 else ''} overnight"
-        return Out(4, "digest", items, title, "\n".join(lines), 3, ("coffee",), ("ntfy",))
+        lines += changes[:DIGEST_LINES]
+        count = len(items) + len(changes)
+        title = f"perch: morning digest, {count} thing{'s' if count != 1 else ''} overnight"
+        return Out(4, "digest", items, title, "\n".join(lines), 3, ("coffee",), ("ntfy",), extra=len(changes))
+
+    def _settingsChanges(self, now: datetime) -> list[str]:
+        """Changes under ``/etc/purrbrews`` since the last digest, one line per node (owner, 2026-10-03: they go in
+        the morning digest and never in an immediate push; only the owner changes them and perch can't tell a
+        deploy from a surprise). Names only, as pounce stores them."""
+        seen = self.store.meta(DIGEST_SEEN)
+        try:
+            since = datetime.fromisoformat(seen) if seen else now - timedelta(hours=24)
+        except ValueError:
+            since = now - timedelta(hours=24)
+        since = max(since, now - timedelta(days=3))
+        found: dict[str, list[str]] = {}
+        for event in self.trail.events(since=since, senses=["pounce"], limit=500):
+            detail = event.detail or {}
+            if detail.get("path") != SETTINGS_PATH or event.seenAt > now:
+                continue
+            names = found.setdefault(str(detail.get("node") or event.subject), [])
+            name = str(detail.get("name") or "").strip()
+            if name and name not in names:
+                names.append(name)
+        lines = []
+        for node, names in sorted(found.items()):
+            shown = ", ".join(names[:3]) + (f" and {len(names) - 3} more" if len(names) > 3 else "")
+            lines.append(f"{node}: settings changed under {SETTINGS_PATH} ({shown})")
+        return lines
 
     # -- sending -----------------------------------------------------------------------------------
 
@@ -350,7 +382,7 @@ class Meow:
     async def deliver(self, now: datetime, outs: list[Out]) -> None:
         if not self.clients or not outs:
             return
-        outs.sort(key=lambda o: (o.rank, o.repeat, min(lt.openedAt for lt in o.litters)))
+        outs.sort(key=lambda o: (o.rank, o.repeat, min((lt.openedAt for lt in o.litters), default=now)))
         heldOn: set[str] = set()
         for out in outs:
             sent: list[str] = []
@@ -417,7 +449,8 @@ class Meow:
         if out.kind == "digest":
             day = now.astimezone(self.tz).date().isoformat()
             self.store.setMeta("meow.digestDay", day)
-            text = f"meow sent the morning digest: {len(out.litters)} items"
+            self.store.setMeta(DIGEST_SEEN, isoUtc(now))
+            text = f"meow sent the morning digest: {len(out.litters) + out.extra} items"
             self.trail.addEvent("perch", "meow:digest", B.earTwitch, text, seenAt=now)
 
     def _held(self, out: Out, now: datetime) -> None:

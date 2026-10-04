@@ -20,7 +20,7 @@ the list (a leak sensor ``on`` is a hiss, a door ``on`` an earTwitch); a change 
 
 **Home Assistant unreachable** is never a hiss per entity. The listener reconnects with a growing pause; after
 two failed collector cycles every entity turns ``unknown`` and no entity event is written; the collector's
-own rhythm (collectors.py) says "whiskers is late: ..." once, as a tailFlick.
+own rhythm (collectors.py) says "whiskers is late: ..." once, as a tailFlick, and stays a tailFlick (``maxLevel``).
 """
 
 from __future__ import annotations
@@ -149,6 +149,10 @@ def connectDefault(url: str):
 
 class Whiskers:
     name = "whiskers"
+    # Owner, 2026-10-03: a Home Assistant that is down is a tailFlick, never a hiss. Its container (purr) and its
+    # endpoint (glare) already hiss, so a third hiss would double-alert one outage. The cost: while whiskers is
+    # down, perch can't see leak or smoke sensors (integration/ROLLOUT.md says Home Assistant's own alerts cover them).
+    maxLevel = B.tailFlick
 
     def __init__(
         self,

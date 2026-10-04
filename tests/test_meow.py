@@ -202,6 +202,50 @@ def test_an_earTwitch_never_pushes_and_the_digest_carries_it_at_0730(w):
     assert sum("morning digest" in t for t in w.ntfy.titles()) == 1  # once: tomorrow has nothing new to say
 
 
+def settingsChange(w, node="sieve", name="pounce.env", path="/etc/purrbrews", why="settings changed"):
+    w.trail.addEvent(
+        "pounce", f"pounce:{node}/{path}", B.tailFlick, f"{why}: {name} appeared",
+        detail={"node": node, "path": path, "name": name, "change": "created"}, seenAt=w.clock(),
+    )  # fmt: skip
+
+
+def test_a_settings_change_under_etc_purrbrews_is_never_pushed_at_once_and_goes_in_the_morning_digest(w):
+    """Owner, 2026-10-03: only the owner changes those settings and perch can't tell a deploy from a surprise."""
+    settingsChange(w)
+    settingsChange(w, node="grinder", name="kitten.env")
+    w.wait(20)  # well past the 5 minutes a tailFlick waits, and past any repeat clock: nothing goes out
+    assert w.ntfy.sent == [] and w.critical.sent == []
+    w.wait(9)
+    assert w.ntfy.sent == []
+    w.wait(2)  # 07:30
+    assert len(w.ntfy.sent) == 1
+    digest = w.ntfy.sent[0]
+    assert digest.title.startswith("perch: morning digest, 2 things overnight")
+    assert "sieve" in digest.message and "grinder" in digest.message and "/etc/purrbrews" in digest.message
+    assert "pounce.env" in digest.message and digest.actions == []  # names only, and nothing to acknowledge
+    assert w.critical.sent == []
+    for _ in range(144):
+        w.meowOnly(seconds=600)
+    assert sum("morning digest" in t for t in w.ntfy.titles()) == 1  # said once
+
+
+def test_other_pounce_events_stay_out_of_the_digest(w):
+    settingsChange(w, node="cellar", name="2026-10-03.gz", path="/srv/dumps", why="a dump arrived")
+    w.wait(60)
+    assert w.ntfy.sent == []
+
+
+def test_the_digest_carries_a_settings_change_next_to_a_litter(w):
+    w.fake.setHealth("cellar", "scrutiny", "health: starting")
+    settingsChange(w)
+    w.step(4)
+    w.wait(30)
+    assert len(w.ntfy.sent) == 1
+    digest = w.ntfy.sent[0]
+    assert digest.title.startswith("perch: morning digest, 2 things overnight")
+    assert "scrutiny" in digest.message and "/etc/purrbrews" in digest.message
+
+
 def test_a_quiet_night_sends_no_digest(w):
     w.wait(60)
     assert w.ntfy.sent == []

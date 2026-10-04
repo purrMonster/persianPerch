@@ -196,7 +196,7 @@ from (found in M1). It stays one SQLite file, not a time-series database (§2.3 
 |---|---|---|---|
 | cellar | `/srv/dumps/*/` | a node's dumps arrived | earTwitch; none by 03:00 → handled by groom |
 | percolator | `/srv/data/paperless/consume/` | a document dropped | earTwitch |
-| every node | `/etc/purrbrews/` | settings changed | tailFlick (unexpected outside a deploy) |
+| every node | `/etc/purrbrews/` | settings changed | tailFlick on the page and trail; **morning digest only, never an immediate push** (owner, 2026-10-03: only he changes these files, and perch can't tell a deploy from a surprise) |
 | every node | `/opt/purrbrews/.git/HEAD` | the node pulled a new commit | earTwitch, with the commit subject |
 
 - Debounced (2 s), rate-limited (max 60 events/min per path, then one "storm" tailFlick).
@@ -219,7 +219,9 @@ yet. Details and the one open owner question: [ADR 0010](adr/0010-pounce-names-o
 level, an allow-list: everything else is dropped before it is stored). Each listed entity is a state
 `whiskers:<entity_id>`; a change worth knowing is an event; a hiss or tailFlick from the house moves the fleet and
 meow pushes it, a notice (a door) is for the trail only. Home Assistant unreachable is one tailFlick from
-the collector's rhythm and every entity `unknown`, never a hiss per entity. perch sends only `auth`,
+the collector's rhythm and every entity `unknown`, never a hiss per entity, **and whiskers itself never hisses
+(owner, 2026-10-03)**: purr (its container) and glare (its endpoint) already hiss when Home Assistant is down, so a third
+hiss would double-alert one outage. perch sends only `auth`,
 `subscribe_events` and `get_states` (S4). [ADR 0009](adr/0009-whiskers-websockets-and-pyyaml.md).
 
 ### 4.6 binocs (far away)

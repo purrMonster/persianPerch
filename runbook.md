@@ -38,9 +38,81 @@ changes can be made later without re-deriving the reasoning. How to write entrie
 - [ ] Owner: should glare and disks stop nineLives' ping when late? (M4 entry, Notes)
 - [x] M5 pounce + whiskers + the live scentTrail: kitten file events, Home Assistant, SSE (2026-10-03, gate green on roastery, M5 entry; pull request to open)
 - [ ] Owner: review and merge the M5 pull request (merge commit), then `git pull` the main checkout (M5 entry)
-- [ ] Owner decisions M5 left open: push `/etc/purrbrews` changes?; whiskers collector hiss after 5 min? (M5 entry, Not done)
+- [x] Owner decisions M5 left open, decided 2026-10-03: `/etc/purrbrews` changes are digest-only; whiskers never hisses about itself (M6 entry)
 - [ ] M6: `inotify-tools`, `git` and the `kitten` user's read access on the nodes; the Traefik router must not buffer `/trail/stream`; `PERCH_WHISKERS_*` and the entity list on cellar; drill the non-admin Home Assistant user (M5 entry)
-- [ ] M6 Into the fleet: prepared in `integration/` with `ROLLOUT.md`; deployed by the owner
+- [x] M6-prep (2026-10-03): `integration/` + `ROLLOUT.md`, the two M5 decisions, fleet re-pinned to `922164a`, gate green (M6 entry; pull request to open)
+- [ ] Owner: review and merge the M6 pull request, then work through `integration/ROLLOUT.md`: the deploy and the drills are the owner's (M6 entry)
+
+---
+
+## 2026-10-03 — M6 Into the fleet, prepared (nothing applied): integration/, ROLLOUT.md, the owner's two M5 decisions, the re-pin; gate green
+
+**Context.** The owner gave M6 its go-ahead as **prepare only** and two decisions from M5's verification. Claude Code (Sonnet 5.5), branch
+`claude/m6-into-the-fleet-2ee787`, started 2026-10-03 17:40 IST (outside the quiet hours). Pre-flight passed (Docker 29.7.2, main at M5's merge `5dfb4df`,
+clean, identity right, origin answered, the three skills present). Running on roastery: `meowgram-server`, `purrbrews-bootstrap`, `komodo-periphery`,
+`immich-machine-learning`; I touched none (every container I started carries the project label). The fleet was never touched: no SSH, no API call, no commit in
+`purrbrews-containers`; the only network reads were `git fetch` of the public fleet repo and package metadata.
+
+**Decided** (reasons; losing alternatives in brackets).
+- **(owner, 2026-10-03) A change under `/etc/purrbrews` is a morning-digest line only**, never an immediate push: only the owner changes those settings and perch can't tell a
+  deploy from a surprise. meow's digest now also reads the pounce events of `/etc/purrbrews` since the last digest (one line per node, names only). Design 4.4 and ADR 0010 updated.
+  [an immediate tailFlick push; a state with an expiry.]
+- **(owner, 2026-10-03) whiskers never hisses about itself**: purr (its container) and glare (its endpoint) already hiss for a Home Assistant outage, so a third hiss double-alerts one
+  outage. A collector may carry `maxLevel`; whiskers' is tailFlick. **Trade-off, recorded in ROLLOUT.md:** while whiskers is down perch cannot see leak or smoke sensors, so Home Assistant's
+  own alerts must cover them (ROLLOUT drill "Home Assistant's own leak alert"). M1's "10 missed cycles = hiss" rule no longer applies to whiskers.
+- **Re-pin** `purrbrews-containers` from `f94efdf` to `922164af2449ee9c8899b9466d721ffc5a2ac4e6` (main on 2026-10-03; upstream changed only a mochaPot scrutiny collector and docs). Named in `scripts/test.ps1`,
+  `tests/conftest.py`, `ci/github-actions-ci.yml`, `docs/05` and `integration/PIN`; old runbook entries keep the old hash as history. The whole suite was green at the new pin before anything else changed (665 passed).
+- **[ADR 0012](docs/adr/0012-m6-how-perch-reaches-the-fleet.md):** the three Traefik routers are compose labels (not `dynamic.yml.template`); the image is built on cellar from the public repo at a pinned ref
+  (`PERSIAN_PERCH_REF`); **kitten is delivered by pull** (a clone, a zipapp built on the node by the ops user, a root installer) because the fleet's delivery rule forbids copying code to servers. This departs from the dev
+  plan's "rolled out by `_lib`/`init`" (a second copy of kitten in the fleet repo). The kitten router also admits `/healthz` so Gatus (sieve is one of the six addresses) can check perch.
+- `secrets.conf` holds only plain values, prompts and hex: a `value` line can't expand `${DOMAIN}` or a LAN address, so the five URLs that need them are built in compose. "No value in any file" is read as: no secret, no real domain, no real address (the `value` lines are the fleet's own non-secret defaults).
+- The glare password is `openssl rand -hex 32` (secrets.env said base64; the fleet's convention is hex).
+- Pounce on cellar's `/srv/dumps` sees only folders appear: the `<node>` folders are 700 for the `dumps` user and `inotifywait` skips them silently (tested in the kitten image). Not worked around (A10); ROLLOUT says so.
+
+**Done.** `perch/meow.py`, `collectors.py`, `senses/whiskers.py` (+ docs). `integration/`: `stacks/cellar/persian-perch/` (compose with healthcheck and three routers, `secrets.conf`, `backup`, `firewall`, `data-dirs`, `README.md`
+with the "Is it working?" list, `config/whiskers.yml` with `change_me` placeholders), eight patches (cellar `node.conf`/`local.env.example`/README, sieve `gatus-api` router + `authelia-basic` middleware and two Gatus checks, Authelia
+rules and admin hosts, Homepage tile, roastery `local.env.example`), `apply.sh` (+ `PIN`), `kitten/` (unit, installer), `roastery/` (installer, launcher), `README.md`, `ROLLOUT.md`. `scripts/buildKitten.ps1`; `tests/fleet/`
+(Dockerfile, installer test, ROLLOUT-snippet test), `tests/test_integrationM6.py`; `scripts/test.ps1` gains three steps. groom: not duplicated, `apply.sh` copies `groom-record.py` and ROLLOUT step E installs the M2 drop-ins.
+
+**Verified** (roastery, 2026-10-03/04, `scripts\test.ps1`, final run, exit 0):
+```
+=== perch: ruff + pytest (3.12)  All checks passed!   700 passed in 417.66s     (665 + 3 for the decisions + 32 integration)
+=== kitten: unittest 3.13 / 3.14  Ran 44 tests ... OK (skipped=3)   ; real inotifywait  Ran 30 ... OK
+=== fleet: its own tests with integration/ applied    Ran 67 tests ... OK (skipped=2) as user fleet ;  Ran 67 ... OK (skipped=8) as root (their real-backup test ran)
+=== rollout: install-kitten.sh and the ntfy block     install-kitten.sh: all checks ok ; rollout snippets: all checks ok
+=== roastery: kitten scripts parse and install-kitten.ps1 dry-runs   (dry-run lines, exit 0, token never printed)
+=== windowsill: Playwright  33 passed, 0 failed ;  drill  perch memory: VmRSS 63.5 MB (budget 300 MB) ; leak check: looked in 12 places (4357 KB): nothing found
+=== summary  ok x11
+```
+- **The fleet's gate has teeth:** applying without the `node.conf` and `local.env.example` patches made three of its tests fail (`persian-perch is not in cellar/node.conf`, `PERSIAN_PERCH_REF ... nothing defines`). Its Secrets/Render/Firewall classes skip themselves under root, so the step runs unprivileged too.
+- **A real run of the pieces:** `run-kitten.ps1` (PowerShell 5.1) read a fake `.env.local`, ran the built `kitten.pyz` and logged `pounce can't list C:\purrbrews\restic\snapshots: Access is denied` from a non-elevated shell (ROLLOUT G explains). `install-kitten.sh` ran as root in Debian with a fake `systemctl`/`apt-get`.
+- **Read for domains, secrets, paths, addresses:** all added lines of `git diff --cached origin/main`: no real domain, token, `C:\Users`, `jyotirmoyc` or LAN address; only `127.0.0.1`, `*.example.home.arpa`, and fleet variable names. S5, S6, S8 passed in the 700.
+- ROLLOUT.md walked against the scratch copy: `tests/test_integrationM6.py` checks every path it names exists (here, in the pinned fleet repo, or node-local), every `secrets.env` key and every patch and drop-in is in it, and the sections run A to K.
+
+**Surprises.**
+- Git Bash mangles paths for `docker run -v` and `-w` (use `MSYS_NO_PATHCONV=1`); the Bash tool's heredocs lose `\n`, `\1` and `\f` inside Python text (use the Write/Edit tools). I also let a lint error through once by trimming a command's output.
+- The fleet's README forbids copying code to servers; that is what moved kitten to delivery by pull.
+- `roastery/setup-secrets.ps1` has no `secrets.conf` step, only `.env.local` prompts for `REPLACE_ME`; the roastery kitten token uses that.
+- `ruff format` would reformat `perch/senses/whiskers.py` line 365 (before my change); not touched.
+
+**Not done / next** (all the owner's; the agent applied nothing).
+- [ ] Owner: read `integration/ROLLOUT.md` and work through it: credentials (A), the fleet pull request (B, `apply.sh`), the deploy (D), groom (E), kitten (F, G), the week side by side, the retirements (H), the drills (J).
+- [ ] Owner: choose `PERSIAN_PERCH_REF` (a tag or full commit of persianPerch after this branch merges) for cellar and the kitten checkouts.
+- [ ] Owner: fill `config/whiskers.yml` with real entity ids before the nodes pull it; confirm Home Assistant's own leak/smoke alerts exist.
+- [ ] Owner: last, restore roastery's sleep setting (ROLLOUT K).
+- [ ] Owner decision still open (M4): should glare and disks stop nineLives' ping when late?
+- [ ] Open for the drills: cellar's own kitten reaching `perch.${DOMAIN}` with cellar's LAN address as source (ROLLOUT F says what to do on a 403).
+
+**Pre-push checks** (before the push):
+```
+$ git log origin/main..HEAD --format="%ae %ce" | sort | uniq -c
+      3 jyotirmoy.github@jyotirmoy.cc jyotirmoy.github@jyotirmoy.cc     (the commit holding this line is a fourth, same identity)
+$ added lines of the diff grepped for C:\Users, jyotirmoyc, 192.168, e-mail addresses, tk_ tokens, key blocks, JWTs
+only the test's own "PRIVATE KEY" pattern
+hostnames in added lines: github.com, ntfy.sh, healthchecks.io, hc-ping.com, ghcr.io, test.example.home.arpa. IPs: 127.0.0.1 only
+```
+
+— Claude (Claude Code, Sonnet 5.5)
 
 ---
 

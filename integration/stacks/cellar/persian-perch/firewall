@@ -1,0 +1,7 @@
+# persianPerch opens nothing on cellar. Its container publishes no port: Traefik (80/443,
+# already open to the LAN in ../traefik/firewall) reaches it over cellar_net, and that is the
+# only way in. The kitten reports and the acknowledge links arrive on 443 like every page.
+# perch has no login of its own, so a published port would be a way around Authelia.
+#
+# This file stays on purpose: a rule added here later is read by `sudo ./firewall.sh`, and
+# the next person sees why there is none today.

@@ -1,0 +1,17 @@
+diff --git a/stacks/cellar/node.conf b/stacks/cellar/node.conf
+index e715050..1ccddd7 100644
+--- a/stacks/cellar/node.conf
++++ b/stacks/cellar/node.conf
+@@ -3,9 +3,10 @@
+ 
+ # Bring-up order. Komodo first so the other nodes' Periphery agents have
+ # something to register with, Scrutiny so their collectors have somewhere
+-# to report, then Traefik for the two web UIs. restic and NFS aren't
++# to report, then Traefik for the two web UIs. persian-perch last: it reads
++# Komodo and Scrutiny and routes through Traefik. restic and NFS aren't
+ # containers; see their READMEs.
+-APPS=(komodo scrutiny traefik smb)
++APPS=(komodo scrutiny traefik smb persian-perch)
+ 
+ # Every container here joins cellar_net. Nothing on cellar needs a fixed
+ # subnet, so Docker picks one.

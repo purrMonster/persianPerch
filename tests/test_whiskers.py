@@ -362,15 +362,15 @@ def test_GATE_home_assistant_unreachable_is_one_tailFlick_and_unknown_never_a_hi
         assert [(e.sense, e.subject, e.bodyLanguage) for e in flicks] == [("perch", "collector:whiskers", B.tailFlick)]
         assert "whiskers is late" in flicks[0].title
         assert not any(p.level is B.hiss for p in findProblems(r.trail.states(), fleetTree.fleet()).problems)
-        # five minutes in, the collector's own rhythm escalates (one hiss about whiskers itself, M1's rule);
+        # ten minutes in it is still a tailFlick: the owner decided (2026-10-03) that whiskers never hisses about
+        # itself, because purr (the container) and glare (the endpoint) already hiss when Home Assistant is down;
         # still nothing per entity
-        for _ in range(8):
+        for _ in range(16):
             clock.advance(seconds=30)
             r.run(runner.runOnce(whiskers))
-        assert [e.bodyLanguage for e in r.trail.events(senses=["perch"]) if e.subject == "collector:whiskers"] == [
-            B.hiss,
-            B.tailFlick,
-        ]
+        about = [e.bodyLanguage for e in r.trail.events(senses=["perch"]) if e.subject == "collector:whiskers"]
+        assert about == [B.tailFlick]
+        assert r.trail.states()["collector:whiskers"].bodyLanguage is B.tailFlick
         assert [e for e in r.trail.events() if e.sense == "whiskers"] == []
         # and it comes back by itself
         r.run(r.ha.start())

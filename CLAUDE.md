@@ -79,4 +79,4 @@ it never changes anything.
 
 ## Status
 
-2026-10-03: M0 (litter), M1 (first purr), M2 (grooming), M3 (meow) and M4 (glare, disks, binocs, vitals) are merged; M5 (pounce: kitten file events; whiskers: Home Assistant; the live scentTrail over SSE) is built and waits for the owner's merge; M6 is not. The runbook's Backlog is the live status.
+2026-10-03: M0 (litter), M1 (first purr), M2 (grooming), M3 (meow), M4 (glare, disks, binocs, vitals) and M5 (pounce, whiskers, the live scentTrail) are merged. M6 (into the fleet) is **prepared, not deployed**: `integration/` holds the files for the fleet repo, the kitten installers and `integration/ROLLOUT.md`, the owner's deploy guide; the fleet repo is pinned at `922164a`. The deploy and the drills are the owner's. The runbook's Backlog is the live status.

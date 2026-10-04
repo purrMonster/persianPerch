@@ -5,8 +5,8 @@
 > [02](02-design-plan.md), [03](03-dev-plan.md) and [../mockups/](../mockups/index.html).
 >
 > Fleet references are links to [`purrbrews-containers`](https://github.com/purrMonster/purrbrews-containers)
-> `main`, never copies. Tests pin commit `f94efdfb1995d7217ec2be33e45b33720a0a0b3b`
-> (2026-09-30). Every setting perch and kitten need is listed in [`../secrets.env`](../secrets.env).
+> `main`, never copies. Tests pin commit `922164af2449ee9c8899b9466d721ffc5a2ac4e6`
+> (re-pinned 2026-10-03 for M6; the build until M5 used `f94efdfb1995d7217ec2be33e45b33720a0a0b3b` of 2026-09-30). Every setting perch and kitten need is listed in [`../secrets.env`](../secrets.env).
 
 
 ## 0. How to use this document
@@ -99,7 +99,7 @@ git ls-remote origin                          # push access (A3)
 
 ```powershell
 git clone https://github.com/purrMonster/purrbrews-containers .cache/purrbrews-containers
-git -C .cache/purrbrews-containers checkout f94efdfb1995d7217ec2be33e45b33720a0a0b3b
+git -C .cache/purrbrews-containers checkout 922164af2449ee9c8899b9466d721ffc5a2ac4e6
 ```
 
 **Tests** (images pinned by tag and digest in M0; the digests go in the runbook). *Since M0
@@ -214,6 +214,12 @@ both appear in the trail within 5 s with the right body language.
 *Gate:* copy the pinned clone to `.cache/fleet-scratch`, apply `integration/` to it, and its
 own `python3 -m unittest discover -s tests` passes (catches an unset variable, an
 un-ignored template, an app missing from `node.conf`).
+
+*As prepared (2026-10-03, [ADR 0012](adr/0012-m6-how-perch-reaches-the-fleet.md)):* the routers are compose labels (not
+`dynamic.yml.template`); the image is built on cellar from a pinned persianPerch ref; kitten is delivered by pull (a clone, a
+zipapp built on the node, an installer), not rolled out by `_lib`/`init`; `integration/apply.sh` applies the files and eight
+patches; the fleet's tests run unprivileged and as root in `scripts/test.ps1`. The owner's two M5 decisions are in:
+`/etc/purrbrews` changes are digest-only, whiskers never hisses about itself.
 
 ## 6. Tests that must always pass
 

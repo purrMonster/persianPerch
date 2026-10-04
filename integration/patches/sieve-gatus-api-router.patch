@@ -1,0 +1,36 @@
+diff --git a/stacks/sieve/traefik/dynamic/sieve.yml b/stacks/sieve/traefik/dynamic/sieve.yml
+index 16b5e37..2a45c07 100644
+--- a/stacks/sieve/traefik/dynamic/sieve.yml
++++ b/stacks/sieve/traefik/dynamic/sieve.yml
+@@ -18,6 +18,15 @@
+       middlewares: [authelia, secure-headers]
+       service: gatus
+ 
++    # Gatus's API for persianPerch (glare), which has no browser session: Basic auth from an LLDAP
++    # service account in perch_api_group, through Authelia's forward-auth-basic (the same shape as
++    # roastery's ollama route). Only the API path is routed; the dashboard above stays cookie-only.
++    gatus-api:
++      rule: Host(`gatus-api.{{ env "DOMAIN" }}`) && PathPrefix(`/api/v1/`)
++      entryPoints: [websecure]
++      middlewares: [authelia-basic, secure-headers]
++      service: gatus
++
+     netalertx:
+       rule: Host(`netalertx.{{ env "DOMAIN" }}`)
+       entryPoints: [websecure]
+@@ -47,6 +56,15 @@
+         authResponseHeaders: [Remote-User, Remote-Groups, Remote-Email, Remote-Name]
+         maxResponseBodySize: 65536   # Authelia's replies are tiny; caps a misbehaving one
+ 
++    # For API clients with no browser session: the service accounts send Basic auth, which only
++    # forward-auth-basic accepts (percolator's Authelia template defines both endpoints).
++    authelia-basic:
++      forwardAuth:
++        address: '{{ env "AUTHELIA_URL" }}/api/authz/forward-auth-basic'
++        trustForwardHeader: true
++        authResponseHeaders: [Remote-User, Remote-Groups, Remote-Email, Remote-Name]
++        maxResponseBodySize: 65536
++
+     pihole-admin:
+       redirectRegex:
+         regex: '^https://([^/]+)/?$'

@@ -1,0 +1,4 @@
+# <path under DATA_DIR> <uid>:<gid> [mode]. PUID:PGID is the ops user.
+# perch's image runs as the fixed user 10001 (persianPerch's Dockerfile), so the folder is
+# made for it. Without this, Docker creates it as root and perch can't open its database.
+persian-perch 10001:10001 750

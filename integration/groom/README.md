@@ -56,5 +56,7 @@ hold anything the job printed: perch scrubs the secrets it knows before storing 
 ## What the owner still decides
 
 - When to apply it (it changes nothing about the jobs, but it is a change to every backup node).
-- Kitten itself (zipapp, unit, user) is M6's `integration/kitten/`; until then nothing ships the
-  records, and perch shows those nodes as "not watched yet".
+- Kitten itself (zipapp, unit, user) is `integration/kitten/` (M6, [ADR 0012](../../docs/adr/0012-m6-how-perch-reaches-the-fleet.md));
+  until it runs on a node, nothing ships that node's records, and perch shows it as "not watched yet".
+- The exact commands, per node, are in [ROLLOUT.md](../ROLLOUT.md) step E. `apply.sh` copies `groom-record.py` into the fleet repo
+  with everything else, so the recorder is not prepared twice.

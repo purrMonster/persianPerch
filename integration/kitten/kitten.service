@@ -1,0 +1,39 @@
+# kitten: persianPerch's small agent on this node. Every minute it tells perch (on cellar) that the node is
+# alive and hands over the backup records it has not had acknowledged; with pounce it also reports the NAMES
+# (never contents) of files that appear or change in a few watched folders. It only reads. It never writes to
+# the node, never runs as root and never opens a watched file.
+#
+# Installed by integration/kitten/install-kitten.sh (as root), which puts this file at
+# /etc/systemd/system/kitten.service the way the fleet installs its other units (a sudo cp, then daemon-reload).
+# Settings live in /etc/purrbrews/kitten.env (root, 0600): systemd reads it as root, so the kitten user never can.
+[Unit]
+Description=persianPerch kitten (this node's reports to perch)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=kitten
+Group=kitten
+EnvironmentFile=/etc/purrbrews/kitten.env
+ExecStart=/usr/bin/python3 /opt/kitten/kitten.pyz
+Restart=always
+RestartSec=10
+# It reads a handful of folders and talks HTTPS to perch, nothing more.
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictSUIDSGID=yes
+LockPersonality=yes
+CapabilityBoundingSet=
+# Light: a node that is also serving should not notice its kitten.
+Nice=10
+MemoryMax=128M
+
+[Install]
+WantedBy=multi-user.target
