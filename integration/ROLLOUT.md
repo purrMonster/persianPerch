@@ -68,7 +68,7 @@ The list of every setting, in `secrets.env`, and where each ends up:
 | `PERCH_PURR_URL`, `PERCH_PURR_EVERY` | not secret | defaults | nothing to type |
 | `PERCH_PURR_KEY`, `PERCH_PURR_SECRET` | **secret** | A1: Komodo, on cellar | cellar's prompt |
 | `PERCH_GLARE_URL` | not secret | `https://gatus-api.${DOMAIN}`, built in compose | nothing to type |
-| `PERCH_GLARE_USER` | not secret | `perch-svc` (the LLDAP account of A2) | nothing to type |
+| `PERCH_GLARE_USER` | not secret | `ocicat` (the LLDAP account of A2) | nothing to type |
 | `PERCH_GLARE_PASSWORD` | **secret** | A2: LLDAP, on percolator | cellar's prompt |
 | `PERCH_GLARE_EVERY`, `PERCH_DISKS_URL`, `PERCH_DISKS_EVERY` | not secret | defaults (`http://scrutiny:8080`) | nothing to type |
 | `PERCH_WHISKERS_URL` | not secret | `ws://${MOCHAPOT_LAN_IP}:8123/api/websocket`, built in compose | nothing to type |
@@ -104,15 +104,15 @@ The list of every setting, in `secrets.env`, and where each ends up:
 
 *Check:* the user's permissions page shows Read only; there is no key you did not create.
 
-### A2. LLDAP: the `perch-svc` account, on percolator (`PERCH_GLARE_PASSWORD`)
+### A2. LLDAP: the `ocicat` account, on percolator (`PERCH_GLARE_PASSWORD`)
 
 perch reads Gatus's API with a password (a service account, the ollama pattern). It has no browser session.
 
 1. In your own terminal on any node: `openssl rand -hex 32` and keep the output on screen (hex, like every generated secret of the fleet).
 2. `https://lldap.${DOMAIN}`, log in as `admin` (`LLDAP_ADMIN_PASSWORD` in `percolator/lldap/secrets.env.local`).
 3. **Groups -> New group** `perch_api_group`.
-4. **Users -> New user** `perch-svc`, password = the value from step 1. LLDAP's form asks for an email: any address of yours; Authelia sends nothing to it.
-5. Put `perch-svc` in **`perch_api_group` only** (not in `purrbrews_admins` or `purrbrews_household`).
+4. **Users -> New user** `ocicat`, password = the value from step 1. LLDAP's form asks for an email: any address of yours; Authelia sends nothing to it.
+5. Put `ocicat` in **`perch_api_group` only** (not in `purrbrews_admins` or `purrbrews_household`).
 6. You will paste the same password into cellar's prompt (D3).
 
 *Check:* the group has exactly one member; the account is in no other group. (Without a human group the account can reach nothing else: Authelia's default is deny.)
@@ -268,12 +268,12 @@ dig @${SIEVE_LAN_IP} gatus-api.${DOMAIN} +short      # sieve's address
 
 On **mochaPot**, the same two commands with its own folder (`/opt/purrbrews/stacks/mochaPot`) and `dig @${MOCHAPOT_LAN_IP} ...`.
 
-*Check, from sieve* (type perch-svc's password when asked; it is not stored):
+*Check, from sieve* (type ocicat's password when asked; it is not stored):
 
 ```bash
-curl -s -o /dev/null -w '%{http_code}\n' -u perch-svc "https://gatus-api.${DOMAIN}/api/v1/endpoints/statuses"   # 200
+curl -s -o /dev/null -w '%{http_code}\n' -u ocicat "https://gatus-api.${DOMAIN}/api/v1/endpoints/statuses"   # 200
 curl -s -o /dev/null -w '%{http_code}\n' "https://gatus-api.${DOMAIN}/api/v1/endpoints/statuses"                  # 401 (no password)
-curl -s -o /dev/null -w '%{http_code}\n' -u perch-svc "https://gatus-api.${DOMAIN}/"                                # 404 or 401: only /api/v1/ is routed
+curl -s -o /dev/null -w '%{http_code}\n' -u ocicat "https://gatus-api.${DOMAIN}/"                                # 404 or 401: only /api/v1/ is routed
 ```
 
 (The Authelia rule needs a minute to take effect after D1. A `200` for the first, `401` for the second and a refusal for the third is the right shape.)
@@ -285,7 +285,7 @@ cd /opt/purrbrews/stacks/cellar
 ./setup-secrets.sh
 ```
 
-It asks for, in this order (each hidden): `PERSIAN_PERCH_REF` (in `.env.local`, not hidden: a persianPerch **tag or full commit** you have chosen; not a branch name), then the Komodo key and secret (A1), `perch-svc`'s password (A2), perch's ntfy
+It asks for, in this order (each hidden): `PERSIAN_PERCH_REF` (in `.env.local`, not hidden: a persianPerch **tag or full commit** you have chosen; not a branch name), then the Komodo key and secret (A1), `ocicat`'s password (A2), perch's ntfy
 token (A3), the critical topic URL (A5), the healthchecks.io URL (A4), then the two optional ones (A6 token, A7 token; Enter leaves each blank). It generates the six kitten tokens and the acknowledge secret by itself.
 Then:
 
@@ -442,7 +442,7 @@ Tick each only when you saw it. Record anything surprising in the fleet's runboo
 ### Made once, at the start
 
 - [ ] **J1. Komodo's `ListServers {}` and `ServerState` spelling against the real Komodo 2.3.2.** perch's overview shows each node with its CPU/RAM/disk and a state that is not `unknown`; `sudo docker logs persian-perch` has no row about an answer purr could not read. (Built from source and fixtures only; this is the first time it meets the real thing.)
-- [ ] **J2. Gatus's real key for the tunnel check.** `curl -s -u perch-svc "https://gatus-api.${DOMAIN}/api/v1/endpoints/statuses" | grep -o '"key":"[^"]*"' | sort` lists `network_cloudflare-tunnel`; perch's overview shows the tunnel.
+- [ ] **J2. Gatus's real key for the tunnel check.** `curl -s -u ocicat "https://gatus-api.${DOMAIN}/api/v1/endpoints/statuses" | grep -o '"key":"[^"]*"' | sort` lists `network_cloudflare-tunnel`; perch's overview shows the tunnel.
 - [ ] **J3. Scrutiny's collectors report `host_id` as the node names.** On cellar: `curl -s http://127.0.0.1:8080/api/summary | grep -o '"host_id":"[^"]*"' | sort -u` lists `sieve`, `percolator`, `cellar`, `mochaPot`, `grinder` spelled like the folders (else the disks panel can't match a disk to a node).
 - [ ] **J4. The kitten user's access.** On every node `sudo journalctl -u kitten --no-pager | grep -i "can't"` shows only the folders the table in F says are not listable, and nothing else. roastery: the same in `kitten.log`.
 - [ ] **J5. Non-admin Home Assistant user.** perch's Home card says "N sensors watched" with the real count; in Home Assistant the `perch` user is not an administrator; nothing in Home Assistant's logbook was changed by `perch`.

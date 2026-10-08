@@ -13,7 +13,7 @@ github.com/TwiN/gatus):
   (``/api/v1/endpoints/:key/uptimes/{1h,24h,7d,30d}``). glare doesn't call them: it judges the newest results
   itself, so one request answers for every endpoint.
 - Gatus publishes no port: it sits behind sieve's Traefik and Authelia, so perch signs in with HTTP Basic as the
-  LLDAP service account ``perch-svc`` (``forward-auth-basic``, A8). Authelia answers a refused or missing
+  LLDAP service account ``ocicat`` (``forward-auth-basic``, A8). Authelia answers a refused or missing
   login with a redirect or 401: both are "refused", never followed.
 
 Read-only (04 rule 4): the only request this module can send is that one GET.
@@ -101,7 +101,7 @@ class GatusClient:
         if response.status_code in (301, 302, 303, 307, 308, 401, 403):
             raise GatusError(
                 f"can't see Gatus: the login was refused (HTTP {response.status_code}). "
-                "Check PERCH_GLARE_USER and PERCH_GLARE_PASSWORD and the perch-svc rule in Authelia."
+                "Check PERCH_GLARE_USER and PERCH_GLARE_PASSWORD and the ocicat rule in Authelia."
             )
         if response.status_code >= 400:
             raise GatusError(

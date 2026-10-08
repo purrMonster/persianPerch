@@ -379,7 +379,7 @@ def test_glare_and_disks_start_only_from_their_settings_and_half_set_ones_say_so
         Settings(
             **base,
             glareUrl="http://gatus.example.home.arpa",
-            glareUser="perch-svc",
+            glareUser="ocicat",
             glarePassword="fake-pw-not-real",
             disksUrl="http://scrutiny:8080",
         ),

@@ -174,7 +174,7 @@ def test_glare_only_ever_sends_the_one_get(rig):
 
 def test_the_client_needs_all_three_settings():
     with pytest.raises(ValueError, match="PERCH_GLARE_PASSWORD"):
-        GatusClient("http://gatus.example.home.arpa", "perch-svc", "")
+        GatusClient("http://gatus.example.home.arpa", "ocicat", "")
 
 
 def test_a_result_in_another_shape_is_an_error_not_a_guess(rig):
