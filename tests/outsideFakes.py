@@ -18,7 +18,7 @@ from perch.senses.scrutiny import ScrutinyClient
 from perch.senses.speedtest import SpeedtestClient
 
 GATUS_URL = "http://gatus.example.home.arpa"
-GATUS_USER, GATUS_PASSWORD = "perch-svc", "fake-gatus-password-not-real"
+GATUS_USER, GATUS_PASSWORD = "ocicat", "fake-gatus-password-not-real"
 SCRUTINY_URL = "http://scrutiny:8080"
 SPEEDTEST_URL = "http://192.0.2.14:8765"
 SPEEDTEST_TOKEN = "fake-speedtest-token-not-real"

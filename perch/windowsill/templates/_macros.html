@@ -83,7 +83,7 @@
 {% macro glareCard(status, on) -%}
 {%- set eps = status.glare() -%}
 <div class="card" id="glare"><div class="section-title"><h2>Endpoints <span class="faint" translate="no">glare</span></h2></div>
-{%- if not on %}<p class="empty">glare isn't watching: it needs <span class="mono" translate="no">PERCH_GLARE_URL</span> and the <span class="mono" translate="no">perch-svc</span> login for Gatus.</p>
+{%- if not on %}<p class="empty">glare isn't watching: it needs <span class="mono" translate="no">PERCH_GLARE_URL</span> and the <span class="mono" translate="no">ocicat</span> login for Gatus.</p>
 {%- elif not eps %}<p class="empty">glare is waiting for its first look at Gatus. Endpoints appear here when it has read them.</p>
 {%- else %}
 {%- set up = eps|selectattr('bodyLanguage.value', 'in', ['slowBlink', 'earTwitch'])|list|length %}

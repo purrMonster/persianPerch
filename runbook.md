@@ -34,7 +34,7 @@ changes can be made later without re-deriving the reasoning. How to write entrie
 - [ ] M6: Traefik router for `/ack/t/` only, around Authelia; `PERCH_PUBLIC_URL`, `PERCH_ACK_SECRET`, the ntfy token, the critical URL and the ping URL entered on cellar (M3 entry)
 - [x] M4 glare + binocs + disks + vitals: Gatus, Scrutiny, tunnel, speedtest, upstream releases, vitals history and sparklines (2026-10-03, gate green on roastery, M4 entry; pull request to open)
 - [ ] Owner: review and merge the M4 pull request (merge commit), then `git pull` the main checkout (M4 entry)
-- [ ] M6: Gatus router and Authelia rule for perch-svc; `PERCH_GLARE_*`, `PERCH_DISKS_URL`, `PERCH_BINOCS_SPEEDTEST_*` and `PERCH_BINOCS_RELEASES_EVERY=7d` entered on cellar (M4 entry)
+- [ ] M6: Gatus router and Authelia rule for ocicat (renamed from perch-svc 2026-10-08); `PERCH_GLARE_*`, `PERCH_DISKS_URL`, `PERCH_BINOCS_SPEEDTEST_*` and `PERCH_BINOCS_RELEASES_EVERY=7d` entered on cellar (M4 entry)
 - [ ] Owner: should glare and disks stop nineLives' ping when late? (M4 entry, Notes)
 - [x] M5 pounce + whiskers + the live scentTrail: kitten file events, Home Assistant, SSE (2026-10-03, gate green on roastery, M5 entry; pull request to open)
 - [ ] Owner: review and merge the M5 pull request (merge commit), then `git pull` the main checkout (M5 entry)
@@ -42,6 +42,47 @@ changes can be made later without re-deriving the reasoning. How to write entrie
 - [ ] M6: `inotify-tools`, `git` and the `kitten` user's read access on the nodes; the Traefik router must not buffer `/trail/stream`; `PERCH_WHISKERS_*` and the entity list on cellar; drill the non-admin Home Assistant user (M5 entry)
 - [x] M6-prep (2026-10-03): `integration/` + `ROLLOUT.md`, the two M5 decisions, fleet re-pinned to `922164a`, gate green (M6 entry; pull request to open)
 - [ ] Owner: review and merge the M6 pull request, then work through `integration/ROLLOUT.md`: the deploy and the drills are the owner's (M6 entry)
+
+---
+
+## 2026-10-08 — glare's LLDAP account is `ocicat`, not `perch-svc`
+
+**Context.** The owner chose a catty name for perch's LLDAP service account, like his other
+service accounts (`bengal`, `meowlier`): **`ocicat`**, chosen over `perch-svc`. The files
+prepared in M4 and M6 still said `perch-svc`, so `PERCH_GLARE_USER` would not have matched
+the account he creates in ROLLOUT A2, and glare would get a 401 from Authelia. Fixed before
+the rollout starts (no rollout step is done yet).
+
+**Decided.**
+- Rename the account only. The group stays `perch_api_group`: the Authelia rule and the
+  Gatus router patches match on the group, so they need no change.
+- Old runbook entries keep `perch-svc` (history, AGENTS.md 4.3); the live Backlog line says
+  `ocicat` and notes the rename.
+
+**Done.** `perch-svc` replaced by `ocicat` in `integration/ROLLOUT.md` (A2, the field table,
+the D2 and J2 checks, the D3 prompt list), `integration/stacks/cellar/persian-perch/`
+(`secrets.conf`: the `PERCH_GLARE_USER` value, the password prompt and the NOTE; `README.md`),
+`secrets.env`, `docs/03-dev-plan.md`, `perch/senses/gatus.py` (docstring, the refused-login
+hint), the glare card's not-configured sentence in `_macros.html`, and the fake user in three
+test files.
+
+**Verified** (cloud workspace, 2026-10-08, not roastery: roastery is being rebuilt).
+- `grep -rn perch-svc` finds only the old M4 entry's line in this runbook.
+- `ruff check .`: All checks passed.
+- pytest on Python 3.12.3 against the pinned fleet repo `922164a`: **700 passed** (M6's count).
+- Not run: `scripts\test.ps1` (kitten 3.13/3.14, Playwright, the real-socket drill): no
+  Docker here. The change touches no kitten file and only one sentence of a template.
+- Surprise: the same suite on Python 3.13 has 1 failure and 1 error
+  (`test_whiskers.py::test_the_overview_shows_the_home_card_and_a_leak_in_needs_a_look`,
+  a teardown `ResourceWarning`). They fail on `main` too, so they predate this change;
+  perch is pinned to 3.12, so it only matters if perch moves to 3.13.
+
+**Not done / next.**
+- [ ] Owner: merge this pull request (merge commit), then tag the merge for
+  `PERSIAN_PERCH_REF` (owner)
+- [ ] Owner: in ROLLOUT A2, create `ocicat` (not `perch-svc`) in LLDAP, in `perch_api_group` only (owner)
+
+— Claude (chat, Opus 5.5), for the owner
 
 ---
 

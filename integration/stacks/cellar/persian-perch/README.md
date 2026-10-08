@@ -32,7 +32,7 @@ and the service flushes at once; if the live trail ever stops moving behind Trae
 
 ## Bring up
 
-Read persianPerch's `integration/ROLLOUT.md` first: the Komodo key, the `perch-svc` account, perch's
+Read persianPerch's `integration/ROLLOUT.md` first: the Komodo key, the `ocicat` account, perch's
 ntfy token and the healthchecks.io check have to exist before this starts, and the order matters.
 
 ```bash
