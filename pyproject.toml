@@ -1,7 +1,7 @@
 # persianPerch - tool settings only (perch is run from source in its container, not installed).
 [project]
 name = "persian-perch"
-version = "0.0.1"
+version = "0.1.0"
 description = "persianPerch: the purrBrews fleet's unified watcher"
 requires-python = ">=3.12"
 

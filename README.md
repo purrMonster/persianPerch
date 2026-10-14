@@ -14,6 +14,8 @@ has met a real Komodo, Gatus, Scrutiny or Home Assistant yet: that is [ROLLOUT.m
 Live status: the runbook's Backlog.
 
 Tests (containers only, on roastery): `powershell -ExecutionPolicy Bypass -File scripts\test.ps1`.
+On GitHub, `.github/workflows/ci.yml` runs the Linux part on every push and pull request; a `v*` tag publishes the
+image `ghcr.io/purrmonster/persian-perch` ([CHANGELOG.md](CHANGELOG.md), `release.yml`).
 
 | Doc | What it's for |
 |---|---|
