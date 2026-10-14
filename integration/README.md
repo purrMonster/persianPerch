@@ -11,6 +11,7 @@ retire after the first week, and the last step (roastery's sleep setting).
 | | |
 |---|---|
 | [ROLLOUT.md](ROLLOUT.md) | the owner's deploy guide, step by step |
+| [fleet-ghcr-image.patch](fleet-ghcr-image.patch) | for `purrbrews-containers`: cellar runs perch's release image from GHCR instead of building it (ROLLOUT.md step B5; made against the tests' pin) |
 | [groom/](groom/README.md) | the systemd drop-ins that run the fleet's backup recorder (M2) |
 | [kitten/](kitten/) | the systemd unit and the installer for the Linux nodes |
 | [roastery/](roastery/) | the Scheduled Task installer and launcher (ASCII-only PowerShell) |
