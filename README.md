@@ -1,5 +1,12 @@
 # persianPerch
 
+[![ci](https://github.com/purrMonster/persianPerch/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/purrMonster/persianPerch/actions/workflows/ci.yml)
+[![release](https://github.com/purrMonster/persianPerch/actions/workflows/release.yml/badge.svg)](https://github.com/purrMonster/persianPerch/actions/workflows/release.yml)
+[![latest release](https://img.shields.io/github/v/release/purrMonster/persianPerch?sort=semver)](https://github.com/purrMonster/persianPerch/releases/latest)
+[![image](https://img.shields.io/badge/ghcr.io-purrmonster%2Fpersian--perch-2496ED?logo=docker&logoColor=white)](https://github.com/orgs/purrMonster/packages/container/package/persian-perch)
+![python](https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white)
+![read-only](https://img.shields.io/badge/fleet%20access-read--only-success)
+
 > **Breed + Feline Behavior** · *Unified Watcher* · a purrBrews custom application
 
 One private place that shows the whole purrBrews fleet in the shape of its repo, with live
@@ -8,9 +15,10 @@ smart-home events (**whiskers**), endpoints and the outside web (**glare** / **b
 and every backup (**groom**). Severity speaks body language: **slowBlink**, **earTwitch**,
 **tailFlick**, **hiss**.
 
-Status: **M0–M5 built, M6 prepared, not deployed yet** (2026-10-14). Every sense is written and tested against
-fakes and the pinned fleet repo; the image builds and runs under cellar's limits against a copy of the fleet. Nothing
-has met a real Komodo, Gatus, Scrutiny or Home Assistant yet: that is [ROLLOUT.md](integration/ROLLOUT.md)'s drills.
+Status: **v0.1.0 released, not deployed yet** (2026-10-15). The image is
+`ghcr.io/purrmonster/persian-perch:0.1.0`; every sense is tested against fakes and the pinned fleet repo, and the
+image runs under cellar's limits against a copy of the fleet. Nothing has met a real Komodo, Gatus, Scrutiny or Home
+Assistant yet: that is [ROLLOUT.md](integration/ROLLOUT.md)'s drills.
 Live status: the runbook's Backlog.
 
 Tests (containers only, on roastery): `powershell -ExecutionPolicy Bypass -File scripts\test.ps1`.
