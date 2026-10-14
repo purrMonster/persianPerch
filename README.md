@@ -8,10 +8,10 @@ smart-home events (**whiskers**), endpoints and the outside web (**glare** / **b
 and every backup (**groom**). Severity speaks body language: **slowBlink**, **earTwitch**,
 **tailFlick**, **hiss**.
 
-Status: **building, M2 Grooming** (2026-10-02): purr reads Komodo and groom judges the backups
-(both against fakes in the tests); states roll up app, node, fleet; the overview, node and app
-pages refresh themselves every 30 s (htmx, vendored); kitten v0 and the recorder exist but are
-not deployed. The other senses (meow, glare, pounce, whiskers) are not watching yet. Live status: the runbook's Backlog.
+Status: **M0–M5 built, M6 prepared, not deployed yet** (2026-10-14). Every sense is written and tested against
+fakes and the pinned fleet repo; the image builds and runs under cellar's limits against a copy of the fleet. Nothing
+has met a real Komodo, Gatus, Scrutiny or Home Assistant yet: that is [ROLLOUT.md](integration/ROLLOUT.md)'s drills.
+Live status: the runbook's Backlog.
 
 Tests (containers only, on roastery): `powershell -ExecutionPolicy Bypass -File scripts\test.ps1`.
 

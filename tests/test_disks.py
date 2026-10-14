@@ -104,6 +104,20 @@ def test_scrutiny_failed_is_hiss_and_names_why_with_an_event(rig):
     assert event.bodyLanguage is B.hiss and event.title.startswith("Old Disk (sde on cellar): SMART reports")
 
 
+def test_scrutiny_thresholds_alone_are_tailFlick_never_a_hiss(rig):
+    """cellar's ST1000 on 2026-10-14: device_status 2 from a misread attribute 188 while SMART passes."""
+    rig.fake.add(
+        "0x5000cca00000000e", "sdb", "cellar", "ST1000LM035", status=FAILED_SCRUTINY,
+        attrs={"188": rig.fake.attr(188, 4295032833, status=FAIL_THRESHOLD)},
+    )  # fmt: skip
+    rig.cycle()
+    st = rig.state("disk:cellar/sdb")
+    assert st.bodyLanguage is B.tailFlick
+    assert st.title.startswith("Scrutiny's thresholds failed; SMART itself passes")
+    (event,) = rig.trail.events(senses=["purr"])
+    assert event.bodyLanguage is B.tailFlick
+
+
 def test_scrutiny_warn_is_tailFlick_and_a_clean_run_later_says_it_is_back(rig):
     d = rig.fake.add("0x5000cca000000007", "sdf", "cellar", "Warm Disk", attrs={"5": rig.fake.attr(5, 8, status=WARN)})
     rig.cycle()

@@ -22,12 +22,13 @@ it never changes anything.
 | cellar | 192.168.0.12 | ops hub: Komodo Core, Scrutiny hub, restic dump store, backup timers; **persianPerch will run here** |
 | mochaPot | 192.168.0.13 | Home Assistant, Music Assistant, second Pi-hole |
 | grinder | 192.168.0.14 | automation and AI indexing (n8n, pgvector, Open WebUI, …) |
-| roastery | 192.168.0.15 | Windows workstation (Docker Desktop); holds the restic repository; sleeps, woken nightly |
+| roastery | 192.168.0.15 | Windows workstation (Docker Desktop), run from `C:\purrbrews-deploy`; the restic repository's target (SFTP into `C:\purrbrews`); sleeps, woken nightly |
 
 - Defined in **purrbrews-containers** (public: `github.com/purrMonster/purrbrews-containers`):
   `stacks/<node>/node.conf`, each app's `docker-compose.yml`, `backup`, `firewall`,
-  `README.md`, and `stacks/fleet.env`. Each node pulls `main` daily. Its dated
-  `runbook.md` is the fleet's decision log.
+  `README.md`, and `stacks/fleet.env`. Nodes only **fetch** `main`; the owner deploys a reviewed
+  full commit with `scripts/fleet.py deploy` (since 2026-10-12, the checkout is then a detached
+  HEAD). Its dated `runbook.md` is the fleet's decision log.
 - Every node runs its own Traefik; **Authelia** on percolator is the single login.
 - Backups: every node dumps its databases and backs up files nightly into **restic** on
   roastery (via cellar), then cellar copies the repository to **Google Drive**
@@ -48,7 +49,8 @@ it never changes anything.
 
 ## Where things are
 
-- This folder: `C:\Users\jyotirmoyc\Desktop\Projects\persianPerch` on roastery.
+- This folder: `C:\Users\jyotirmoyc\Desktop\Projects\persianPerch` on roastery (rebuilt 2026-10;
+  agents may also work in a cloud clone: the rules are the same).
 - The spec: `docs/01-ideation.md`, `docs/02-design-plan.md`, `docs/03-dev-plan.md`,
   `mockups/` (four HTML views). The build brief: `docs/04-build-prompt.md`.
 - Decisions and progress: [`runbook.md`](runbook.md) (dated, newest first) and
@@ -79,4 +81,8 @@ it never changes anything.
 
 ## Status
 
-2026-10-03: M0 (litter), M1 (first purr), M2 (grooming), M3 (meow), M4 (glare, disks, binocs, vitals) and M5 (pounce, whiskers, the live scentTrail) are merged. M6 (into the fleet) is **prepared, not deployed**: `integration/` holds the files for the fleet repo, the kitten installers and `integration/ROLLOUT.md`, the owner's deploy guide; the fleet repo is pinned at `922164a`. The deploy and the drills are the owner's. The runbook's Backlog is the live status.
+2026-10-14: M0–M5 merged; M6 **prepared, not deployed**. The fleet was rebuilt on 2026-10-12/13 and perch's side
+of it (`stacks/cellar/persian-perch/`, the routers, Gatus checks, Authelia rules, `stacks/_lib/groom-record.py`)
+is merged in `purrbrews-containers`; `integration/` keeps only what goes on the nodes (kitten, roastery's task, the
+groom drop-ins) and `integration/ROLLOUT.md`, the owner's deploy guide. Tests pin the fleet repo at `72e3f7b`.
+The deploy and the drills are the owner's. The runbook's Backlog is the live status.

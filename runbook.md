@@ -14,7 +14,7 @@ changes can be made later without re-deriving the reasoning. How to write entrie
 - [x] Repo: public GitHub `purrMonster/persianPerch`, secret scanning and push protection on (owner); the agent pushes after each green milestone, then stops for the owner's go-ahead (05 plan A2, 2026-09-30 entry)
 - [x] Build-plan questions Q1–Q16 answered by the owner in chat (05 plan §1, 2026-09-30)
 - [x] The build (Cowork): pre-flight incl. A3 and the baseline commit `4c02312` (05 plan A1) (2026-09-30, M0 entry)
-- [ ] Restore roastery's sleep setting after M6-prep (owner; 05 plan A4)
+- [ ] Restore roastery's sleep setting after M6-prep (owner; 05 plan A4). roastery was formatted on 2026-10-07 and set up again from `C:\purrbrews-deploy`: check what its sleep setting is now before the rollout's step K
 - [x] M0 Litter: scaffolding, scentTrail, catTree, windowsill skeleton (2026-09-30, gate green on roastery, M0 entry)
 - [x] Owner's go-ahead for M1 (05 plan A2): given in chat 2026-10-01, after approving the design rework's screenshots and mockups
 - [ ] CI: `ci/github-actions-ci.yml` is ready but inactive; move it to `.github/workflows/ci.yml` if you want GitHub Actions on the public repo (owner; M0 entry)
@@ -27,21 +27,104 @@ changes can be made later without re-deriving the reasoning. How to write entrie
 - [x] Owner: is the domain of the commit email (`jyotirmoy.github@jyotirmoy.cc`) also the fleet's real domain? **No**: it is the owner's personal domain, not the fleet's (owner, 2026-10-02). Nothing is exposed; the commit identity stays as it is. S6 keeps allowing only the full address, never the bare domain, so the rule "no domains in files" stays simple.
 - [ ] M6 `ROLLOUT.md` drills: stop a container on grinder, hiss within 60 s; `ListServers {}` and `ServerState` spelling against the real Komodo 2.3.2; roastery in and out of its window (M1 entry)
 - [x] M2 Grooming: htmx 2.0.11 vendored with 30 s live regions, groom records and grid, kitten v0, `/api/kitten`, the recorder prepared in `integration/groom/` (2026-10-02, gate green on roastery, M2 entry; pull request to open)
-- [ ] Owner: review and merge the M2 pull request (merge commit), then `git pull` the main checkout (M2 entry)
+- [x] Owner: review and merge the M2 pull request (merge commit), then `git pull` the main checkout (M2 entry): PR #3 merged 2026-10-02 as `5e9d681` (git log, 2026-10-14 entry)
 - [ ] M6: apply `integration/groom/` and install kitten on the nodes; `KITTEN_NODE` spelling per node (M2 entry)
 - [x] M3 meow + nineLives: alerts, litters, quiet hours, Acknowledge (page and push), outside heartbeat (2026-10-02, gate green on roastery, M3 entry; pull request to open)
-- [ ] Owner: review and merge the M3 pull request (merge commit), then `git pull` the main checkout (M3 entry)
+- [x] Owner: review and merge the M3 pull request (merge commit), then `git pull` the main checkout (M3 entry): PR #4, `47dad4a`, 2026-10-03
 - [ ] M6: Traefik router for `/ack/t/` only, around Authelia; `PERCH_PUBLIC_URL`, `PERCH_ACK_SECRET`, the ntfy token, the critical URL and the ping URL entered on cellar (M3 entry)
 - [x] M4 glare + binocs + disks + vitals: Gatus, Scrutiny, tunnel, speedtest, upstream releases, vitals history and sparklines (2026-10-03, gate green on roastery, M4 entry; pull request to open)
-- [ ] Owner: review and merge the M4 pull request (merge commit), then `git pull` the main checkout (M4 entry)
-- [ ] M6: Gatus router and Authelia rule for ocicat (renamed from perch-svc 2026-10-08); `PERCH_GLARE_*`, `PERCH_DISKS_URL`, `PERCH_BINOCS_SPEEDTEST_*` and `PERCH_BINOCS_RELEASES_EVERY=7d` entered on cellar (M4 entry)
+- [x] Owner: review and merge the M4 pull request (merge commit), then `git pull` the main checkout (M4 entry): PR #5, `867cc7d`, 2026-10-03
+- [ ] M6: Gatus router and Authelia rule for sphynx (was ocicat, renamed in the fleet 2026-10-13; the router and rule are merged there); `PERCH_GLARE_*`, `PERCH_DISKS_URL`, `PERCH_BINOCS_SPEEDTEST_*` and `PERCH_BINOCS_RELEASES_EVERY=7d` entered on cellar (M4 entry)
 - [ ] Owner: should glare and disks stop nineLives' ping when late? (M4 entry, Notes)
 - [x] M5 pounce + whiskers + the live scentTrail: kitten file events, Home Assistant, SSE (2026-10-03, gate green on roastery, M5 entry; pull request to open)
-- [ ] Owner: review and merge the M5 pull request (merge commit), then `git pull` the main checkout (M5 entry)
+- [x] Owner: review and merge the M5 pull request (merge commit), then `git pull` the main checkout (M5 entry): PR #6, `5dfb4df`, 2026-10-03
 - [x] Owner decisions M5 left open, decided 2026-10-03: `/etc/purrbrews` changes are digest-only; whiskers never hisses about itself (M6 entry)
 - [ ] M6: `inotify-tools`, `git` and the `kitten` user's read access on the nodes; the Traefik router must not buffer `/trail/stream`; `PERCH_WHISKERS_*` and the entity list on cellar; drill the non-admin Home Assistant user (M5 entry)
 - [x] M6-prep (2026-10-03): `integration/` + `ROLLOUT.md`, the two M5 decisions, fleet re-pinned to `922164a`, gate green (M6 entry; pull request to open)
-- [ ] Owner: review and merge the M6 pull request, then work through `integration/ROLLOUT.md`: the deploy and the drills are the owner's (M6 entry)
+- [x] Owner: review and merge the M6 pull request (M6 entry): PR #7, `4a84a45`, 2026-10-04
+- [ ] Owner: work through `integration/ROLLOUT.md` (rewritten 2026-10-14 for the rebuilt fleet): the deploy and the drills are the owner's
+
+---
+
+## 2026-10-14 — Pre-deploy repass against the rebuilt fleet; windowsill split into modules
+
+**Context.** The owner asked for three passes before the first real deployment: what has to be repaired
+first ("no matter what the runbook says, it is not tested live yet"), the fixes plus a refactor (this pull
+request), a public-repo review (the next one), then a release with an image on GHCR. The fleet was formatted
+and rebuilt on 2026-10-12/13 and `main` is 171 commits past the pin `922164a`.
+
+**Decided.**
+- **Re-pin the tests to the fleet's `main`, `72e3f7b`** (2026-10-14). Against it 14 tests failed: 7 were a
+  real bug (binocs, below), 4 were `integration/` being stale, 3 counted the fleet's apps by hand.
+- **binocs compares `tag@digest` pins by their tag.** Every fleet image has been pinned that way since
+  2026-10-12, and `parseImage` refused anything with an `@`: binocs would have compared none of them. A
+  digest only says which build of a tag runs; a newer release is still a newer tag. A digest alone is still
+  not comparable.
+- **pounce watches `.git/HEAD` as well.** Nodes fetch and `fleet.py deploy` checks out a reviewed commit
+  detached: `refs/heads/main` never moves, so a deploy was invisible. HEAD, the branch ref and packed-refs are
+  one watch (a pull still counts); the commit check keeps dropping a gc. The reason now reads "the checkout
+  moved"; perch still titles "the node pulled" from older kittens.
+- **A Scrutiny threshold failure while SMART passes is tailFlick** (owner, 2026-10-14). cellar's ST1000 and
+  mochaPot's SanDisk are both flagged that way today (fleet runbook 2026-10-14): as a hiss they would have
+  pushed to ntfy and ntfy.sh on the first cycle. SMART failing stays a hiss.
+- **`integration/` keeps only what goes on the nodes** (owner: delete, not `_to_delete/`; git history keeps
+  it). The patches, `apply.sh`, `PIN`, the stack copy and `groom-record.py` are merged in the fleet; 5 of 8
+  patches were already in `main` and 3 conflicted with later edits there. Their tests now read the fleet's
+  own `stacks/cellar/persian-perch/` and `stacks/_lib/groom-record.py`, so a change on either side that
+  breaks the other fails here (`tests/test_fleetStack.py`, renamed from `test_integrationM6.py`).
+  `ROLLOUT.md` is rewritten for reviewed deploys (`fleet.py deploy ... --include-optional persian-perch`),
+  the `sphynx` account and Komodo 2.3.3; step B is a check now. whiskers stays commented out in the fleet's
+  compose (owner, 2026-10-04); the test reads the commented line.
+- **The Gatus account is `sphynx`** everywhere outside dated entries.
+- **scrub: quoted values whole, JSON keys, Google tokens.** The fleet's backlog asked whether perch scrubs
+  groom's `logTail`: it does, before anything is stored. But `RESTIC_PASSWORD="a b c"` kept "b c", and
+  rclone's `"access_token":"..."` matched nothing. Both masked now; `ya29.` and `1//` tokens too.
+- **Refactor: `createApp`'s 730-line closure is five modules.** `sill.py` (the shared parts and the helpers
+  every page uses), `pages.py`, `stream.py`, `reports.py` (kitten's report) and `acks.py`; `app.py` wires
+  them. No route, template or behaviour changed. The routes are registered on the app itself, not through
+  `APIRouter`: FastAPI 0.142 hides an included router's routes from `app.routes`, so test S7 (no write
+  route beyond the three) passed on nothing in the first try. A new test fails if that ever happens again.
+- **Every SQLite connection is closed** (the one Python 3.13 failure of 2026-10-08, and the ones behind it).
+  createApp now closes a trail it opened itself at shutdown (four tests, and every perch process, left it to
+  the garbage collector); a damaged trail file left its first connection open during recovery, because
+  `PRAGMA journal_mode=WAL` fails before `quick_check` does; and one test never closed its trail. Found with a
+  temporary pytest plugin that ran `gc.collect()` after each test and listed open ScentTrails.
+
+**Done.** `perch/senses/registries.py`, `binocs.py`, `disks.py`, `gatus.py`, `pounce.py`; `kitten/pounce.py`;
+`perch/scrub.py`; `perch/scentTrail.py`; `perch/windowsill/{app,sill,pages,stream,reports,acks}.py`; one word in `_macros.html`
+(`ocicat` → `sphynx`, text only: the design skills aren't installed in this workspace and nothing visual
+changed); `integration/` (5 paths removed, `ROLLOUT.md`, both READMEs); tests; `scripts/test.ps1` (the step
+that applied `integration/` to a fleet copy is gone, its scratch copy stays for the ntfy snippet test),
+`ci/github-actions-ci.yml` and `docs/05` re-pinned; `docs/02` (pounce's git watch); `README.md` status;
+`CLAUDE.md` (status, roastery, nodes fetch; owner said yes to editing it, 2026-10-14).
+
+**Verified** (cloud workspace, 2026-10-14; not roastery).
+- `ruff check .`: All checks passed.
+- pytest, Python 3.12.3 and 3.13, fleet at `72e3f7b`: the whole suite, exit 0 on both (filterwarnings=error,
+  so no ResourceWarning either).
+- kitten unittest on Python 3.13 and 3.14: `OK (skipped=3)` each.
+- The image built from this branch (base by its pinned digest, pulled through a mirror) and ran like cellar's
+  compose runs it: `--read-only`, tmpfs `/tmp`, `cap_drop ALL`, `no-new-privileges`, 300 MB, the fleet repo
+  at `72e3f7b` mounted read-only, owned by another uid and on a **detached HEAD**. Healthy; `/`, `/tree`,
+  `/tree/grinder`, `/tree/grinder/n8n`, `/groom`, `/trail`, `/live/overview` 200; `/nope` 404; `POST /`
+  405; `/api/kitten` 401 without a token and `{"ok":true}` with a fake one; `/ack/t/not-a-token` 403;
+  `/trail/stream` answers `text/event-stream` with `retry: 3000`; 47 MB used; clean shutdown. The overview
+  read 6 nodes and 54 apps.
+- Komodo 2.3.3's source (`moghtech/komodo` tag `v2.3.3`, `client/core/rs`): `/read`, `X-Api-Key` /
+  `X-Api-Secret`, `ServerState` serialised `Ok`/`NotOk`/`Disabled`, container states lowercase, the stats
+  field names: what `perch/senses/komodo.py` expects.
+- Not run: `scripts\test.ps1`'s Windows-only steps (roastery's PowerShell, Playwright, the real-socket drill).
+- Not proven: anything against a live service. That is ROLLOUT.md's J drills.
+
+**Not done / next.**
+- [ ] Owner: review and merge this pull request (merge commit)
+- [ ] Next pull request: a public-repo review of the tree and the history (agent)
+- [ ] Then the release: CI in `.github/workflows/`, the image on `ghcr.io/purrmonster/persian-perch` from a
+  `v*` tag, v0.1.0 (agent prepares, owner tags)
+- [ ] Fleet repo (owner): its Backlog line about scrubbing `logTail` can be answered: perch scrubs before
+  storing, with the cases above. The record file itself is still 0644 on the node, which is the fleet's call.
+
+— Claude (Claude Code, cloud session, model configured as claude-opus-5-5), for the owner
 
 ---
 

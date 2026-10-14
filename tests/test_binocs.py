@@ -35,11 +35,33 @@ from perch.settings import Settings
             "v1.15.0-ls170",
         ),
         ("docker.io/library/mongo:7.0.14", "registry-1.docker.io", "library/mongo", "7.0.14"),
+        # the fleet's pin since 2026-10-12: tag and digest; compared by the tag
+        (
+            "n8nio/n8n:2.42.6@sha256:526daa38b68e923cc00c5280d18b4da5d489f115a73bdbf3b8e452b184197a9a",
+            "registry-1.docker.io",
+            "n8nio/n8n",
+            "2.42.6",
+        ),
+        (
+            "lscr.io/linuxserver/speedtest-tracker:v1.15.0-ls174@sha256:3f8a2d06703bde3a6d04dcc8178fcd6251b601ce3b8b52958779d5335b5719d1",
+            "ghcr.io",
+            "linuxserver/speedtest-tracker",
+            "v1.15.0-ls174",
+        ),
     ],
 )
 def test_a_pinned_release_is_read_as_a_registry_repository_and_tag(ref, registry, repo, tag):
     image = parseImage(ref)
     assert image and (image.registry, image.repo, image.tag) == (registry, repo, tag)
+    assert image.ref == ref and "@" not in image.name and not image.name.endswith(tag)
+
+
+def test_every_release_pin_of_the_fleet_is_compared(fleetTree):
+    """The 2026-10-12 pins are all tag@digest: none of the fleet's release tags may be skipped for its digest."""
+    refs = {ref for node in fleetTree.fleet().nodes for app in node.apps for ref in app.images}
+    skipped = [r for r in refs if parseImage(r) is None and parseTag(r.split("@")[0].rpartition(":")[2])]
+    assert not skipped, skipped
+    assert sum(parseImage(r) is not None for r in refs) >= 30
 
 
 @pytest.mark.parametrize(
@@ -55,6 +77,7 @@ def test_a_pinned_release_is_read_as_a_registry_repository_and_tag(ref, registry
         "pgvector/pgvector:pg16",
         "registry.example.home.arpa/example/thing:1.2.3",  # a registry perch doesn't read
         "nginx",  # no tag at all
+        "nginx@sha256:1a6399d237dc392a2313e0ca826020b3fd5d22536357840eb63393d18dc8b924",  # a digest, no tag
     ],
 )
 def test_what_cannot_be_compared_is_skipped_never_guessed(ref):
@@ -173,14 +196,14 @@ def rig(tmp_path, clock, fleetTree):
 
 
 def test_a_newer_release_is_earTwitch_once_with_an_event_and_never_hiss(rig):
-    rig.registry.tags["registry-1.docker.io/n8nio/n8n"].append("2.40.0")
-    rig.registry.tags["ghcr.io/moghtech/komodo-core"].append("2.4.0")
+    rig.registry.tags["registry-1.docker.io/n8nio/n8n"].append("99.0.0")
+    rig.registry.tags["ghcr.io/moghtech/komodo-core"].append("99.0.0")
     rig.cycle()
     found = rig.releaseStates()
     assert set(found) == {"binocs:release/n8nio/n8n", "binocs:release/moghtech/komodo-core"}
     assert all(st.bodyLanguage is B.earTwitch for st in found.values())
     n8n = found["binocs:release/n8nio/n8n"]
-    assert n8n.title == "n8nio/n8n 2.39.7 is pinned, 2.40.0 is out"
+    assert n8n.title == "n8nio/n8n 2.42.6 is pinned, 99.0.0 is out"
     assert n8n.detail["usedBy"] and all("/" in u for u in n8n.detail["usedBy"])
     events = rig.trail.events(senses=["binocs"])
     assert len(events) == 2 and all(e.bodyLanguage is B.earTwitch for e in events)
@@ -201,16 +224,16 @@ def test_it_looks_weekly_and_only_weekly(rig):
 
 
 def test_a_pin_that_caught_up_is_forgotten_at_the_next_look(rig):
-    rig.registry.tags["registry-1.docker.io/n8nio/n8n"].append("2.40.0")
+    rig.registry.tags["registry-1.docker.io/n8nio/n8n"].append("99.0.0")
     rig.cycle(1, days=8)
     assert rig.releaseStates()
-    rig.registry.tags["registry-1.docker.io/n8nio/n8n"].remove("2.40.0")  # (stands in for the owner bumping the pin)
+    rig.registry.tags["registry-1.docker.io/n8nio/n8n"].remove("99.0.0")  # (stands in for the owner bumping the pin)
     rig.cycle(1, days=8)
     assert rig.releaseStates() == {}
 
 
 def test_a_rate_limit_stops_the_run_keeps_what_was_found_and_retries_after_the_wait(rig):
-    rig.registry.tags["ghcr.io/moghtech/komodo-core"].append("2.4.0")
+    rig.registry.tags["ghcr.io/moghtech/komodo-core"].append("99.0.0")
     rig.registry.limit["registry-1.docker.io"] = 7200  # Docker Hub answers 429, Retry-After 2 hours
     rig.cycle(1, minutes=15)
     summary = releasesSummary(rig.trail)
@@ -227,7 +250,7 @@ def test_a_rate_limit_stops_the_run_keeps_what_was_found_and_retries_after_the_w
 
 def test_one_image_failing_does_not_stop_the_others(rig):
     del rig.registry.tags["ghcr.io/moghtech/komodo-core"]  # a 404 for that repository
-    rig.registry.tags["registry-1.docker.io/n8nio/n8n"].append("2.40.0")
+    rig.registry.tags["registry-1.docker.io/n8nio/n8n"].append("99.0.0")
     rig.cycle()
     assert "binocs:release/n8nio/n8n" in rig.releaseStates()
     assert releasesSummary(rig.trail)["failed"] >= 1
@@ -341,7 +364,7 @@ def test_the_tunnel_is_what_gatus_says_about_it_with_no_request_of_binocs_own(tm
 
 
 def test_the_fleet_level_counts_glare_but_never_a_binocs_notice(rig, fleetTree):
-    rig.registry.tags["registry-1.docker.io/n8nio/n8n"].append("2.40.0")
+    rig.registry.tags["registry-1.docker.io/n8nio/n8n"].append("99.0.0")
     rig.speed.healthy = False
     rig.cycle()
     status = Status(fleetTree.fleet(), rig.trail)
@@ -379,7 +402,7 @@ def test_glare_and_disks_start_only_from_their_settings_and_half_set_ones_say_so
         Settings(
             **base,
             glareUrl="http://gatus.example.home.arpa",
-            glareUser="ocicat",
+            glareUser="sphynx",
             glarePassword="fake-pw-not-real",
             disksUrl="http://scrutiny:8080",
         ),

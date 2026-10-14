@@ -54,9 +54,9 @@ class WatchTest(unittest.TestCase):
         paths = {w.path for w in defaultWatches("cellar", windows=False)}
         self.assertIn("/srv/dumps", paths)
         self.assertIn("/etc/purrbrews", paths)
-        self.assertIn("/opt/purrbrews/.git/refs/heads/main", paths)  # C2: not .git/HEAD, which never changes on a pull
+        self.assertIn("/opt/purrbrews/.git/refs/heads/main", paths)  # C2: a pull on the branch moves the ref
         self.assertIn("/opt/purrbrews/.git/packed-refs", paths)
-        self.assertFalse(any(p.endswith(".git/HEAD") for p in paths))
+        self.assertIn("/opt/purrbrews/.git/HEAD", paths)  # a reviewed deploy (checkout --detach) moves only HEAD
         self.assertIn("/srv/data/paperless/consume", {w.path for w in defaultWatches("percolator", windows=False)})
         self.assertNotIn("/srv/dumps", {w.path for w in defaultWatches("grinder", windows=False)})
         level = {w.path: w.level for w in defaultWatches("sieve", windows=False)}
@@ -159,6 +159,18 @@ class RulesTest(unittest.TestCase):
         self.assertEqual(p.tick(20.0), [])
         p.feed(ref, "created", "main", 30.0)
         self.assertEqual(p.tick(40.0)[0]["commit"], "docs: runbook")
+
+    def test_a_reviewed_deploy_moves_head_only_and_is_seen(self):
+        """fleet.py deploy: ``git checkout --detach <commit>`` rewrites HEAD, refs/heads/main stays put."""
+        head = next(w for w in pounce.EVERY_LINUX if w.path.endswith("/.git/HEAD"))
+        self.assertEqual((head.kind, head.only, head.repo), ("git", "HEAD", "/opt/purrbrews"))
+        commits = iter([("ccc", "persian-perch: run the GHCR image")])
+        p = Pouncer(list(pounce.EVERY_LINUX), wall=lambda: 1.0, subjectOf=lambda repo: next(commits))
+        p.feed(head, "created", "HEAD.lock", 0.0)  # git writes HEAD.lock, then renames it: only HEAD counts
+        p.feed(head, "created", "HEAD", 0.0)  # MOVED_TO reads as created
+        events = p.tick(5.0)
+        self.assertEqual([(e["path"], e["why"], e["commit"]) for e in events],
+                         [("/opt/purrbrews/.git/HEAD", pounce.MOVED, "persian-perch: run the GHCR image")])
 
 
 class InotifyLineTest(unittest.TestCase):

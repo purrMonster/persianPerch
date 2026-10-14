@@ -197,7 +197,7 @@ from (found in M1). It stays one SQLite file, not a time-series database (§2.3 
 | cellar | `/srv/dumps/*/` | a node's dumps arrived | earTwitch; none by 03:00 → handled by groom |
 | percolator | `/srv/data/paperless/consume/` | a document dropped | earTwitch |
 | every node | `/etc/purrbrews/` | settings changed | tailFlick on the page and trail; **morning digest only, never an immediate push** (owner, 2026-10-03: only he changes these files, and perch can't tell a deploy from a surprise) |
-| every node | `/opt/purrbrews/.git/HEAD` | the node pulled a new commit | earTwitch, with the commit subject |
+| every node | `/opt/purrbrews/.git/HEAD`, `refs/heads/main`, `packed-refs` | the checkout moved: a reviewed deploy (`checkout --detach`, fleet 2026-10-12) or a pull | earTwitch, with the commit subject |
 
 - Debounced (2 s), rate-limited (max 60 events/min per path, then one "storm" tailFlick).
 

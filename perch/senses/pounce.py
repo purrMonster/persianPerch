@@ -76,7 +76,8 @@ def title(event: dict) -> str:
     """The sentence the trail shows. Typographic quotes only around the commit subject, which perch quotes."""
     if event["change"] == "storm":
         return f"{event['path']}: more than 60 changes in a minute; the rest are not listed until it calms down"
-    if event["commit"] or event["why"] == "the node pulled":
+    # "the node pulled": kittens before 2026-10-14 said so; "the checkout moved" since
+    if event["commit"] or event["why"] in ("the checkout moved", "the node pulled"):
         subject = f": “{event['commit']}”" if event["commit"] else ""
         return f"{event['why']}{subject}"
     return f"{event['why']}: {event['name'] or event['path']} {CHANGES[event['change']]}"

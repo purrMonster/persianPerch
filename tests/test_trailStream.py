@@ -20,7 +20,7 @@ from perch.bodyLanguage import BodyLanguage as B
 from perch.scentTrail import ScentTrail
 from perch.senses.whiskers import Whiskers, parseConfig
 from perch.settings import Settings
-from perch.windowsill import app as appModule
+from perch.windowsill import stream as streamModule
 from perch.windowsill.app import createApp
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -195,7 +195,7 @@ def test_a_hiss_that_was_already_there_when_the_stream_reconnects_is_not_said_ag
 
 
 def test_a_keep_alive_comment_goes_out_when_nothing_happens(perch, monkeypatch):
-    monkeypatch.setattr(appModule, "KEEP_ALIVE", 0.3)
+    monkeypatch.setattr(streamModule, "KEEP_ALIVE", 0.3)
     stream = Stream(perch, "/trail/stream", timeout=5)
     try:
         comments = []

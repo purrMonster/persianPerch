@@ -1,11 +1,12 @@
-"""integration/ (M6, prepare only): the files the owner applies to purrbrews-containers, checked against the
-pinned fleet repo, against persianPerch's own settings (secrets.env, perch/settings.py, kitten) and against
-ROLLOUT.md. Nothing here touches a node or the network. The fleet's own test suite on a copy with integration/
-applied is a separate step of scripts/test.ps1 (it needs its own container); so are the install scripts."""
+"""perch's app folder as it is in the pinned fleet repo (``stacks/cellar/persian-perch/``, merged there from
+integration/ in October 2026), checked against persianPerch's own settings (secrets.env, perch/settings.py,
+kitten) and against ROLLOUT.md. Until 2026-10-14 these tests read integration/'s copy and patches; reading the
+fleet's own files instead means a change on either side that breaks the other fails here. Nothing here touches a
+node or the network. The install scripts are separate steps of scripts/test.ps1."""
 
 import importlib.util
+import os
 import re
-import subprocess
 from pathlib import Path
 
 import pytest
@@ -17,7 +18,8 @@ from perch.senses.whiskers import parseConfig
 from perch.settings import NODES
 
 INTEG = ROOT / "integration"
-APP = INTEG / "stacks" / "cellar" / "persian-perch"
+FLEET = Path(os.environ.get("PERCH_TEST_FLEET_REPO", ROOT / ".cache" / "purrbrews-containers"))  # as conftest's
+APP = FLEET / "stacks" / "cellar" / "persian-perch"
 COMPOSE = APP / "docker-compose.yml"
 ROLLOUT = (INTEG / "ROLLOUT.md").read_text(encoding="utf-8")
 NODE_FOLDERS = ["sieve", "percolator", "cellar", "mochaPot", "grinder"]
@@ -52,6 +54,21 @@ def compose() -> dict:
     return yaml.safe_load(COMPOSE.read_text(encoding="utf-8"))
 
 
+# Settings the fleet keeps in compose but commented out, on purpose: whiskers is off until the house has sensors
+# (fleet, owner 2026-10-04). Commented, the line must still be the right one, ready to uncomment.
+SWITCHED_OFF = {"PERCH_WHISKERS_URL"}
+
+
+def environment() -> dict:
+    """perch's compose environment, with the switched-off lines read as if they were uncommented."""
+    env = dict(compose()["services"]["persian-perch"]["environment"])
+    for line in COMPOSE.read_text(encoding="utf-8").splitlines():
+        m = re.match(r"^\s*#\s*([A-Z0-9_]+):\s*(\S.*)$", line)
+        if m and m.group(1) in SWITCHED_OFF:
+            env.setdefault(m.group(1), m.group(2).strip())
+    return env
+
+
 def labels() -> dict[str, str]:
     out = {}
     for item in compose()["services"]["persian-perch"]["labels"]:
@@ -68,63 +85,11 @@ def fleetEnv(fleetRepo: Path) -> dict[str, str]:
     )
 
 
-# -- the pin and the application ----------------------------------------------------------------------------
-
-
-def test_the_patches_were_made_against_the_pinned_commit():
-    assert (INTEG / "PIN").read_text().strip() == FLEET_COMMIT
-
-
-def test_apply_sh_checks_clean_against_the_pinned_fleet_repo(fleetRepo):
-    run = subprocess.run(
-        ["bash", str(INTEG / "apply.sh"), "--check", str(fleetRepo)], capture_output=True, text=True, check=False
-    )
-    assert run.returncode == 0, run.stdout + run.stderr
-    assert "everything applies" in run.stdout
-
-
-def test_apply_sh_refuses_a_dirty_clone(tmp_path, fleetRepo):
-    clone = tmp_path / "fleet"
-    subprocess.run(["git", "clone", "-q", str(fleetRepo), str(clone)], check=True, capture_output=True)
-    (clone / "stacks" / "cellar" / "stray.txt").write_text("not committed")
-    run = subprocess.run(
-        ["bash", str(INTEG / "apply.sh"), "--check", str(clone)], capture_output=True, text=True, check=False
-    )
-    assert run.returncode != 0 and "uncommitted changes" in run.stderr
-
-
-def test_apply_sh_applies_everything_and_never_commits(tmp_path, fleetRepo):
-    clone = tmp_path / "fleet"
-    subprocess.run(["git", "clone", "-q", str(fleetRepo), str(clone)], check=True, capture_output=True)
-    subprocess.run(
-        ["git", "-C", str(clone), "-c", "advice.detachedHead=false", "checkout", "-q", FLEET_COMMIT], check=True
-    )
-    run = subprocess.run(["bash", str(INTEG / "apply.sh"), str(clone)], capture_output=True, text=True, check=False)
-    assert run.returncode == 0, run.stdout + run.stderr
-    head = subprocess.run(
-        ["git", "-C", str(clone), "rev-parse", "HEAD"], capture_output=True, text=True, check=False
-    ).stdout.strip()
-    assert head == FLEET_COMMIT  # nothing committed
-    status = subprocess.run(
-        ["git", "-C", str(clone), "status", "--porcelain"], capture_output=True, text=True, check=False
-    ).stdout
-    assert "?? stacks/cellar/persian-perch/" in status and "?? stacks/_lib/groom-record.py" in status
-    assert status.count(" M ") == 8
-    nodeConf = (clone / "stacks" / "cellar" / "node.conf").read_text()
-    assert "APPS=(komodo scrutiny traefik smb persian-perch)" in nodeConf
-    for name in ("docker-compose.yml", "secrets.conf", "backup", "firewall", "data-dirs", "README.md"):
-        assert (clone / "stacks" / "cellar" / "persian-perch" / name).is_file(), name
-    again = subprocess.run(
-        ["bash", str(INTEG / "apply.sh"), "--check", str(clone)], capture_output=True, text=True, check=False
-    )
-    assert again.returncode != 0  # applying twice is refused, not repeated
-
-
 # -- secrets.conf is generated from secrets.env's verbs (05 plan C13) ----------------------------------------
 
 
 def test_every_perch_setting_in_secrets_env_is_in_secrets_conf_or_built_by_compose():
-    env = compose()["services"]["persian-perch"]["environment"]
+    env = environment()
     conf = secretsConf()
     for key in secretsEnvEntries():
         if not key.startswith("PERCH_"):
@@ -150,7 +115,7 @@ def test_secrets_conf_verbs_are_the_ones_secrets_env_names():
 
 
 def test_values_with_a_variable_are_built_in_compose_not_in_secrets_conf():
-    env = compose()["services"]["persian-perch"]["environment"]
+    env = environment()
     for key, verb in secretsEnvEntries().items():
         if key.startswith("PERCH_") and verb.startswith("value") and "${" in verb:
             assert key not in secretsConf(), key
@@ -186,7 +151,7 @@ def test_nothing_in_integration_holds_a_secret_a_real_domain_or_a_lan_address():
         for name, rx in patterns.items():
             for m in rx.finditer(text):
                 if name == "long hex" and m.group(0) == FLEET_COMMIT:
-                    continue
+                    continue  # ROLLOUT.md names the fleet commit it was written against
                 pytest.fail(f"{path.relative_to(ROOT)} has a {name}: {m.group(0)[:40]}")
 
 
@@ -287,7 +252,7 @@ def test_the_routes_become_dns_records_by_the_fleets_own_generator(fleetRepo):
             assert "Host(" not in line or dns.HOST.findall(line), f"unsupported Host rule: {line.strip()}"
             found |= set(dns.HOST.findall(line))
     assert found == {"perch"}
-    sieve = (INTEG / "patches" / "sieve-gatus-api-router.patch").read_text()
+    sieve = (fleetRepo / "stacks" / "sieve" / "traefik" / "dynamic" / "sieve.yml").read_text()
     assert 'gatus-api.{{ env "DOMAIN" }}' in sieve
 
 
@@ -359,26 +324,27 @@ def test_rollout_mentions_every_credential_in_secrets_env():
 
 
 def test_rollout_only_names_files_that_exist(fleetRepo):
-    """A path in the document is in integration/, in the pinned fleet repo (a file a patch edits), or is the one
-    new file apply.sh puts into the fleet repo's _lib."""
-    rx = r"`((?:integration/)?(?:kitten|roastery|groom|patches|stacks)/[A-Za-z0-9_./@-]+)`"
+    """A path in the document is in integration/ or in the pinned fleet repo, or is made on a node."""
+    rx = r"`((?:integration/)?(?:kitten|roastery|groom|stacks|scripts|docs)/[A-Za-z0-9_./@-]+)`"
     for rel in sorted(set(re.findall(rx, ROLLOUT))):
         if "<" in rel or "*" in rel:
             continue
         inIntegration = (ROOT / rel).exists() or (INTEG / rel).exists()
         inFleet = (fleetRepo / rel).exists()
-        newInFleet = rel == "stacks/_lib/groom-record.py"
         nodeLocal = rel.endswith(".env.local")  # made on the node by setup-secrets, never in a repo
-        assert inIntegration or inFleet or newInFleet or nodeLocal, f"ROLLOUT.md names {rel}, which exists nowhere"
-    for rel in ("scripts/buildKitten.ps1", "integration/apply.sh", "integration/groom/README.md", "secrets.env"):
+        assert inIntegration or inFleet or nodeLocal, f"ROLLOUT.md names {rel}, which exists nowhere"
+    for rel in ("scripts/buildKitten.ps1", "integration/groom/README.md", "secrets.env"):
         assert (ROOT / rel).is_file()
-    for needle in ("install-kitten.sh", "install-kitten.ps1", "run-kitten.ps1", "apply.sh", "buildKitten.ps1"):
+    assert (fleetRepo / "scripts" / "fleet.py").is_file()
+    assert (fleetRepo / "stacks" / "_lib" / "groom-record.py").is_file()
+    for needle in ("install-kitten.sh", "install-kitten.ps1", "run-kitten.ps1", "buildKitten.ps1", "fleet.py deploy"):
         assert needle in ROLLOUT
+    assert "apply.sh --check" not in ROLLOUT and "patches/" not in ROLLOUT  # the application step is gone
 
 
-def test_rollout_names_every_patch_and_every_drop_in():
-    for patch in (INTEG / "patches").glob("*.patch"):
-        assert patch.name in ROLLOUT, f"{patch.name} is not in ROLLOUT.md's table"
+def test_rollout_names_every_drop_in_and_the_glare_account_the_fleet_uses():
+    assert "sphynx" in ROLLOUT and "ocicat" not in ROLLOUT
+    assert "PERCH_GLARE_USER                  value sphynx" in (APP / "secrets.conf").read_text()
     for unit in (INTEG / "groom" / "units").iterdir():
         stem = unit.name.removesuffix(".service.d")
         assert stem in ROLLOUT, f"ROLLOUT.md never installs the {unit.name} drop-in"

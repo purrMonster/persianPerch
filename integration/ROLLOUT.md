@@ -1,11 +1,21 @@
 # ROLLOUT: putting persianPerch on the fleet
 
-> For the owner (barista). **Nothing in this folder has been applied to anything.** Every step here is
-> yours, in your terminal, on the node named in the step, in this order. The agent that wrote it never
-> touched a node, never saw a credential and never made a change in `purrbrews-containers`.
-> Written 2026-10-03 against the fleet repo at commit `922164af2449ee9c8899b9466d721ffc5a2ac4e6`
-> (`integration/PIN`). If the fleet's `main` has moved since, `apply.sh --check` (step B2) tells you
-> whether the patches still fit.
+> For the owner (barista). Every step here is yours, in your terminal, on the node named in the step, in
+> this order. The agent that wrote it never touched a node, never saw a credential and never made a change in
+> `purrbrews-containers`.
+> Written 2026-10-03; **rewritten 2026-10-14** for the rebuilt fleet at commit
+> `72e3f7b88acb319c9255af115acd87c26c464992` (the tests' pin). What changed since the first version:
+> - The fleet side is **already in `purrbrews-containers`** (`stacks/cellar/persian-perch/`, cellar's
+>   `node.conf` and README, sieve's `gatus-api` router and two Gatus checks, Authelia's rules, Homepage's tile,
+>   roastery's `local.env.example`, `stacks/_lib/groom-record.py`). The patches and `apply.sh` are gone from
+>   here; step B is now a check, not an application.
+> - Nodes no longer pull `main`: they fetch, and you deploy a **reviewed full commit** with
+>   `scripts/fleet.py deploy` (fleet runbook 2026-10-12). perch is one of cellar's optional apps
+>   (`--include-optional persian-perch`).
+> - The Gatus account is **`sphynx`** (fleet runbook 2026-10-13, bots get cat-breed names).
+> - Nothing of persianPerch has run on the fleet yet. The image was built and started under cellar's limits
+>   against a copy of the fleet repo (persianPerch runbook 2026-10-14); everything that talks to a real service
+>   is first proven in step J.
 
 `${DOMAIN}` below is your real domain; it is never written in this repo. `<fleet>` is a clone of
 `purrbrews-containers` on the machine you work from. `<node>` is a node's folder name in `stacks/`,
@@ -19,16 +29,11 @@ cd /opt/purrbrews/stacks/<node> && set -a && . ../fleet.env && . ./.env.local &&
 
 ## What goes where
 
-| Here (`integration/`) | Lands in | Step |
+| What | Where it lives | Step |
 |---|---|---|
-| `stacks/cellar/persian-perch/` (compose, `secrets.conf`, `backup`, `firewall`, `data-dirs`, `README.md`, `config/whiskers.yml`) | `purrbrews-containers` `stacks/cellar/persian-perch/` | B |
-| `patches/cellar-node-conf.patch`, `cellar-local-env.patch`, `cellar-readme.patch` | cellar's `node.conf` (the `APPS` line), `local.env.example`, `README.md` | B |
-| `patches/sieve-gatus-api-router.patch` | `stacks/sieve/traefik/dynamic/sieve.yml` (the `gatus-api` router, the `authelia-basic` middleware) | B, D |
-| `patches/sieve-gatus-checks.patch` | `stacks/sieve/gatus/config/config.yaml` (two checks on perch) | B, H |
-| `patches/percolator-authelia-rules.patch` | Authelia's template: `perch.${DOMAIN}` and `gatus-api.${DOMAIN}` among the admin hosts, the `perch_api_group` rule | B, D |
-| `patches/percolator-homepage-tile.patch` | Homepage's `services.yaml` | B, D |
-| `patches/roastery-local-env.patch` | `stacks/roastery/local.env.example` (the kitten token, asked by `setup-secrets.ps1`) | B, G |
-| `groom/groom-record.py` | `stacks/_lib/groom-record.py` (copied by `apply.sh`) | B |
+| perch's app folder (compose with the three Traefik routers, `secrets.conf`, `backup`, `firewall`, `data-dirs`, `README.md`, `config/whiskers.yml`) | the fleet repo: `stacks/cellar/persian-perch/` | B, D3 |
+| cellar's `APPS` line (perch is optional there), the `gatus-api` router and two Gatus checks on sieve, Authelia's rules, Homepage's tile, roastery's kitten token key | the fleet repo, already merged | B, D |
+| the backup recorder | the fleet repo: `stacks/_lib/groom-record.py` (the fleet's copy is the one that runs) | B, E |
 | `groom/units/*.d/groom.conf` | `/etc/systemd/system/<unit>.d/groom.conf` on the nodes (not in the fleet repo: node-local, like the fleet's own units) | E |
 | `kitten/` (`install-kitten.sh`, `kitten.service`) | each Linux node, run from a persianPerch checkout | F |
 | `roastery/` (`install-kitten.ps1`, `run-kitten.ps1`) | roastery's Scheduled Task | G |
@@ -40,6 +45,10 @@ Ntfy needs **no file change** (plan C14): perch's user goes into the node-local 
 - **perch runs on cellar**, no published port; three Traefik routers on `perch.${DOMAIN}`: the page (Authelia),
   the nodes' reports and `/healthz` (the six fleet addresses only), and the acknowledge links `/ack/t/` (10 a minute).
   They are compose labels, because every cellar app routes that way and the address list comes straight from `fleet.env`.
+- **Deploys are reviewed commits.** The fleet repo's `main` reaches a node only when you check a full commit out
+  there and run `python3 scripts/fleet.py deploy <node> --release <commit> --acknowledge-prerequisites` (fleet
+  `docs/operations.md`). perch is optional on cellar: add `--include-optional persian-perch` once A is done.
+  persianPerch itself is pinned separately, by `PERSIAN_PERCH_REF` in cellar's `.env.local`.
 - **kitten is delivered by pull, not copy** (the fleet's delivery rule): each node clones the public persianPerch repo
   at a pinned ref, builds the zipapp itself as you, and installs it. Nothing is `scp`'d. Updating is the same four lines.
 - **Morning digest only** for a change under `/etc/purrbrews` (you decided 2026-10-03): it is a trail row and a
@@ -68,7 +77,7 @@ The list of every setting, in `secrets.env`, and where each ends up:
 | `PERCH_PURR_URL`, `PERCH_PURR_EVERY` | not secret | defaults | nothing to type |
 | `PERCH_PURR_KEY`, `PERCH_PURR_SECRET` | **secret** | A1: Komodo, on cellar | cellar's prompt |
 | `PERCH_GLARE_URL` | not secret | `https://gatus-api.${DOMAIN}`, built in compose | nothing to type |
-| `PERCH_GLARE_USER` | not secret | `ocicat` (the LLDAP account of A2) | nothing to type |
+| `PERCH_GLARE_USER` | not secret | `sphynx` (the LLDAP account of A2) | nothing to type |
 | `PERCH_GLARE_PASSWORD` | **secret** | A2: LLDAP, on percolator | cellar's prompt |
 | `PERCH_GLARE_EVERY`, `PERCH_DISKS_URL`, `PERCH_DISKS_EVERY` | not secret | defaults (`http://scrutiny:8080`) | nothing to type |
 | `PERCH_WHISKERS_URL` | not secret | `ws://${MOCHAPOT_LAN_IP}:8123/api/websocket`, built in compose | nothing to type |
@@ -98,21 +107,21 @@ The list of every setting, in `secrets.env`, and where each ends up:
 
 1. Open `https://komodo.${DOMAIN}` (or `http://${CELLAR_LAN_IP}:9120`), log in as `barista`.
 2. **Settings -> Users -> New service user**, name `perch`. Give it **Read** on every server and every stack and nothing else
-   (not Execute, Write or Admin). The wording of the buttons can differ a little in Komodo 2.3.2; the point is a non-admin service user with read-only access.
+   (not Execute, Write or Admin). The wording of the buttons can differ a little in Komodo 2.3.3 (the fleet's pin); the point is a non-admin service user with read-only access.
 3. Open the user, **API keys -> Create**. Komodo shows the key and the secret **once**. Keep that tab open: you will paste both into
    cellar's prompts in step D3 (then close it).
 
 *Check:* the user's permissions page shows Read only; there is no key you did not create.
 
-### A2. LLDAP: the `ocicat` account, on percolator (`PERCH_GLARE_PASSWORD`)
+### A2. LLDAP: the `sphynx` account, on percolator (`PERCH_GLARE_PASSWORD`)
 
 perch reads Gatus's API with a password (a service account, the ollama pattern). It has no browser session.
 
 1. In your own terminal on any node: `openssl rand -hex 32` and keep the output on screen (hex, like every generated secret of the fleet).
 2. `https://lldap.${DOMAIN}`, log in as `admin` (`LLDAP_ADMIN_PASSWORD` in `percolator/lldap/secrets.env.local`).
 3. **Groups -> New group** `perch_api_group`.
-4. **Users -> New user** `ocicat`, password = the value from step 1. LLDAP's form asks for an email: any address of yours; Authelia sends nothing to it.
-5. Put `ocicat` in **`perch_api_group` only** (not in `purrbrews_admins` or `purrbrews_household`).
+4. **Users -> New user** `sphynx`, password = the value from step 1. LLDAP's form asks for an email: any address of yours; Authelia sends nothing to it.
+5. Put `sphynx` in **`perch_api_group` only** (not in `purrbrews_admins` or `purrbrews_household`).
 6. You will paste the same password into cellar's prompt (D3).
 
 *Check:* the group has exactly one member; the account is in no other group. (Without a human group the account can reach nothing else: Authelia's default is deny.)
@@ -192,34 +201,27 @@ speedtest-tracker's UI on grinder (`http://${GRINDER_LAN_IP}:8765`) -> **API Tok
 
 ---
 
-## B. Put the files into the fleet repo (your branch, your pull request)
+## B. Check that the fleet repo has perch's side (it does since 2026-10-03)
 
-The agent only prepared files. You apply them in your own process.
+Nothing to apply any more: the files the first version of this guide carried are merged in
+`purrbrews-containers`. What is left is yours to check and, for whiskers, to fill in.
 
-**B1.** In your clone `<fleet>` (kept at, or merged up to, a recent `main`):
-
-```bash
-git -C <fleet> switch -c persian-perch
-```
-
-**B2.** Check, then apply (from your persianPerch checkout; needs bash and git; this is the part that touches `<fleet>`'s working tree and nothing else):
+**B1.** In the fleet clone you deploy from, at the commit you will deploy:
 
 ```bash
-integration/apply.sh --check <fleet>        # prints "ok: everything applies" or names the patch that does not
-integration/apply.sh <fleet>
-git -C <fleet> status                       # new: stacks/cellar/persian-perch/, stacks/_lib/groom-record.py; modified: eight files
-git -C <fleet> diff                         # read it
+python3 scripts/fleet.py validate                    # read-only
+python3 scripts/fleet.py plan cellar                 # read-only; persian-perch is listed as optional
+grep -n 'perch' stacks/cellar/node.conf stacks/sieve/traefik/dynamic/sieve.yml stacks/percolator/authelia/config/configuration.yml.template
 ```
 
-**B3.** Put your real entity ids into `<fleet>/stacks/cellar/persian-perch/config/whiskers.yml` (every placeholder contains `change_me`; delete the entries you don't want). Entity ids aren't secrets. Leave it as it is and whiskers watches nothing: silently.
+**B2.** Every node that takes part must already run a commit that has these files: percolator (Authelia's rules),
+sieve (the `gatus-api` router) and mochaPot (the second Pi-hole). `python3 scripts/fleet.py status <node>` on each
+shows the commit it last deployed; sieve and cellar have no record yet (fleet backlog), so check theirs with
+`git -C /opt/purrbrews rev-parse HEAD`.
 
-**B4.** Run the fleet's own tests on the result (on a machine with python3 and git; they need no Docker or node):
+**B3.** Put your real entity ids into `stacks/cellar/persian-perch/config/whiskers.yml` (every placeholder contains `change_me`; delete the entries you don't want) **in the fleet repo, on a branch, like any change**: cellar's deploy refuses a checkout with local edits. Entity ids aren't secrets. whiskers is commented out in perch's compose until the sensors exist (owner, 2026-10-04); leave it so and whiskers stays off, silently.
 
-```bash
-cd <fleet> && python3 -m unittest discover -s tests       # expect: OK (a few skipped)
-```
-
-**B5.** Commit, push the branch and open the pull request. Merge it with a merge commit, your usual way. Nodes then pull `main` daily (or `git -C /opt/purrbrews pull --ff-only` on a node to get it now).
+**B4.** Run the fleet's own tests at that commit (python3 and git, no Docker): `python3 -m pytest tests`.
 
 ---
 
@@ -229,11 +231,11 @@ Do the steps below in this order; each one has a *Check* before the next. Nothin
 
 | # | Where | What | Step |
 |---|---|---|---|
-| 1 | percolator | Authelia: the new rules | D1 |
+| 1 | percolator | Authelia: the new rules (skip if B2 shows percolator already runs them) | D1 |
 | 2 | sieve | Traefik's `gatus-api` route; DNS records | D2 |
 | 3 | mochaPot | the second Pi-hole learns the same names | D2 |
 | 4 | each backup node | the groom recorder (systemd drop-ins) | E |
-| 5 | cellar | `setup-secrets.sh`, build and start perch | D3 |
+| 5 | cellar | `setup-secrets.sh`, then `fleet.py deploy ... --include-optional persian-perch` | D3 |
 | 6 | sieve | Gatus's checks on perch | D4 |
 | 7 | percolator | Homepage's tile | D4 |
 | 8 | each Linux node, then roastery | kitten | F, G |
@@ -243,7 +245,7 @@ Do the steps below in this order; each one has a *Check* before the next. Nothin
 
 ### D1. percolator: Authelia
 
-After the node has pulled (B5):
+Only if percolator is not yet on a commit with the rules (B2). On percolator, with the reviewed commit checked out:
 
 ```bash
 cd /opt/purrbrews/stacks/percolator
@@ -268,12 +270,12 @@ dig @${SIEVE_LAN_IP} gatus-api.${DOMAIN} +short      # sieve's address
 
 On **mochaPot**, the same two commands with its own folder (`/opt/purrbrews/stacks/mochaPot`) and `dig @${MOCHAPOT_LAN_IP} ...`.
 
-*Check, from sieve* (type ocicat's password when asked; it is not stored):
+*Check, from sieve* (type sphynx's password when asked; it is not stored):
 
 ```bash
-curl -s -o /dev/null -w '%{http_code}\n' -u ocicat "https://gatus-api.${DOMAIN}/api/v1/endpoints/statuses"   # 200
+curl -s -o /dev/null -w '%{http_code}\n' -u sphynx "https://gatus-api.${DOMAIN}/api/v1/endpoints/statuses"   # 200
 curl -s -o /dev/null -w '%{http_code}\n' "https://gatus-api.${DOMAIN}/api/v1/endpoints/statuses"                  # 401 (no password)
-curl -s -o /dev/null -w '%{http_code}\n' -u ocicat "https://gatus-api.${DOMAIN}/"                                # 404 or 401: only /api/v1/ is routed
+curl -s -o /dev/null -w '%{http_code}\n' -u sphynx "https://gatus-api.${DOMAIN}/"                                # 404 or 401: only /api/v1/ is routed
 ```
 
 (The Authelia rule needs a minute to take effect after D1. A `200` for the first, `401` for the second and a refusal for the third is the right shape.)
@@ -285,14 +287,14 @@ cd /opt/purrbrews/stacks/cellar
 ./setup-secrets.sh
 ```
 
-It asks for, in this order (each hidden): `PERSIAN_PERCH_REF` (in `.env.local`, not hidden: a persianPerch **tag or full commit** you have chosen; not a branch name), then the Komodo key and secret (A1), `ocicat`'s password (A2), perch's ntfy
+It asks for, in this order (each hidden): `PERSIAN_PERCH_REF` (in `.env.local`, not hidden: a persianPerch **tag or full commit** you have chosen; not a branch name), then the Komodo key and secret (A1), `sphynx`'s password (A2), perch's ntfy
 token (A3), the critical topic URL (A5), the healthchecks.io URL (A4), then the two optional ones (A6 token, A7 token; Enter leaves each blank). It generates the six kitten tokens and the acknowledge secret by itself.
 Then:
 
 ```bash
 sudo ./firewall.sh --dry-run | grep -i perch || echo "no perch rule (correct: it publishes nothing)"
-./compose.sh persian-perch up -d --build
-./compose.sh persian-perch ps                     # healthy after ~30 s
+cd /opt/purrbrews && python3 scripts/fleet.py deploy cellar --release <full-commit> --acknowledge-prerequisites --include-optional persian-perch
+cd stacks/cellar && ./compose.sh persian-perch ps   # healthy after ~30 s
 sudo docker logs persian-perch --tail 30          # no traceback
 ```
 
@@ -300,7 +302,7 @@ Traefik requests a certificate for `perch.${DOMAIN}` (Cloudflare DNS-01): `./com
 Work through the app's own checklist: `stacks/cellar/persian-perch/README.md` ("Is it working?").
 
 *Check:* `https://perch.${DOMAIN}` asks for Authelia, then shows the overview. Nodes show their state from Komodo; kittens are still "not reporting" (that is step F).
-**If every node is `unknown`** and the trail has a row saying purr could not read Komodo's answer, that is the unverified `ListServers {}` / `ServerState` spelling (drill J1): tell the agent; a one-line fix.
+**If every node is `unknown`** and the trail has a row saying purr could not read Komodo's answer, that is the `ListServers {}` / `ServerState` spelling (drill J1). It was checked against Komodo 2.3.3's source on 2026-10-14, never against a running Core: tell the agent; a one-line fix.
 
 ### D4. sieve (Gatus) and percolator (Homepage)
 
@@ -317,7 +319,7 @@ cd /opt/purrbrews/stacks/percolator && ./compose.sh homepage up -d
 
 ## E. The groom recorder, on the backup nodes
 
-`groom/groom-record.py` already arrived with B (it lands at `stacks/_lib/groom-record.py`). The systemd drop-ins are node-local files, installed the way the fleet installs its own units. From a persianPerch checkout on the node (clone it first: step F1):
+The recorder itself is the fleet's `stacks/_lib/groom-record.py` (B). The systemd drop-ins are node-local files, installed the way the fleet installs its own units. From a persianPerch checkout on the node (clone it first: step F1):
 
 On **every backup node** (sieve, percolator, cellar, mochaPot, grinder):
 
@@ -382,7 +384,7 @@ Remove it again: `sudo ./install-kitten.sh --remove`.
 | Node | Folder | Listable by default? |
 |---|---|---|
 | every Linux node | `/etc/purrbrews` | **yes** (mode 755; the files inside are private but their names are listed) |
-| every Linux node | `/opt/purrbrews/.git` and `/opt/purrbrews/.git/refs/heads` (the node pulled) | **yes**, if the checkout's permissions are the defaults. perch asks `git` itself for the commit subject, with `safe.directory` set for that run |
+| every Linux node | `/opt/purrbrews/.git` and `/opt/purrbrews/.git/refs/heads` (the checkout moved: `HEAD` for a reviewed deploy, the branch ref for a pull) | **yes**, if the checkout's permissions are the defaults. perch asks `git` itself for the commit subject, with `safe.directory` set for that run |
 | cellar | `/srv/dumps` | **only the top level.** Each `<node>` folder inside it is mode 700 for the `dumps` user, and cellar's own is 700 root; `inotifywait` skips them silently. pounce sees a folder appear, **not the dump files inside**. groom (the records) is what says whether the dumps happened |
 | percolator | `/srv/data/paperless/consume` | **yes** (mode 2775: others can read and enter) |
 | roastery | `C:\purrbrews\restic\snapshots` | **depends on the folder's ACL** (step G): `setup.ps1` replaced `C:\purrbrews`'s permissions. The task runs as you with administrator rights; if kitten's log says "can't list ... Access is denied", the folder is not listable |
@@ -395,7 +397,7 @@ If a folder says NOT LISTABLE you decide whether to widen it. The agent did not:
 
 roastery sleeps; kitten runs while it is awake, and perch knows roastery's wake window, so silence outside it is not a problem.
 
-1. In the fleet clone on roastery (after B5's pull): `cd <fleet>\stacks\roastery`, then `.\setup-secrets.ps1`. It asks for `KITTEN_TOKEN` (a new key of `local.env.example`): paste roastery's token, read on cellar as in F2 (`PERCH_KITTEN_TOKEN_ROASTERY`). It stays in roastery's own `.env.local`.
+1. In roastery's deploy clone (`C:\purrbrews-deploy`, roastery-init's checkout), at the reviewed commit: `cd C:\purrbrews-deploy\stacks\roastery`, then `.\setup-secrets.ps1`. It asks for `KITTEN_TOKEN` (a new key of `local.env.example`): paste roastery's token, read on cellar as in F2 (`PERCH_KITTEN_TOKEN_ROASTERY`). It stays in roastery's own `.env.local`.
 2. A persianPerch checkout and the build (roastery has Git, Docker Desktop and Python 3.14): `git clone https://github.com/purrMonster/persianPerch.git`, `git checkout <ref>`, then
    `powershell -ExecutionPolicy Bypass -File scripts\buildKitten.ps1` (a container builds `dist\kitten.pyz`; nothing is installed on roastery).
 3. From an **elevated** PowerShell in `persianPerch\integration\roastery`:
@@ -441,9 +443,9 @@ Tick each only when you saw it. Record anything surprising in the fleet's runboo
 
 ### Made once, at the start
 
-- [ ] **J1. Komodo's `ListServers {}` and `ServerState` spelling against the real Komodo 2.3.2.** perch's overview shows each node with its CPU/RAM/disk and a state that is not `unknown`; `sudo docker logs persian-perch` has no row about an answer purr could not read. (Built from source and fixtures only; this is the first time it meets the real thing.)
-- [ ] **J2. Gatus's real key for the tunnel check.** `curl -s -u ocicat "https://gatus-api.${DOMAIN}/api/v1/endpoints/statuses" | grep -o '"key":"[^"]*"' | sort` lists `network_cloudflare-tunnel`; perch's overview shows the tunnel.
-- [ ] **J3. Scrutiny's collectors report `host_id` as the node names.** On cellar: `curl -s http://127.0.0.1:8080/api/summary | grep -o '"host_id":"[^"]*"' | sort -u` lists `sieve`, `percolator`, `cellar`, `mochaPot`, `grinder` spelled like the folders (else the disks panel can't match a disk to a node).
+- [ ] **J1. Komodo's `ListServers {}` and `ServerState` spelling against the real Komodo 2.3.3.** perch's overview shows each node with its CPU/RAM/disk and a state that is not `unknown`; `sudo docker logs persian-perch` has no row about an answer purr could not read. (Checked against Komodo 2.3.3's source and fixtures only; this is the first time it meets the real thing.)
+- [ ] **J2. Gatus's real key for the tunnel check.** `curl -s -u sphynx "https://gatus-api.${DOMAIN}/api/v1/endpoints/statuses" | grep -o '"key":"[^"]*"' | sort` lists `network_cloudflare-tunnel`; perch's overview shows the tunnel.
+- [ ] **J3. Scrutiny's collectors report `host_id` as the node names** (`COLLECTOR_HOST_ID=${NODE}` since fleet #56). On cellar: `curl -s http://127.0.0.1:8080/api/summary | grep -o '"host_id":"[^"]*"' | sort -u` lists `sieve`, `percolator`, `cellar`, `mochaPot`, `grinder` spelled like the folders (else the disks panel can't match a disk to a node).
 - [ ] **J4. The kitten user's access.** On every node `sudo journalctl -u kitten --no-pager | grep -i "can't"` shows only the folders the table in F says are not listable, and nothing else. roastery: the same in `kitten.log`.
 - [ ] **J5. Non-admin Home Assistant user.** perch's Home card says "N sensors watched" with the real count; in Home Assistant the `perch` user is not an administrator; nothing in Home Assistant's logbook was changed by `perch`.
 
@@ -458,6 +460,9 @@ Tick each only when you saw it. Record anything surprising in the fleet's runboo
 - [ ] **M4:** you reach for perch's overview instead of Gatus and Scrutiny for the daily look, for a week.
 - [ ] **M5:** copy a PDF you don't mind Paperless importing into `/srv/data/paperless/consume` on percolator, **and** open a door sensor: both show on `/trail` within **5 seconds**, with the right body language (the file `earTwitch`, the door `earTwitch`). Delete the imported document afterwards.
 - [ ] **M6:** it has run a full week on the fleet with **no false hiss**.
+- [ ] **binocs reads the digest pins.** With `PERCH_BINOCS_RELEASES_EVERY=7d`, the Outside card lists how many pinned images it compared (about 40 of the fleet's ~50 refs); not 0. Every fleet image is `tag@sha256:...` since 2026-10-12, which perch skipped before 2026-10-14.
+- [ ] **A deploy shows on the trail.** After a `fleet.py deploy` on any node, `/trail` has "the checkout moved: “<commit subject>”" for that node within a minute (pounce watches `.git/HEAD`).
+- [ ] **cellar's ST1000 and mochaPot's SanDisk are tailFlick, not hiss.** Scrutiny flags both on its thresholds while SMART passes (fleet runbook 2026-10-14): perch lists them under "Needs a look" and sends no push.
 
 ### Left for the real fleet by the milestones' entries
 
@@ -482,4 +487,4 @@ roastery was kept awake for the build and the rollout. When the drills above no 
 - perch: `./compose.sh persian-perch down` on cellar. Nothing else depends on it; the page, the pushes and the Gatus checks on perch simply go away.
 - kitten: `sudo ./install-kitten.sh --remove` on each node; `.\install-kitten.ps1 -Remove` on roastery.
 - groom recorder: delete the `groom.conf` drop-ins and `systemctl daemon-reload`; the jobs never depended on it.
-- the fleet repo: revert the pull request.
+- the fleet repo: perch's files stay; leave `persian-perch` out of `--include-optional` and it is never deployed.

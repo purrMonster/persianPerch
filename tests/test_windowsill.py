@@ -127,6 +127,15 @@ def test_S7_no_write_endpoints_beyond_the_allowed(client):
     assert writes <= ALLOWED_WRITES, writes - ALLOWED_WRITES
 
 
+def test_S7_sees_every_route(client):
+    """S7 reads app.routes: an included APIRouter would hide its routes there and S7 would pass on nothing."""
+    from starlette.routing import Route
+
+    assert all(isinstance(r, (Route, Mount)) for r in client.app.routes), {type(r).__name__ for r in client.app.routes}
+    paths = {r.path for r in client.app.routes if isinstance(r, Route)}
+    assert {"/", "/trail/stream", "/api/kitten", "/ack/{litterId}", "/ack/t/{token}", "/healthz"} <= paths
+
+
 def test_S7_write_methods_are_refused(client):
     for url in ("/", "/tree", "/trail", "/healthz"):
         for method in ("post", "put", "patch", "delete"):

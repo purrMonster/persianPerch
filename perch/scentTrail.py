@@ -249,11 +249,15 @@ class ScentTrail:
         if str(self.path) != ":memory:":
             self.path.parent.mkdir(parents=True, exist_ok=True)
         db = sqlite3.connect(str(self.path), check_same_thread=False, isolation_level=None)
-        db.row_factory = sqlite3.Row
-        db.execute("PRAGMA journal_mode=WAL")
-        db.execute("PRAGMA synchronous=NORMAL")
-        db.execute("PRAGMA foreign_keys=ON")
-        db.execute("PRAGMA busy_timeout=5000")
+        try:
+            db.row_factory = sqlite3.Row
+            db.execute("PRAGMA journal_mode=WAL")  # a damaged file fails here, before _open's quick_check
+            db.execute("PRAGMA synchronous=NORMAL")
+            db.execute("PRAGMA foreign_keys=ON")
+            db.execute("PRAGMA busy_timeout=5000")
+        except sqlite3.Error:
+            db.close()  # else _open's recovery leaves this connection to the garbage collector
+            raise
         return db
 
     def _open(self) -> sqlite3.Connection:

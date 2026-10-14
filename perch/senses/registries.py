@@ -22,8 +22,10 @@ Anonymous reads of three public registry APIs, nothing else, and perch never pul
 A tag is comparable only when it is a release: ``[v]MAJOR.MINOR.PATCH`` (at least three numbers) with an
 optional flavour (``-alpine``, ``-omnibus``, ``-apache``) and, for LinuxServer, a ``-lsNNN`` rebuild counter
 that is ignored (a rebuild is not a release). A newer release has the same flavour and the same number of
-parts. ``stable``, ``latest``, ``main``, a digest pin, or a line pin such as ``postgres:16`` or
-``v1.10`` can't be compared and are reported as such, never guessed.
+parts. ``stable``, ``latest``, ``main``, a digest-only pin, or a line pin such as ``postgres:16`` or
+``v1.10`` can't be compared and are reported as such, never guessed. A tag *and* a digest
+(``n8nio/n8n:2.42.6@sha256:...``, the fleet's pin since 2026-10-12) is compared by its tag: the digest only
+says which build of that tag runs, and a newer release is still a newer tag.
 """
 
 from __future__ import annotations
@@ -57,7 +59,8 @@ class Image:
     registry: str  # registry-1.docker.io or ghcr.io
     repo: str  # namespace/name, "library/<name>" for an official Docker Hub image
     tag: str
-    ref: str  # as written in the compose file
+    ref: str  # as written in the compose file, digest included
+    name: str  # the ref without its tag and digest, e.g. ``n8nio/n8n`` or ``ghcr.io/moghtech/komodo-core``
 
     @property
     def key(self) -> str:
@@ -89,9 +92,10 @@ def parseTag(tag: str) -> Release | None:
 def parseImage(ref: str) -> Image | None:
     """The image as a registry knows it, or None for a pin that can't be compared (a digest, no tag, a
     moving tag, a line, a local build, a registry perch doesn't read)."""
-    if "@" in ref or ":" not in ref.rsplit("/", 1)[-1]:
+    bare = ref.split("@", 1)[0]  # tag@digest is compared by its tag; a digest alone leaves no tag
+    if ":" not in bare.rsplit("/", 1)[-1]:
         return None
-    name, _, tag = ref.rpartition(":")
+    name, _, tag = bare.rpartition(":")
     parts = name.split("/")
     if "." in parts[0] or ":" in parts[0] or parts[0] == "localhost":
         host, rest = parts[0].lower(), parts[1:]
@@ -107,7 +111,7 @@ def parseImage(ref: str) -> Image | None:
         repo = "/".join(parts) if len(parts) > 1 else f"library/{parts[0]}"
     if parseTag(tag) is None or repo.count("/") != 1:
         return None
-    return Image(host, repo, tag, ref)
+    return Image(host, repo, tag, ref, name)
 
 
 class Registries:

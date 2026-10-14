@@ -42,8 +42,10 @@ MAX_LISTED = 5000  # a polled directory with more entries than this is read no f
 LEVELS = ("slowBlink", "earTwitch", "tailFlick")  # what a watch may be worth; perch never takes a hiss from here
 CHANGES = ("created", "modified", "deleted", "storm")
 
+HEAD = "HEAD"
 REFS = "refs/heads/main"
 PACKED = "packed-refs"
+MOVED = "the checkout moved"
 
 
 @dataclass(frozen=True)
@@ -85,13 +87,18 @@ def parseWatch(text: str) -> Watch:
     return Watch(path, level, why, kind)
 
 
-# Design plan 4.4 with 05 plan C2: .git/HEAD never changes on a pull (it holds "ref: refs/heads/main"), the
-# branch's ref and packed-refs do. Paths a node's kitten user can't list are not worked around (A10): they
-# are said once and listed for ROLLOUT.md.
+# How a node's checkout moves (fleet runbook 2026-10-12, "reviewed deployments"): the timer only fetches, and
+# ``fleet.py deploy`` runs ``git checkout --detach <commit>``, which rewrites .git/HEAD and leaves
+# refs/heads/main where it was. A hand-run ``git pull`` on the branch is the other way round (05 plan C2: HEAD
+# keeps "ref: refs/heads/main", the branch's ref and packed-refs change). All three are watched as one event per
+# checkout, and a gc that rewrites packed-refs without moving HEAD is dropped by the commit check in _emit.
+# Paths a node's kitten user can't list are not worked around (A10): they are said once and listed for
+# ROLLOUT.md.
 EVERY_LINUX = (
     Watch("/etc/purrbrews", "tailFlick", "settings changed"),
-    Watch(f"/opt/purrbrews/.git/{REFS}", "earTwitch", "the node pulled", "git"),
-    Watch(f"/opt/purrbrews/.git/{PACKED}", "earTwitch", "the node pulled", "git"),
+    Watch(f"/opt/purrbrews/.git/{HEAD}", "earTwitch", MOVED, "git"),
+    Watch(f"/opt/purrbrews/.git/{REFS}", "earTwitch", MOVED, "git"),
+    Watch(f"/opt/purrbrews/.git/{PACKED}", "earTwitch", MOVED, "git"),
 )
 BY_NODE = {
     "cellar": (Watch("/srv/dumps", "earTwitch", "a dump arrived"),),

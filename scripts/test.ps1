@@ -15,7 +15,7 @@ Set-Location $root
 $py312 = 'python:3.12-slim@sha256:f77ac9e44ae96ef2c90b8053ea08c31f8be030f824196b0ae4db6d462c84e51f'
 $py313 = 'python:3.13-slim@sha256:7c61056e61ac89e852de05f3dc6fa51a6dd2181797bceed46aa725dd7cb2cd3b'
 $py314 = 'python:3.14-slim@sha256:51dafde81dbdb6ebde285137a295cf18a47ca95234fe388a343719cb97305b3d'
-$fleetCommit = '922164af2449ee9c8899b9466d721ffc5a2ac4e6'
+$fleetCommit = '72e3f7b88acb319c9255af115acd87c26c464992'
 $fleetDir = Join-Path $root '.cache\purrbrews-containers'
 
 # Container-safety rule (AGENTS.md 2.8): every container this script starts carries this label, and
@@ -90,20 +90,14 @@ Step 'kitten: real inotifywait (3.13 + inotify-tools)' {
     docker run --rm --label $label -v "${root}:/src" -w /src -e PYTHONDONTWRITEBYTECODE=1 -e KITTEN_REQUIRE_INOTIFY=1 persian-perch-kitten:inotify python -m unittest discover -s tests/kitten -p "test_pounce.py"
 }
 
-# M6 gate: the fleet repo's OWN tests, on a fresh copy of the pinned clone with integration/ applied
-# (integration/apply.sh). They run once as an unprivileged user (their Secrets, Render and Firewall tests skip
-# themselves under root) and once as root (their real-backup test needs it). .cache\fleet-scratch is ours.
-Step 'fleet: its own tests with integration/ applied' {
-    docker build --quiet --label $label -f tests/fleet/Dockerfile -t persian-perch-fleet:test tests/fleet | Out-Null
+# A scratch copy of the pinned fleet repo for the ROLLOUT.md snippet test below (.cache\fleet-scratch is ours).
+# Until 2026-10-14 this step also ran the fleet's own tests with integration/ applied; the fleet side is merged
+# in purrbrews-containers now and tested there (runbook 2026-10-14).
+Step 'fleet: scratch copy of the pinned repo' {
     $scratch = Join-Path $root '.cache\fleet-scratch'
     if (Test-Path $scratch) { Remove-Item -Recurse -Force $scratch }
     git clone --quiet --config core.autocrlf=false $fleetDir $scratch
     git -C $scratch -c advice.detachedHead=false checkout --quiet $fleetCommit
-    $mounts = @('-v', "${scratch}:/scratch:ro", '-v', "${root}\integration:/integration:ro")
-    $inside = 'cp -r /scratch "$HOME/fleet" && cd "$HOME/fleet" && bash /integration/apply.sh . && python3 -m unittest discover -s tests'
-    docker run --rm --label $label @mounts persian-perch-fleet:test sh -c $inside
-    if ($LASTEXITCODE -ne 0) { return }
-    docker run --rm -u 0 --label $label @mounts persian-perch-fleet:test sh -c $inside
 }
 
 # M6: the Linux installer for kitten, and the one ROLLOUT.md block that edits a secrets file (A3), run for real as root in the fleet

@@ -3,11 +3,13 @@
 Three layers, applied in order:
 
 1. exact values perch knows are secret (its own settings, fixture secrets in tests);
-2. the value of any ``NAME=value`` / ``NAME: value`` whose name ends in
-   PASSWORD, TOKEN, SECRET or KEY (case-insensitive);
+2. the value of any ``NAME=value`` / ``NAME: value`` / ``"name": "value"`` (JSON, e.g. rclone's
+   ``"access_token":"..."``) whose name contains PASSWORD, TOKEN, SECRET or KEY (case-insensitive);
+   a quoted value is masked up to its closing quote, spaces included;
 3. anything shaped like a credential: ``Bearer <x>``, ``Authorization: <x>``,
    ntfy tokens (``tk_...``), ``user:password@`` in URLs, an acknowledge link or token (M3), a
-   healthchecks.io ping URL and a JWT (a Home Assistant long-lived access token is one, M5).
+   healthchecks.io ping URL, a JWT (a Home Assistant long-lived access token is one, M5) and Google's
+   OAuth tokens (``ya29.``, ``1//``), which rclone holds for the Drive copy (2026-10-14).
 
 The result is capped at 16 KB (the newest lines are kept).
 """
@@ -22,8 +24,9 @@ LOG_TAIL_LIMIT = 16 * 1024
 
 _NAMED = re.compile(
     r"(?P<name>\b[A-Za-z0-9_.-]*(?:PASSWORD|PASSWD|TOKEN|SECRET|KEY)[A-Za-z0-9_]*)"
+    r"(?P<close>[\"']?)"  # a JSON or quoted key: "access_token":"..."
     r"(?P<sep>\s*[=:]\s*)"
-    r"(?P<quote>[\"']?)(?P<value>[^\s\"',;]+)",
+    r"(?P<quote>[\"'])?(?P<value>(?(quote)[^\"'\n]+|[^\s\"',;]+))",
     re.IGNORECASE,
 )
 _BEARER = re.compile(r"(?P<head>\b(?:Bearer|Basic|Token)\s+)[A-Za-z0-9._~+/=-]{8,}", re.IGNORECASE)
@@ -33,6 +36,7 @@ _ACK_LINK = re.compile(r"(?P<head>/ack/t/)[^\s\"'<>?#]+")
 _ACK_TOKEN = re.compile(r"(?<![A-Za-z0-9_-])[A-Za-z0-9_-]{4,}\.\d{9,11}\.[A-Za-z0-9_-]{40,}(?![A-Za-z0-9_-])")
 _JWT = re.compile(r"\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}")
 _PING = re.compile(r"(?P<head>\bhc-ping\.com/)[^\s\"'<>?#]+", re.IGNORECASE)
+_GOOGLE = re.compile(r"(?<![A-Za-z0-9_-])(?:ya29\.[A-Za-z0-9_.-]{20,}|1//[A-Za-z0-9_-]{20,})")
 _URL_CREDS = re.compile(r"(?P<head>[a-z][a-z0-9+.-]*://[^/\s:@]+:)[^/\s@]+(?=@)", re.IGNORECASE)
 
 
@@ -42,7 +46,7 @@ def scrub(text: str, secrets: Iterable[str] = (), limit: int = LOG_TAIL_LIMIT) -
     # Longest first, so a secret that contains another is removed whole.
     for value in sorted({s for s in secrets if s and len(s) >= 4}, key=len, reverse=True):
         text = text.replace(value, MASK)
-    text = _NAMED.sub(lambda m: f"{m['name']}{m['sep']}{m['quote']}{MASK}", text)
+    text = _NAMED.sub(lambda m: f"{m['name']}{m['close']}{m['sep']}{m['quote'] or ''}{MASK}", text)
     text = _BEARER.sub(lambda m: f"{m['head']}{MASK}", text)
     text = _AUTH_HEADER.sub(lambda m: f"{m['head']}{MASK}", text)
     text = _NTFY.sub(MASK, text)
@@ -50,6 +54,7 @@ def scrub(text: str, secrets: Iterable[str] = (), limit: int = LOG_TAIL_LIMIT) -
     text = _ACK_TOKEN.sub(MASK, text)
     text = _JWT.sub(MASK, text)  # whiskers' Home Assistant token
     text = _PING.sub(lambda m: f"{m['head']}{MASK}", text)  # nineLives' ping URL is its secret
+    text = _GOOGLE.sub(MASK, text)  # rclone's Drive tokens, if a failing job ever prints its config
     text = _URL_CREDS.sub(lambda m: f"{m['head']}{MASK}", text)
     return tail(text, limit)
 

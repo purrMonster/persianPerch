@@ -1,8 +1,10 @@
-# integration/groom: the backup recorder (prepared, not applied)
+# integration/groom: the drop-ins for the backup recorder
 
-> Status: **prepared in M2, applied by the owner** (05 plan A8, Q13 = A, A10). Nothing here has
-> touched a node. persianPerch's tests check these files against the pinned fleet repo
-> (`tests/test_integrationGroom.py`), including the whole chain recorder → kitten → perch.
+> Status: **prepared in M2; the recorder is in the fleet repo** as `stacks/_lib/groom-record.py`
+> (merged in October 2026, fixed there on 2026-10-12). The drop-ins below are node-local and not
+> installed anywhere yet. persianPerch's tests run the fleet's recorder and check these files
+> against the pinned fleet repo (`tests/test_integrationGroom.py`), including the whole chain
+> recorder → kitten → perch.
 
 groom needs to know when each backup job ran and how it ended. The fleet's scripts don't say, and
 `backup.sh` stays untouched: instead, systemd runs a small recorder when a backup unit stops, with
@@ -13,13 +15,13 @@ and the last 40 log lines from the journal, and writes one file per run.
 
 | Here | Lands in `purrbrews-containers` as | Then |
 |---|---|---|
-| `groom-record.py` | `stacks/_lib/groom-record.py` (executable) | every node pulls `main` daily, so it arrives everywhere |
+| (the recorder) | already `stacks/_lib/groom-record.py` in the fleet repo | arrives with each node's reviewed deploy |
 | `units/purrbrews-backup@.service.d/groom.conf` | installed beside the template unit: `/etc/systemd/system/purrbrews-backup@.service.d/groom.conf` on **every backup node** (sieve, percolator, cellar, mochaPot, grinder) | `sudo systemctl daemon-reload` |
 | `units/<service>.d/groom.conf` for `purrbrews-wake-roastery`, `purrbrews-backup-store`, `drive-sync`, `purrbrews-backup-check`, `restic-prune`, `purrbrews-backup-verify` | `/etc/systemd/system/<service>.d/groom.conf` on **cellar only** | `sudo systemctl daemon-reload` |
 
 The fleet installs its units by hand, as the header of `purrbrews-backup@.service` says
 (`sudo cp ... /etc/systemd/system/`, then `daemon-reload`); the drop-ins are installed the same
-way. M6's `ROLLOUT.md` will carry the exact commands per node.
+way. `ROLLOUT.md` step E carries the exact commands per node.
 
 ## The record
 
@@ -58,5 +60,4 @@ hold anything the job printed: perch scrubs the secrets it knows before storing 
 - When to apply it (it changes nothing about the jobs, but it is a change to every backup node).
 - Kitten itself (zipapp, unit, user) is `integration/kitten/` (M6, [ADR 0012](../../docs/adr/0012-m6-how-perch-reaches-the-fleet.md));
   until it runs on a node, nothing ships that node's records, and perch shows it as "not watched yet".
-- The exact commands, per node, are in [ROLLOUT.md](../ROLLOUT.md) step E. `apply.sh` copies `groom-record.py` into the fleet repo
-  with everything else, so the recorder is not prepared twice.
+- The exact commands, per node, are in [ROLLOUT.md](../ROLLOUT.md) step E.
