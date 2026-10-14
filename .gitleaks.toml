@@ -1,0 +1,20 @@
+# gitleaks: the secret scan CI runs on every push and pull request (public-repo review, 2026-10-14).
+# Gitleaks' own rules, plus an allow-list of the fakes the tests need in a credential's shape. Each entry is the
+# exact fake, so a real value of the same shape next to it is still found. Add one only for a value that is
+# visibly fake, and say where it lives.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "test fakes, visibly not real"
+regexTarget = "match"
+regexes = [
+  # tests/haFake.py and tests/test_repoHygiene.py: Home Assistant's token, payload {"iss":"fake-ha-not-real"}
+  '''eyJhbGciOiJIUzI1NiJ9\.eyJpc3MiOiJmYWtlLWhhLW5vdC1yZWFsIn0\.fake-signature-not-real-0123456789abcdef''',
+  # tests/test_scrub.py: Basic auth of "fake:fakefake"
+  '''ZmFrZTpmYWtlZmFrZQ==''',
+]
+
+[[allowlists]]
+description = "local caches, never tracked"
+paths = ['''^\.cache/''', '''^\.pytest_cache/''', '''^\.ruff_cache/''', '''^\.venv/''']
