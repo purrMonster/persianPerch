@@ -110,3 +110,65 @@ def test_S8_powershell_is_ascii_only():
             data = path.read_bytes()
             assert all(b < 128 for b in data), f"{path.name} has non-ASCII bytes"
             assert not data.startswith(b"\xef\xbb\xbf"), f"{path.name} has a BOM"
+
+
+# -- S10: no credential shape in any tracked file (public repo review, 2026-10-14) --------------------------------
+# The shapes gitleaks and perch's own scrub know, applied to every tracked file. A fixture that needs a fake value
+# in one of these shapes is listed with the exact fake, so a real one next to it still fails.
+CREDENTIAL_SHAPES = {
+    "private key": re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----"),
+    "GitHub token": re.compile(r"\b(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{36}\b|\bgithub_pat_[A-Za-z0-9_]{60,}\b"),
+    "ntfy token": re.compile(r"\btk_[a-z0-9]{29}\b"),
+    "JWT": re.compile(r"\beyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}"),
+    "Google OAuth token": re.compile(r"\bya29\.[A-Za-z0-9_-]{20,}"),
+    "healthchecks.io ping URL": re.compile(r"hc-ping\.com/[0-9a-f]{8}-[0-9a-f]{4}-"),
+    "ntfy.sh topic": re.compile(r"ntfy\.sh/(?!publish\b|topic\b|<)[A-Za-z0-9_-]{6,}"),
+    "Tailscale auth key": re.compile(r"\btskey-[a-z]+-[A-Za-z0-9]{10,}"),
+    "Cloudflare tunnel token": re.compile(r"\beyJhIjoi[A-Za-z0-9+/=]{40,}"),
+}
+FAKE_CREDENTIALS = {
+    # whiskers' fake Home Assistant token: header {"alg":"HS256"}, payload {"iss":"fake-ha-not-real"}
+    "eyJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJmYWtlLWhhLW5vdC1yZWFsIn0.fake-signature-not-real-0123456789abcdef",
+}
+
+
+def credentialsIn(text: str) -> list[tuple[str, str]]:
+    for fake in FAKE_CREDENTIALS:
+        text = text.replace(fake, "")
+    return [
+        (name, m.group(0)[:24])
+        for name, rx in CREDENTIAL_SHAPES.items()
+        for m in rx.finditer(text)
+        if "fake" not in m.group(0).lower()  # the scrub tests' fakes say so in the value itself
+    ]
+
+
+def test_S10_no_credential_shape_in_tracked_files():
+    found = {}
+    for path in trackedFiles():
+        try:
+            text = path.read_text(encoding="utf-8")
+        except (UnicodeDecodeError, IsADirectoryError, FileNotFoundError):
+            continue
+        hits = credentialsIn(text)
+        if hits:
+            found[str(path.relative_to(ROOT))] = hits
+    assert found == {}, found
+
+
+@pytest.mark.parametrize(
+    ("text", "bad"),
+    [
+        # assembled at run time, so this file never holds the shapes it tests for
+        ("token: tk" + "_abcdefghijklmnopqrstuvwxyz123", True),
+        ("PERCH_NINELIVES_URL=https://hc-ping" + ".com/1a2b3c4d-1111-2222-3333-444455556666", True),
+        ("-----BEGIN OPENSSH PRIVATE" + " KEY-----", True),
+        ("curl -d hi https://ntfy" + ".sh/purrbrews-critical-x7", True),
+        ("token ya29" + ".a0AfakeFAKEfakeFAKEfake123", False),  # says it is fake
+        ("https://ntfy.sh/<that topic>", False),
+        ("PERCH_NINELIVES_URL=https://hc-ping.com/<uuid>", False),
+        ("TOKEN = tk_ + 29 characters", False),
+    ],
+)
+def test_S10_detector(text, bad):
+    assert bool(credentialsIn(text)) is bad

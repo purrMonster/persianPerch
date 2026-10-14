@@ -16,3 +16,16 @@ screenshots/
 # Output of the Claude desktop app's browser tool, never project content.
 .playwright-mcp/
 dist/
+# Anything shaped like a credential stays out, whatever its name (public-repo review, 2026-10-14). secrets.env is
+# tracked on purpose (keys only, test S5); tests/fixtures/secrets.fake.env is tracked (fake values).
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+id_rsa*
+id_ed25519*
+*.kdbx
+rclone.conf

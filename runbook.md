@@ -46,6 +46,57 @@ changes can be made later without re-deriving the reasoning. How to write entrie
 
 ---
 
+## 2026-10-14 — Public-repo review: tree and history clean; scans made permanent
+
+**Context.** Pass 3 of the owner's pre-deploy repass: anything that shouldn't be in a public repo, in the tree or
+in any of the 63 commits on any branch.
+
+**Found.**
+- **No secret, in the tree or the history.** gitleaks 8.28 over `git log --all` found two matches, both test
+  fakes: whiskers' Home Assistant token (its payload reads `"fake-ha-not-real"`) and `Basic ZmFrZTpmYWtlZmFrZQ==`
+  (`fake:fakefake`). Separate scans of the whole history for e-mail addresses, host names, IP addresses, UUIDs,
+  long hex, Windows profile paths, ntfy.sh topics and tailnet names found only what is meant to be there:
+  `example.home.arpa`, public hosts, image digests, the fleet commits, the vendored files' SHA-256, RFC 1918
+  addresses and RFC 5737 test addresses. No binary file has ever been committed.
+- **Personal data, by design.** The owner's name and GitHub user name, `C:\Users\jyotirmoyc`, the commit
+  identity (owner's call, 2026-10-02) and the fleet's LAN layout (also in the public fleet repo). Kept;
+  `SECURITY.md` says these are public on purpose.
+- **An address the owner may not mean to publish:** the 8 merge commits made on GitHub carry
+  `developer@` the owner's domain as their author, because GitHub uses the account's e-mail for web merges.
+  It is in history now; changing that would mean rewriting `main` and force-pushing, which nobody should do for
+  this. Going forward it is a GitHub setting (below).
+- **GitHub's private vulnerability reporting is off** (API: `enabled: false`), so a finder has no private way to
+  report.
+- **Not in this repo but worth knowing:** the fleet's perch compose sets `PERCH_TRUSTED_PROXIES: "*"`, so uvicorn
+  believes `X-Forwarded-*` from anything that reaches perch on `cellar_net`. perch authorises nothing by client
+  address (Traefik's allow-list and the tokens do), so it changes no decision today; narrowing it to Traefik's
+  address is a fleet change for the owner to weigh.
+
+**Done.**
+- `.gitleaks.toml`: gitleaks' rules plus an allow-list of exactly those two fakes (and the local caches), so the
+  CI scan in the release pull request can fail on anything real.
+- Test **S10** (`tests/test_repoHygiene.py`): every tracked file is checked for private keys, GitHub and ntfy
+  tokens, JWTs, Google OAuth tokens, healthchecks.io ping URLs, ntfy.sh topics, Tailscale auth keys and Cloudflare
+  tunnel tokens; a value that says "fake" passes, and the detector's own examples are assembled at run time so the
+  file never holds them.
+- `.gitignore`: `.env`, `.env.*`, keys, certificates, key stores, `rclone.conf` (no tracked file matches).
+- `SECURITY.md`: how to report, what is public on purpose, what never is.
+
+**Verified.** `gitleaks git --log-opts=--all --config .gitleaks.toml` and `gitleaks dir`: "no leaks found".
+`pytest tests/test_repoHygiene.py`: passed. `git ls-files -i -c --exclude-standard`: nothing (the new ignores
+hide no tracked file).
+
+**Not done / next.**
+- [ ] Owner, GitHub: Settings → Emails → "Keep my email addresses private" (and "Block command line pushes that
+  expose my email"), so future web merges are authored by the noreply address
+- [ ] Owner, GitHub: this repository → Settings → Security → enable **Private vulnerability reporting**; check
+  secret scanning and push protection are still on (the token here can't read those settings)
+- [ ] Owner, fleet: decide whether `PERCH_TRUSTED_PROXIES` should name Traefik only
+
+— Claude (Claude Code, cloud session, model configured as claude-opus-5-5), for the owner
+
+---
+
 ## 2026-10-14 — Pre-deploy repass against the rebuilt fleet; windowsill split into modules
 
 **Context.** The owner asked for three passes before the first real deployment: what has to be repaired
