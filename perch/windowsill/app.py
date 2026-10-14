@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import os
 from collections.abc import Callable
 from contextlib import asynccontextmanager
 from datetime import datetime
@@ -126,6 +127,7 @@ def createApp(
     def healthz():
         body = {
             "ok": True,
+            "version": os.environ.get("PERCH_VERSION", "dev"),  # the release tag, baked into the image
             "schemaVersion": trail.schemaVersion,
             "journalMode": trail.journalMode,
             "collectors": runner.report(),

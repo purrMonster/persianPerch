@@ -15,10 +15,16 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY perch ./perch
 
+# The release tag (release.yml passes it); /healthz reports it so a drill can see which build runs.
+ARG PERCH_VERSION=dev
+LABEL org.opencontainers.image.source="https://github.com/purrMonster/persianPerch" \
+      org.opencontainers.image.title="persianPerch" \
+      org.opencontainers.image.version="${PERCH_VERSION}"
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PERCH_TRAIL_DB=/data/scentTrail.db \
-    PERCH_REPO_DIR=/opt/purrbrews
+    PERCH_REPO_DIR=/opt/purrbrews \
+    PERCH_VERSION=${PERCH_VERSION}
 USER perch
 VOLUME ["/data"]
 EXPOSE 8080

@@ -79,6 +79,14 @@ def test_unknown_things_are_404(client):
 def test_healthz(client):
     body = client.get("/healthz").json()
     assert body["ok"] and body["journalMode"] == "wal" and len(body["commit"]) == 12
+    assert body["version"] == "dev"  # from source; a release image says its tag (Dockerfile, PERCH_VERSION)
+
+
+def test_healthz_says_the_release_it_was_built_as(fleetRepo, fleetTree, tmp_path, clock, monkeypatch):
+    monkeypatch.setenv("PERCH_VERSION", "v0.1.0")
+    cfg = Settings(repoDir=fleetRepo, trailDb=tmp_path / "v.db")
+    with TestClient(createApp(cfg, tree=fleetTree, clock=clock, collectors=[])) as c:
+        assert c.get("/healthz").json()["version"] == "v0.1.0"
 
 
 def test_page_escapes_html(client):
