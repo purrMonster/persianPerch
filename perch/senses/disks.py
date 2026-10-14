@@ -4,7 +4,8 @@ One ``cycle`` reads Scrutiny (``scrutiny.py``) and writes a state ``disk:<host>/
 event when something a person should know about changes. Scrutiny's own verdicts are the rules (runbook
 2026-10-03 records the mapping):
 
-- the device failed (``device_status`` != 0: SMART itself says failing, or Scrutiny's thresholds do) -> **hiss**;
+- SMART itself says the drive is failing (``device_status`` bit 1) -> **hiss**; only Scrutiny's thresholds
+  failed (bit 2, SMART passes) -> **tailFlick** (2026-10-14);
 - the device passes but an attribute is in Scrutiny's warning band -> **tailFlick**;
 - no SMART report for 3 days (Scrutiny's collector runs daily) -> tailFlick: a drive nobody is watching;
 - otherwise slowBlink, with the temperature and the power-on hours in the title.
@@ -133,13 +134,22 @@ class Disks:
     @staticmethod
     def _judge(disk: Disk, now: datetime) -> tuple[B, str]:
         if disk.deviceStatus:
+            # Only the drive's own SMART verdict is a hiss. Scrutiny's thresholds (Backblaze failure rates) are a
+            # heuristic and misread some vendors' packed raw values: cellar's ST1000 and mochaPot's SanDisk were
+            # flagged on them while SMART passed (fleet runbook 2026-10-14). That is worth a look, not a 3 a.m.
+            # push, so a threshold-only failure is a tailFlick (owner, 2026-10-14).
             words = []
             if disk.deviceStatus & DEVICE_FAILED_SMART:
                 words.append("SMART reports the drive failing")
             if disk.deviceStatus & DEVICE_FAILED_SCRUTINY:
-                words.append("Scrutiny's thresholds failed")
+                words.append(
+                    "Scrutiny's thresholds failed"
+                    if disk.deviceStatus & DEVICE_FAILED_SMART
+                    else "Scrutiny's thresholds failed; SMART itself passes"
+                )
             names = ", ".join(a.name for a in disk.failures[:3])
-            return B.hiss, "; ".join(words) + (f" ({names})" if names else "")
+            level = B.hiss if disk.deviceStatus & DEVICE_FAILED_SMART else B.tailFlick
+            return level, "; ".join(words) + (f" ({names})" if names else "")
         if disk.warnings:
             names = ", ".join(a.name for a in disk.warnings[:3])
             more = f" and {len(disk.warnings) - 3} more" if len(disk.warnings) > 3 else ""
