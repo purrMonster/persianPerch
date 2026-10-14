@@ -437,8 +437,12 @@ def test_the_token_never_reaches_the_trail_the_logs_or_a_scrubbed_message(rig, c
 
 
 def test_a_whiskers_with_no_token_does_not_start(tmp_path, clock):
-    with pytest.raises(ValueError, match="PERCH_WHISKERS_TOKEN"):
-        Whiskers("ws://127.0.0.1:1/api/websocket", "", parseConfig(CONFIG), ScentTrail(tmp_path / "x.db"), clock=clock)
+    trail = ScentTrail(tmp_path / "x.db")
+    try:
+        with pytest.raises(ValueError, match="PERCH_WHISKERS_TOKEN"):
+            Whiskers("ws://127.0.0.1:1/api/websocket", "", parseConfig(CONFIG), trail, clock=clock)
+    finally:
+        trail.close()  # left open, Python 3.13 reports it as an unraisable ResourceWarning in a later test
 
 
 def test_something_that_is_not_home_assistant_is_said_plainly(tmp_path, clock):
