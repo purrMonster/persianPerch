@@ -17,7 +17,7 @@ changes can be made later without re-deriving the reasoning. How to write entrie
 - [ ] Restore roastery's sleep setting after M6-prep (owner; 05 plan A4). roastery was formatted on 2026-10-07 and set up again from `C:\purrbrews-deploy`: check what its sleep setting is now before the rollout's step K
 - [x] M0 Litter: scaffolding, scentTrail, catTree, windowsill skeleton (2026-09-30, gate green on roastery, M0 entry)
 - [x] Owner's go-ahead for M1 (05 plan A2): given in chat 2026-10-01, after approving the design rework's screenshots and mockups
-- [ ] CI: `ci/github-actions-ci.yml` is ready but inactive; move it to `.github/workflows/ci.yml` if you want GitHub Actions on the public repo (owner; M0 entry)
+- [x] CI: `ci/github-actions-ci.yml` is ready but inactive; move it to `.github/workflows/ci.yml` if you want GitHub Actions on the public repo (owner; M0 entry). **Owner said yes, 2026-10-14**: moved in the release pull request (#11); its first run on GitHub, `38599495057`, passed all five jobs (2026-10-14 release entry)
 - [x] M1 First purr: containers and vitals via Komodo's read API (faked), rollups, overview and catTree pages (2026-10-02, gate green on roastery, M1 entry; pull request open)
 - [x] Owner: review and merge the M1 pull request, then `git pull` the main checkout (M1 entry): PR #1 merged 2026-10-02 as merge commit `ad87ef5` (hashes kept); main checkout pulled, fast-forward
 - [x] Owner: decide on vendoring htmx for live refresh: **yes, htmx 2.0.11, vendored, M2's first task** (2026-10-02; 05 plan A12, ADR 0003)
@@ -43,6 +43,60 @@ changes can be made later without re-deriving the reasoning. How to write entrie
 - [x] M6-prep (2026-10-03): `integration/` + `ROLLOUT.md`, the two M5 decisions, fleet re-pinned to `922164a`, gate green (M6 entry; pull request to open)
 - [x] Owner: review and merge the M6 pull request (M6 entry): PR #7, `4a84a45`, 2026-10-04
 - [ ] Owner: work through `integration/ROLLOUT.md` (rewritten 2026-10-14 for the rebuilt fleet): the deploy and the drills are the owner's
+
+---
+
+## 2026-10-14 — Release 0.1.0 prepared: CI on, the image on GHCR from a tag
+
+**Context.** Pass 4 of the owner's repass: a release pull request, and GitHub Actions building the Docker image
+into `ghcr.io/purrMonster`. Owner's answers (2026-10-14): publish **only from `v*` tags**; **v0.1.0** (0.x until
+the drills pass live); CI may go into `.github/` and CLAUDE.md may be edited.
+
+**Decided.**
+- **`.github/workflows/ci.yml`** (was `ci/github-actions-ci.yml`, inactive since M0): on every push to `main` and
+  every pull request, ruff + pytest in the test image against the pinned fleet repo; kitten's unittest on 3.13
+  and 3.14 with real `inotifywait`; **gitleaks over every commit** (`.gitleaks.toml`, binary checked against its
+  published SHA-256); and the image built and started like cellar starts it (read-only, `cap_drop ALL`, 300 MB),
+  then `/healthz` and four pages asked. Nothing is pushed from CI.
+- **`.github/workflows/release.yml`**, on a `v*.*.*` tag only: runs `ci.yml` first (`workflow_call`), refuses a tag
+  that disagrees with `pyproject.toml` or has no `CHANGELOG.md` section, builds `linux/amd64` (cellar is an x86-64
+  M710q), pushes `ghcr.io/purrmonster/persian-perch:<x.y.z>` and `:<x.y>` with SBOM and max provenance, attests
+  it, writes the fleet's `image:` line (tag **and digest**) into the run's summary and creates the GitHub release
+  from the changelog. No `latest`: the fleet pins tag@digest, and a moving tag would only invite an unpinned pull.
+  GHCR repository names are lower-case, so the image is `purrmonster`, not `purrMonster`.
+- **Every action pinned by full commit** with its version in a comment (public repo; a moved tag must not change
+  what runs with `packages: write`). Workflow permissions are read-only except the publish job.
+- **`/healthz` says the release** (`"version"`, from `PERCH_VERSION`, a build argument of the Dockerfile; `dev`
+  from source). The Dockerfile labels `org.opencontainers.image.source`, which links the GHCR package to this
+  repository.
+- **The fleet stops building perch.** `integration/fleet-ghcr-image.patch` (against `72e3f7b`) replaces cellar's
+  `build:` from git with `image: ghcr.io/purrmonster/persian-perch:0.1.0@sha256:<64 zeros>` and removes
+  `PERSIAN_PERCH_REF`. The zeros are deliberate: the digest exists only after the tag is pushed, and a digest of
+  zeros can't be pulled, so the patch can't be deployed half-done. ROLLOUT.md step B5 says the order: tag, make
+  the package public, apply the patch with the real digest. After that, the fleet's Dependabot (it already watches
+  `stacks/*/*`) proposes perch's releases like any other image.
+- `pyproject.toml` 0.0.1 → **0.1.0**; `CHANGELOG.md` started.
+
+**Verified** (cloud workspace, 2026-10-14).
+- `actionlint` 1.7.7 (checksum-checked) on both workflows: no findings.
+- CI's perch step, run as written (`ruff check . && pytest` in the test image, the repo mounted at `/src`): ruff
+  "All checks passed!", pytest exit 0. kitten with `KITTEN_REQUIRE_INOTIFY=1` on
+  3.13 and 3.14: `OK`.
+- The image built from the Dockerfile with `--build-arg PERCH_VERSION=v0.1.0-rc-local`, started read-only:
+  healthy, `/healthz` → `{"ok":true,"version":"v0.1.0-rc-local",...,"commit":"72e3f7b88acb"}`, label
+  `org.opencontainers.image.source` = the repo.
+- The patch applied to a clone of the fleet at `72e3f7b`: the fleet's own suite passes, 105 passed, 11 skipped
+  (the same as without it); `tests/test_fleetStack.py` applies it again on every run.
+- ci.yml on GitHub, pull request #11, run `38599495057`: success; perch (ruff + pytest), kitten 3.13 and 3.14,
+  gitleaks over every commit, the image built and started. release.yml has not run: it runs on the tag.
+
+**Not done / next.**
+- [ ] Owner: merge #9, #10 and this pull request, in that order (merge commits)
+- [ ] Owner: tag `v0.1.0` from `main` and push it; watch the release run
+- [ ] Owner: make the `persian-perch` package public on GitHub (a first push is private; cellar pulls anonymously)
+- [ ] Owner: ROLLOUT.md B5 in the fleet repo (the patch, with the real digest), then the rollout
+
+— Claude (Claude Code, cloud session, model configured as claude-opus-5-5), for the owner
 
 ---
 

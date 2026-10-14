@@ -48,7 +48,9 @@ Ntfy needs **no file change** (plan C14): perch's user goes into the node-local 
 - **Deploys are reviewed commits.** The fleet repo's `main` reaches a node only when you check a full commit out
   there and run `python3 scripts/fleet.py deploy <node> --release <commit> --acknowledge-prerequisites` (fleet
   `docs/operations.md`). perch is optional on cellar: add `--include-optional persian-perch` once A is done.
-  persianPerch itself is pinned separately, by `PERSIAN_PERCH_REF` in cellar's `.env.local`.
+  persianPerch itself is an **image**, `ghcr.io/purrmonster/persian-perch:<version>@sha256:<digest>`, published by
+  this repo's GitHub Actions when you push a `v*` tag, and pinned in perch's compose file like every fleet image.
+  Cellar no longer builds it (`integration/fleet-ghcr-image.patch`, step B5).
 - **kitten is delivered by pull, not copy** (the fleet's delivery rule): each node clones the public persianPerch repo
   at a pinned ref, builds the zipapp itself as you, and installs it. Nothing is `scp`'d. Updating is the same four lines.
 - **Morning digest only** for a change under `/etc/purrbrews` (you decided 2026-10-03): it is a trail row and a
@@ -101,7 +103,7 @@ The list of every setting, in `secrets.env`, and where each ends up:
 | `KITTEN_GROOM_DIR`, `KITTEN_STATE_DIR` | not secret | kitten's own defaults (`/var/lib/purrbrews/groom`, `/var/lib/purrbrews`) | nothing to type |
 | `KITTEN_NODE` | not secret | the installer sets it to the folder name you give it | nothing to type |
 
-(`PERSIAN_PERCH_REF`, the persianPerch tag or commit cellar builds, is a new setting of the fleet side, not in `secrets.env`: `.env.local` on cellar.)
+(The image perch runs is a line of the fleet's compose file, not a setting: step B5. An old `PERSIAN_PERCH_REF` line in cellar's `.env.local` is unused and harmless.)
 
 ### A1. Komodo: a read-only service user, on cellar (`PERCH_PURR_KEY`, `PERCH_PURR_SECRET`)
 
@@ -203,8 +205,8 @@ speedtest-tracker's UI on grinder (`http://${GRINDER_LAN_IP}:8765`) -> **API Tok
 
 ## B. Check that the fleet repo has perch's side (it does since 2026-10-03)
 
-Nothing to apply any more: the files the first version of this guide carried are merged in
-`purrbrews-containers`. What is left is yours to check and, for whiskers, to fill in.
+The files the first version of this guide carried are merged in `purrbrews-containers`. What is left is
+yours to check, for whiskers to fill in, and one patch (B5) that makes cellar run the release image.
 
 **B1.** In the fleet clone you deploy from, at the commit you will deploy:
 
@@ -222,6 +224,21 @@ shows the commit it last deployed; sieve and cellar have no record yet (fleet ba
 **B3.** Put your real entity ids into `stacks/cellar/persian-perch/config/whiskers.yml` (every placeholder contains `change_me`; delete the entries you don't want) **in the fleet repo, on a branch, like any change**: cellar's deploy refuses a checkout with local edits. Entity ids aren't secrets. whiskers is commented out in perch's compose until the sensors exist (owner, 2026-10-04); leave it so and whiskers stays off, silently.
 
 **B4.** Run the fleet's own tests at that commit (python3 and git, no Docker): `python3 -m pytest tests`.
+
+**B5.** Switch cellar from building perch to running the release image (once; later releases are one line):
+
+1. In this repo, push the tag: `git tag -a v0.1.0 -m "persianPerch 0.1.0" && git push origin v0.1.0` (from a
+   checkout of `main` after the release pull request is merged). GitHub Actions runs every check, then publishes
+   `ghcr.io/purrmonster/persian-perch:0.1.0` and the GitHub release. The run's summary and the release notes show
+   the exact `image:` line, digest included.
+2. **Make the package public, once:** GitHub → purrMonster → Packages → `persian-perch` → Package settings →
+   Change visibility → Public. A first push makes it private, and cellar pulls anonymously (meowGram's images
+   are public the same way). Check: `docker pull ghcr.io/purrmonster/persian-perch:0.1.0` on any machine with
+   no login.
+3. In your fleet clone, on a branch: `git apply <persianPerch>/integration/fleet-ghcr-image.patch` (made against
+   the tests' pin; `git apply --check` first). Replace the 64 zeros in perch's compose `image:` line with the
+   digest from step 1, run the fleet's tests, open the pull request, merge it. Dependabot proposes later
+   releases as ordinary image bumps.
 
 ---
 
@@ -287,7 +304,7 @@ cd /opt/purrbrews/stacks/cellar
 ./setup-secrets.sh
 ```
 
-It asks for, in this order (each hidden): `PERSIAN_PERCH_REF` (in `.env.local`, not hidden: a persianPerch **tag or full commit** you have chosen; not a branch name), then the Komodo key and secret (A1), `sphynx`'s password (A2), perch's ntfy
+It asks for, in this order (each hidden): the Komodo key and secret (A1), `sphynx`'s password (A2), perch's ntfy
 token (A3), the critical topic URL (A5), the healthchecks.io URL (A4), then the two optional ones (A6 token, A7 token; Enter leaves each blank). It generates the six kitten tokens and the acknowledge secret by itself.
 Then:
 
@@ -363,7 +380,7 @@ grep '^PERCH_KITTEN_TOKEN_GRINDER=' /opt/purrbrews/stacks/cellar/persian-perch/s
 
 (`..._SIEVE`, `_PERCOLATOR`, `_CELLAR`, `_MOCHAPOT`, `_GRINDER`; roastery's is step G.)
 
-On the node (cellar included; the same four commands each time; `<ref>` is the persianPerch tag or commit you chose in D3):
+On the node (cellar included; the same four commands each time; `<ref>` is the release tag cellar runs, e.g. `v0.1.0`):
 
 ```bash
 git -C ~/persianPerch fetch --tags && git -C ~/persianPerch checkout <ref>

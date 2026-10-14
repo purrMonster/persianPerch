@@ -85,4 +85,5 @@ it never changes anything.
 of it (`stacks/cellar/persian-perch/`, the routers, Gatus checks, Authelia rules, `stacks/_lib/groom-record.py`)
 is merged in `purrbrews-containers`; `integration/` keeps only what goes on the nodes (kitten, roastery's task, the
 groom drop-ins) and `integration/ROLLOUT.md`, the owner's deploy guide. Tests pin the fleet repo at `72e3f7b`.
-The deploy and the drills are the owner's. The runbook's Backlog is the live status.
+Releases are images, `ghcr.io/purrmonster/persian-perch`, published by `.github/workflows/release.yml` from a
+`v*` tag the owner pushes (`CHANGELOG.md`); CI runs on every push and pull request. The deploy and the drills are the owner's. The runbook's Backlog is the live status.

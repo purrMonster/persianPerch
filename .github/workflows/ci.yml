@@ -1,0 +1,104 @@
+# CI: the checks of scripts/test.ps1 that run on Linux, on every push to main and every pull request.
+# Actions are pinned by full commit (this repo is public; a moved tag must not change what runs here).
+# Turned on 2026-10-14 by the owner's go-ahead (runbook); before that this file waited in ci/.
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_call:  # release.yml runs the same checks before it publishes anything
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FLEET_COMMIT: 72e3f7b88acb319c9255af115acd87c26c464992  # tests/conftest.py's pin; bump both together
+  GITLEAKS_VERSION: 8.28.0
+  GITLEAKS_SHA256: a65b5253807a68ac0cafa4414031fd740aeb55f54fb7e55f386acb52e6a840eb  # linux_x64 tarball
+
+jobs:
+  perch:
+    name: perch (ruff + pytest, Python 3.12)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09  # v5.1.0
+        with:
+          persist-credentials: false
+      - name: Pin the fleet repo (05 plan 3)
+        run: |
+          git clone --quiet https://github.com/purrMonster/purrbrews-containers .cache/purrbrews-containers
+          git -C .cache/purrbrews-containers -c advice.detachedHead=false checkout --quiet "$FLEET_COMMIT"
+      - name: Build the test image
+        run: docker build --quiet --label com.purrbrews.project=persianperch -f tests/Dockerfile -t persian-perch-test:ci .
+      - name: ruff + pytest
+        run: >-
+          docker run --rm --label com.purrbrews.project=persianperch -v "$PWD:/src" -w /src
+          persian-perch-test:ci sh -c 'git config --global --add safe.directory "*" && ruff check . && pytest'
+
+  kitten:
+    name: kitten (unittest, Python ${{ matrix.python }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      matrix:
+        python: ["3.13", "3.14"]
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09  # v5.1.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6.3.0
+        with:
+          python-version: ${{ matrix.python }}
+      - name: inotify-tools (pounce's real watcher)
+        run: sudo apt-get install -y --no-install-recommends inotify-tools
+      - run: KITTEN_REQUIRE_INOTIFY=1 python -m unittest discover -s tests/kitten
+
+  secrets:
+    name: gitleaks (every commit)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09  # v5.1.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: gitleaks, checksum-verified
+        run: |
+          curl -sSfL -o gitleaks.tgz "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          echo "${GITLEAKS_SHA256}  gitleaks.tgz" | sha256sum -c -
+          tar -xzf gitleaks.tgz gitleaks && rm gitleaks.tgz
+          ./gitleaks git --config .gitleaks.toml --redact --no-banner --log-opts=--all .
+
+  image:
+    name: image builds (not pushed)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09  # v5.1.0
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069  # v4.4.1
+      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc  # v7.4.0
+        with:
+          context: .
+          push: false
+          load: true
+          tags: persian-perch:ci
+          build-args: PERCH_VERSION=ci-${{ github.sha }}
+      - name: Start it the way cellar does and ask /healthz
+        run: |
+          git clone --quiet https://github.com/purrMonster/purrbrews-containers /tmp/fleet
+          git -C /tmp/fleet -c advice.detachedHead=false checkout --quiet --detach "$FLEET_COMMIT"
+          mkdir -p /tmp/perch-data && sudo chown 10001 /tmp/perch-data
+          docker run -d --name perch-ci --label com.purrbrews.project=persianperch \
+            --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges:true --memory 300m \
+            -v /tmp/fleet:/opt/purrbrews:ro -v /tmp/perch-data:/data -p 127.0.0.1:8080:8080 persian-perch:ci
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:8080/healthz && break; sleep 2; done
+          curl -fsS http://127.0.0.1:8080/healthz | grep -q '"version":"ci-'
+          for page in / /tree /groom /trail; do curl -fsS -o /dev/null "http://127.0.0.1:8080$page"; done
+          docker stop perch-ci

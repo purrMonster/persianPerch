@@ -150,8 +150,8 @@ def test_nothing_in_integration_holds_a_secret_a_real_domain_or_a_lan_address():
         text = path.read_text(encoding="utf-8", errors="ignore")
         for name, rx in patterns.items():
             for m in rx.finditer(text):
-                if name == "long hex" and m.group(0) == FLEET_COMMIT:
-                    continue  # ROLLOUT.md names the fleet commit it was written against
+                if name == "long hex" and (m.group(0) == FLEET_COMMIT or set(m.group(0)) == {"0"}):
+                    continue  # the fleet commit ROLLOUT.md was written against; the patch's digest placeholder
                 pytest.fail(f"{path.relative_to(ROOT)} has a {name}: {m.group(0)[:40]}")
 
 
@@ -375,3 +375,32 @@ def test_the_steps_run_in_the_order_the_document_promises():
     order = [ROLLOUT.index(f"\n## {s}. ") for s in "ABCDEFGHIJK"]
     assert order == sorted(order)
     assert ROLLOUT.rindex("## K. ") > ROLLOUT.index("## J. ")  # the sleep setting goes back last
+
+
+# -- the release image (2026-10-14): integration/fleet-ghcr-image.patch -----------------------------------------
+
+
+def test_the_ghcr_patch_applies_to_the_pinned_fleet_and_runs_the_release_image(tmp_path, fleetRepo):
+    """The one fleet change the release needs: cellar runs ghcr.io/purrmonster/persian-perch instead of building.
+    Applied to a clone of the pinned fleet repo, never to the cache, and nothing is committed."""
+    import subprocess
+
+    patch = INTEG / "fleet-ghcr-image.patch"
+    clone = tmp_path / "fleet"
+    subprocess.run(["git", "clone", "-q", str(fleetRepo), str(clone)], check=True, capture_output=True)
+    subprocess.run(["git", "-C", str(clone), "checkout", "-q", "--detach", FLEET_COMMIT], check=True)
+    run = subprocess.run(["git", "-C", str(clone), "apply", str(patch)], capture_output=True, text=True, check=False)
+    assert run.returncode == 0, run.stderr
+    service = yaml.safe_load((clone / "stacks/cellar/persian-perch/docker-compose.yml").read_text())["services"][
+        "persian-perch"
+    ]
+    assert "build" not in service
+    release = (ROOT / ".github/workflows/release.yml").read_text()
+    image = re.search(r"IMAGE: (\S+)", release).group(1)
+    assert re.fullmatch(re.escape(image) + r":\d+\.\d+\.\d+@sha256:0{64}", service["image"])  # zeros until B5
+    version = re.search(r'^version = "([^"]+)"', (ROOT / "pyproject.toml").read_text(), re.M).group(1)
+    assert service["image"].startswith(f"{image}:{version}@")
+    grep = ["git", "-C", str(clone), "grep", "-n", "PERSIAN_PERCH_REF"]
+    after = subprocess.run(grep, capture_output=True, text=True, check=False)
+    assert after.stdout == ""  # nothing still asks for a ref to build
+    assert service["environment"] == compose()["services"]["persian-perch"]["environment"]  # only the image changed
