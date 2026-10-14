@@ -1,5 +1,6 @@
-"""integration/groom: the recorder and the unit drop-ins the owner will apply to the fleet (05 plan A8),
-checked against the pinned fleet repo and, end to end, against kitten and perch. Nothing here touches a node."""
+"""groom's recorder (the fleet's ``stacks/_lib/groom-record.py``, merged there from integration/groom) and the
+unit drop-ins the owner installs (05 plan A8), checked against the pinned fleet repo and, end to end, against kitten
+and perch. Nothing here touches a node."""
 
 import json
 import os
@@ -21,7 +22,8 @@ from perch.settings import Settings
 from perch.windowsill.app import createApp
 
 ROOT = Path(__file__).resolve().parents[1]
-RECORDER = ROOT / "integration" / "groom" / "groom-record.py"
+FLEET = Path(os.environ.get("PERCH_TEST_FLEET_REPO", ROOT / ".cache" / "purrbrews-containers"))  # as conftest's
+RECORDER = FLEET / "stacks" / "_lib" / "groom-record.py"  # one copy, the fleet's (persianPerch's removed 2026-10-14)
 UNITS = ROOT / "integration" / "groom" / "units"
 # the unit each job's timer starts, in the pinned fleet repo
 SERVICE_OF = {

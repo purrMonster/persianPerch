@@ -152,7 +152,8 @@ def test_a_node_page_has_vitals_and_other_containers(live):
     assert '<th scope="row" class="mono"><a id="app-n8n" href="/tree/grinder/n8n">n8n/</a></th>' in html
 
 
-def test_a_sleeping_node_says_so_once_instead_of_showing_a_hiss(live):
+def test_a_sleeping_node_says_so_once_instead_of_showing_a_hiss(live, fleetTree):
+    roasteryApps = len(next(n for n in fleetTree.fleet().nodes if n.name == "roastery").apps)
     live.look(2)
     live.w.fake.nodeDown("roastery")
     live.look(3)
@@ -161,7 +162,8 @@ def test_a_sleeping_node_says_so_once_instead_of_showing_a_hiss(live):
     assert node.count("asleep, as expected (wakes 01:25)") == 1  # in the note, not repeated in the empty state
     overview = page(live, "/")
     assert "fleet: slowBlink" in overview and "asleep, as expected" in overview and "Needs a look" not in overview
-    assert "2 apps, not visible while it sleeps" in overview  # not "2/2 apps up" for apps nobody can see
+    # not "N/N apps up" for apps nobody can see; the count comes from the pinned fleet repo
+    assert f"{roasteryApps} apps, not visible while it sleeps" in overview
 
 
 def test_a_node_purr_cannot_see_says_why_instead_of_a_bare_empty_state(live):
@@ -213,9 +215,9 @@ def test_purr_not_configured_is_said_plainly(fleetRepo, fleetTree, tmp_path, clo
     with TestClient(createApp(cfg, trail=trail, tree=fleetTree, clock=clock, collectors=[])) as client:
         html = page(client, "/")
         assert "purr off" in html and "purr isn't watching yet" in html
-        assert (
-            "48 apps unknown: purr isn't configured (set PERCH_PURR_URL, PERCH_PURR_KEY and PERCH_PURR_SECRET)." in html
-        )
+        apps = sum(len(n.apps) for n in fleetTree.fleet().nodes)
+        why = "purr isn't configured (set PERCH_PURR_URL, PERCH_PURR_KEY and PERCH_PURR_SECRET)."
+        assert f"{apps} apps unknown: {why}" in html
         assert "Nothing needs a look" not in html  # it can't say that when it can't see
         assert "no data yet" in html and "apps, no live data" in html  # not "0/9 apps up"
         assert "purr hasn't seen this app's containers yet" in page(client, "/tree/grinder/n8n")

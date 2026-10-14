@@ -134,7 +134,7 @@ def test_the_outside_card_shows_tunnel_speedtest_and_releases(site):
                 image = parseImage(ref)
                 if image:
                     site.registry.tags.setdefault(image.key, []).append(image.tag)
-    site.registry.tags["registry-1.docker.io/n8nio/n8n"].append("2.40.0")
+    site.registry.tags["registry-1.docker.io/n8nio/n8n"].append("99.0.0")
 
     async def nap():
         return None
@@ -154,7 +154,7 @@ def test_the_outside_card_shows_tunnel_speedtest_and_releases(site):
     card = html[html.index('id="binocs"') :]
     assert "up, 12 ms" in card  # the tunnel is Gatus's own check
     assert "down 312.4 Mbit/s, up 41.2 Mbit/s, ping 9.4 ms" in card
-    assert "with a newer release" in card and "n8nio/n8n 2.39.7 is pinned, 2.40.0 is out" in card
+    assert "with a newer release" in card and "n8nio/n8n 2.42.6 is pinned, 99.0.0 is out" in card
     assert "Checked 0 s ago" in card
     assert "fleet: slowBlink" in html or "fleet: unknown" in html  # a notice never moves the fleet to earTwitch
     assert "fleet: earTwitch" not in html

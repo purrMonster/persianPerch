@@ -194,7 +194,7 @@ class Binocs:
                     "newest": newest.text(),
                     "usedBy": self._usedBy(image.ref),
                 }
-                name = image.ref.rpartition(":")[0].removeprefix("lscr.io/")
+                name = image.name.removeprefix("lscr.io/")
                 title = f"{name} {pinned.text()} is pinned, {newest.text()} is out"
                 if subject not in before:
                     self.trail.addEvent("binocs", subject, B.earTwitch, title, detail=detail, seenAt=now)
