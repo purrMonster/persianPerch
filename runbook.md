@@ -17,7 +17,7 @@ changes can be made later without re-deriving the reasoning. How to write entrie
 - [ ] Restore roastery's sleep setting after M6-prep (owner; 05 plan A4). roastery was formatted on 2026-10-07 and set up again from `C:\purrbrews-deploy`: check what its sleep setting is now before the rollout's step K
 - [x] M0 Litter: scaffolding, scentTrail, catTree, windowsill skeleton (2026-09-30, gate green on roastery, M0 entry)
 - [x] Owner's go-ahead for M1 (05 plan A2): given in chat 2026-10-01, after approving the design rework's screenshots and mockups
-- [ ] CI: `ci/github-actions-ci.yml` is ready but inactive; move it to `.github/workflows/ci.yml` if you want GitHub Actions on the public repo (owner; M0 entry). **Owner said yes, 2026-10-14**: moved in the release pull request; tick once its first run on GitHub is green
+- [x] CI: `ci/github-actions-ci.yml` is ready but inactive; move it to `.github/workflows/ci.yml` if you want GitHub Actions on the public repo (owner; M0 entry). **Owner said yes, 2026-10-14**: moved in the release pull request (#11); its first run on GitHub, `38599495057`, passed all five jobs (2026-10-14 release entry)
 - [x] M1 First purr: containers and vitals via Komodo's read API (faked), rollups, overview and catTree pages (2026-10-02, gate green on roastery, M1 entry; pull request open)
 - [x] Owner: review and merge the M1 pull request, then `git pull` the main checkout (M1 entry): PR #1 merged 2026-10-02 as merge commit `ad87ef5` (hashes kept); main checkout pulled, fast-forward
 - [x] Owner: decide on vendoring htmx for live refresh: **yes, htmx 2.0.11, vendored, M2's first task** (2026-10-02; 05 plan A12, ADR 0003)
@@ -87,7 +87,8 @@ the drills pass live); CI may go into `.github/` and CLAUDE.md may be edited.
   `org.opencontainers.image.source` = the repo.
 - The patch applied to a clone of the fleet at `72e3f7b`: the fleet's own suite passes, 105 passed, 11 skipped
   (the same as without it); `tests/test_fleetStack.py` applies it again on every run.
-- Not run: the workflows on GitHub itself. Their first runs are on this pull request (ci) and on the tag (release).
+- ci.yml on GitHub, pull request #11, run `38599495057`: success; perch (ruff + pytest), kitten 3.13 and 3.14,
+  gitleaks over every commit, the image built and started. release.yml has not run: it runs on the tag.
 
 **Not done / next.**
 - [ ] Owner: merge #9, #10 and this pull request, in that order (merge commits)
