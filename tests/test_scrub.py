@@ -59,6 +59,35 @@ def test_credential_shapes_are_removed(line):
         assert secret not in out
 
 
+@pytest.mark.parametrize(
+    ("line", "secret"),
+    [
+        ('RESTIC_PASSWORD="fake pass phrase"', "pass phrase"),  # a quoted value is masked whole, spaces included
+        ("export RESTIC_PASSWORD='another fake phrase'", "fake phrase"),
+        ('token = {"access_token":"ya29.a0fakefakefakefake","refresh_token":"1//0gfakefakefakefake"}', "fake"),
+        ("Failed to create file system: couldn't fetch token ya29.a0fakefakefakefakefakefakefake", "ya29.a0fake"),
+        ("rclone: refresh 1//0gfakefakefakefakefakefakefake rejected", "1//0gfake"),
+        ('{"client_secret": "fakeClientSecret123"}', "fakeClientSecret123"),
+    ],
+)
+def test_backup_job_output_is_scrubbed(line, secret):
+    """groom's log tails are restic's and rclone's own output (the fleet's backlog asked, 2026-10-12): what those two
+    print about their credentials, quoted, in JSON or as Google's token shapes, is masked before it is stored."""
+    out = scrub(line)
+    assert secret not in out and MASK in out
+
+
+def test_restic_lines_that_are_not_secrets_survive():
+    text = (
+        "repository 5c1e9a07 opened (version 2, compression level auto)\n"
+        "using parent snapshot 1f2e3d4c\n"
+        "Files: 12 new, 3 changed, 2041 unmodified\n"
+        "snapshot 7a8b9c0d saved\n"
+        "rclone: sftp:restic@roastery:/purrbrews/restic/snapshots 200 OK"
+    )
+    assert scrub(text) == text
+
+
 def test_tail_keeps_newest_16kb():
     log = "\n".join(f"line {i:06d}" for i in range(5000))
     out = scrub(log)
