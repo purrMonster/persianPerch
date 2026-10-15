@@ -91,9 +91,9 @@ the drills pass live); CI may go into `.github/` and CLAUDE.md may be edited.
   gitleaks over every commit, the image built and started. release.yml has not run: it runs on the tag.
 
 **Not done / next.**
-- [ ] Owner: merge #9, #10 and this pull request, in that order (merge commits)
-- [ ] Owner: tag `v0.1.0` from `main` and push it; watch the release run
-- [ ] Owner: make the `persian-perch` package public on GitHub (a first push is private; cellar pulls anonymously)
+- [x] Owner: merge #9, #10 and this pull request, in that order (merge commits): `c91ccbf`, `f21e7e5`, `68d802b`; CI on `main` green (2026-10-15)
+- [x] Owner: tag `v0.1.0` from `main` and push it; watch the release run: release run `38644563209` succeeded, GitHub release v0.1.0, image `ghcr.io/purrmonster/persian-perch:0.1.0@sha256:c1bce82db4948333e8e8e9b00b9d4662993b5772d81266df07af3ba092c43c4b` (2026-10-15)
+- [x] Owner: make the `persian-perch` package public on GitHub (a first push is private; cellar pulls anonymously): an anonymous token pull of `0.1.0`'s manifest answers 200 (2026-10-15)
 - [ ] Owner: ROLLOUT.md B5 in the fleet repo (the patch, with the real digest), then the rollout
 
 — Claude (Claude Code, cloud session, model configured as claude-opus-5-5), for the owner

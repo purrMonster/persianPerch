@@ -30,6 +30,7 @@ ALLOWED_HOSTS = {
     "w3.org",  # SVG namespace
     "ghcr.io",  # binocs: GitHub's container registry, read anonymously for newer releases of pinned images (M4)
     "lscr.io",  # LinuxServer's name for images that live on ghcr.io (the fleet pins speedtest-tracker by it)
+    "img.shields.io",  # the README's badges (2026-10-15)
 }
 # Exact strings allowed even though they contain a host: the git identity AGENTS.md
 # requires for every commit (public in every commit already; runbook 2026-09-30, M0).
