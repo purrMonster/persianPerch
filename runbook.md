@@ -46,6 +46,41 @@ changes can be made later without re-deriving the reasoning. How to write entrie
 
 ---
 
+## 2026-10-21 — After fleet #65: the GHCR patch retired, no more `latest`
+
+**Context.** The owner asked to check perch's bring-up on cellar now that it should run the image, make what
+changes that needs and remove the files no longer needed. Checked from both repos; nothing on a node.
+
+**Found.** The switch is already merged in the fleet (#65, 2026-10-15): cellar's compose pins
+`ghcr.io/purrmonster/persian-perch:0.1.0@sha256:c1bce82d…` with no `build:`, and `PERSIAN_PERCH_REF` is gone. Left
+over here: `integration/fleet-ghcr-image.patch` (applied, now dead), its test, ROLLOUT's step B5 as a to-do, and
+the test pin before #65. And one bug: GHCR carries a **`latest`** tag although the owner chose tags only
+(2026-10-14). `docker/metadata-action` adds `latest` to every semver tag by default (`flavor: latest=auto`).
+
+**Done.**
+- `integration/fleet-ghcr-image.patch` removed, with its README row. Its test is replaced by one that reads the
+  fleet's real compose: no `build:`, the image `release.yml` publishes, a version `CHANGELOG.md` released, a real
+  digest, and no `PERSIAN_PERCH_REF` in `stacks/`, `fleet.json` or `init/`.
+- ROLLOUT.md B5 reads done, with how a later release goes (tag, the release's `image:` line or Dependabot's
+  pull request, merge, deploy cellar).
+- Tests pin the fleet at `97f56ce` (after #65): `tests/conftest.py`, `ci.yml`, `scripts/test.ps1`, `docs/05`.
+- `release.yml`: `flavor: latest=false`. The next tag publishes `x.y.z` and `x.y` only.
+- The fleet's own leftovers are its pull request #75 (README note, two Backlog lines).
+
+**Verified.** Full pytest at the new pin (`97f56ce`), Python 3.12: exit 0. `ruff check .`: clean. `actionlint`: no findings.
+
+**Not done / next.**
+- [ ] Owner: delete the existing `latest` tag of `persian-perch` on GHCR (package settings → versions), if wanted;
+  the fleet pins by digest, so nothing uses it
+- [ ] Owner: on cellar, the unused `PERSIAN_PERCH_REF=` line in `.env.local`
+- [ ] Owner: the rollout, from ROLLOUT.md step A (credentials)
+
+Where we stopped / next step: perch bring-up, step A1 (Komodo's read-only key) in ROLLOUT.md.
+
+— Claude (Claude Code, cloud session, model configured as claude-opus-5-5), for the owner
+
+---
+
 ## 2026-10-14 — Release 0.1.0 prepared: CI on, the image on GHCR from a tag
 
 **Context.** Pass 4 of the owner's repass: a release pull request, and GitHub Actions building the Docker image
@@ -94,7 +129,7 @@ the drills pass live); CI may go into `.github/` and CLAUDE.md may be edited.
 - [x] Owner: merge #9, #10 and this pull request, in that order (merge commits): `c91ccbf`, `f21e7e5`, `68d802b`; CI on `main` green (2026-10-15)
 - [x] Owner: tag `v0.1.0` from `main` and push it; watch the release run: release run `38644563209` succeeded, GitHub release v0.1.0, image `ghcr.io/purrmonster/persian-perch:0.1.0@sha256:c1bce82db4948333e8e8e9b00b9d4662993b5772d81266df07af3ba092c43c4b` (2026-10-15)
 - [x] Owner: make the `persian-perch` package public on GitHub (a first push is private; cellar pulls anonymously): an anonymous token pull of `0.1.0`'s manifest answers 200 (2026-10-15)
-- [ ] Owner: ROLLOUT.md B5 in the fleet repo (the patch, with the real digest), then the rollout
+- [x] Owner: ROLLOUT.md B5 in the fleet repo (the patch, with the real digest), then the rollout: B5 merged as fleet #65 (2026-10-15); the rollout itself stays open below
 
 — Claude (Claude Code, cloud session, model configured as claude-opus-5-5), for the owner
 

@@ -172,9 +172,23 @@ def test_compose_runs_perch_the_way_the_design_budgets_it():
     assert "./config/whiskers.yml:/config/whiskers.yml:ro" in svc["volumes"]
 
 
-def test_compose_builds_a_pinned_ref_of_the_public_repo_and_refuses_an_unset_one():
-    build = compose()["services"]["persian-perch"]["build"]["context"]
-    assert build.startswith("https://github.com/purrMonster/persianPerch.git#${PERSIAN_PERCH_REF:?")
+def test_compose_runs_a_released_image_pinned_by_tag_and_digest_and_never_builds(fleetRepo):
+    """Since fleet #65 (2026-10-15) cellar pulls the release image instead of building from git: the image this
+    repo's release.yml publishes, a version CHANGELOG.md has released, and a real digest."""
+    import subprocess
+
+    service = compose()["services"]["persian-perch"]
+    assert "build" not in service
+    image = re.search(r"IMAGE: (\S+)", (ROOT / ".github/workflows/release.yml").read_text()).group(1)
+    pinned = re.fullmatch(re.escape(image) + r":(\d+\.\d+\.\d+)@sha256:([0-9a-f]{64})", service["image"])
+    assert pinned, service["image"]
+    version, digest = pinned.groups()
+    assert set(digest) != {"0"}  # the placeholder of the retired fleet-ghcr-image.patch
+    assert f"## [{version}]" in (ROOT / "CHANGELOG.md").read_text()
+    # the files a deploy reads; dated runbook entries may still name it
+    grep = ["git", "-C", str(fleetRepo), "grep", "-n", "PERSIAN_PERCH_REF", "--", "stacks", "fleet.json", "init"]
+    left = subprocess.run(grep, capture_output=True, text=True, check=False)
+    assert left.stdout == ""  # nothing in the fleet still asks for a ref to build
 
 
 def test_every_environment_name_is_one_perch_actually_reads():
@@ -376,31 +390,3 @@ def test_the_steps_run_in_the_order_the_document_promises():
     assert order == sorted(order)
     assert ROLLOUT.rindex("## K. ") > ROLLOUT.index("## J. ")  # the sleep setting goes back last
 
-
-# -- the release image (2026-10-14): integration/fleet-ghcr-image.patch -----------------------------------------
-
-
-def test_the_ghcr_patch_applies_to_the_pinned_fleet_and_runs_the_release_image(tmp_path, fleetRepo):
-    """The one fleet change the release needs: cellar runs ghcr.io/purrmonster/persian-perch instead of building.
-    Applied to a clone of the pinned fleet repo, never to the cache, and nothing is committed."""
-    import subprocess
-
-    patch = INTEG / "fleet-ghcr-image.patch"
-    clone = tmp_path / "fleet"
-    subprocess.run(["git", "clone", "-q", str(fleetRepo), str(clone)], check=True, capture_output=True)
-    subprocess.run(["git", "-C", str(clone), "checkout", "-q", "--detach", FLEET_COMMIT], check=True)
-    run = subprocess.run(["git", "-C", str(clone), "apply", str(patch)], capture_output=True, text=True, check=False)
-    assert run.returncode == 0, run.stderr
-    service = yaml.safe_load((clone / "stacks/cellar/persian-perch/docker-compose.yml").read_text())["services"][
-        "persian-perch"
-    ]
-    assert "build" not in service
-    release = (ROOT / ".github/workflows/release.yml").read_text()
-    image = re.search(r"IMAGE: (\S+)", release).group(1)
-    assert re.fullmatch(re.escape(image) + r":\d+\.\d+\.\d+@sha256:0{64}", service["image"])  # zeros until B5
-    version = re.search(r'^version = "([^"]+)"', (ROOT / "pyproject.toml").read_text(), re.M).group(1)
-    assert service["image"].startswith(f"{image}:{version}@")
-    grep = ["git", "-C", str(clone), "grep", "-n", "PERSIAN_PERCH_REF"]
-    after = subprocess.run(grep, capture_output=True, text=True, check=False)
-    assert after.stdout == ""  # nothing still asks for a ref to build
-    assert service["environment"] == compose()["services"]["persian-perch"]["environment"]  # only the image changed

@@ -49,6 +49,10 @@ jobs:
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302  # v6.2.0
         with:
           images: ${{ env.IMAGE }}
+          # No latest: metadata-action adds one to every semver tag by default (latest=auto), which put a
+          # latest on 0.1.0 against the owner's "tags only" (2026-10-14; fleet runbook 2026-10-15).
+          flavor: |
+            latest=false
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
