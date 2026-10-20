@@ -16,7 +16,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  FLEET_COMMIT: 72e3f7b88acb319c9255af115acd87c26c464992  # tests/conftest.py's pin; bump both together
+  FLEET_COMMIT: 97f56ce17d24a45f87468585ca70f8df2cd4d24d  # tests/conftest.py's pin; bump both together
   GITLEAKS_VERSION: 8.28.0
   GITLEAKS_SHA256: a65b5253807a68ac0cafa4414031fd740aeb55f54fb7e55f386acb52e6a840eb  # linux_x64 tarball
 

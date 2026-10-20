@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
-FLEET_COMMIT = "72e3f7b88acb319c9255af115acd87c26c464992"
+FLEET_COMMIT = "97f56ce17d24a45f87468585ca70f8df2cd4d24d"
 
 
 def git(repo: Path, *args: str) -> str:

@@ -5,8 +5,8 @@
 > [02](02-design-plan.md), [03](03-dev-plan.md) and [../mockups/](../mockups/index.html).
 >
 > Fleet references are links to [`purrbrews-containers`](https://github.com/purrMonster/purrbrews-containers)
-> `main`, never copies. Tests pin commit `72e3f7b88acb319c9255af115acd87c26c464992`
-> (re-pinned 2026-10-14 to the rebuilt fleet; M6 used `922164a`, the build until M5 used `f94efdfb1995d7217ec2be33e45b33720a0a0b3b` of 2026-09-30). Every setting perch and kitten need is listed in [`../secrets.env`](../secrets.env).
+> `main`, never copies. Tests pin commit `97f56ce17d24a45f87468585ca70f8df2cd4d24d`
+> (re-pinned 2026-10-21 to the fleet after its GHCR switch, 2026-10-14 to the rebuilt fleet at `72e3f7b`; M6 used `922164a`, the build until M5 used `f94efdfb1995d7217ec2be33e45b33720a0a0b3b` of 2026-09-30). Every setting perch and kitten need is listed in [`../secrets.env`](../secrets.env).
 
 
 ## 0. How to use this document
@@ -99,7 +99,7 @@ git ls-remote origin                          # push access (A3)
 
 ```powershell
 git clone https://github.com/purrMonster/purrbrews-containers .cache/purrbrews-containers
-git -C .cache/purrbrews-containers checkout 72e3f7b88acb319c9255af115acd87c26c464992
+git -C .cache/purrbrews-containers checkout 97f56ce17d24a45f87468585ca70f8df2cd4d24d
 ```
 
 **Tests** (images pinned by tag and digest in M0; the digests go in the runbook). *Since M0
