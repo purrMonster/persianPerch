@@ -46,6 +46,23 @@ changes can be made later without re-deriving the reasoning. How to write entrie
 
 ---
 
+## 2026-10-28 — PROJECT.md card committed before the move
+
+**Context.** The owner's freeze check found `PROJECT.md` (the meowmery project card, last reviewed
+2026-10-23) untracked in his local clone on roastery and nowhere on GitHub. He asked for it to be verified and
+pushed so a pre-move wipe cannot lose it.
+
+**Done.** The card is committed as found (line endings normalised). Checked: no secrets, tokens or real domain;
+its facts match the repo (v0.1.0 tag on `68d802b`, `0b34d4c` as the last merge, the 2026-10-21 entry's next step).
+No code or configuration changed.
+
+**Where we stopped / next step:** unchanged: perch bring-up, step A1 (Komodo's read-only key) in ROLLOUT.md.
+After the merge, the local clone's untracked copy is identical and can be dropped before `git pull`.
+
+*Claude (Opus 5.5), on the owner's instruction.*
+
+---
+
 ## 2026-10-21 — After fleet #65: the GHCR patch retired, no more `latest`
 
 **Context.** The owner asked to check perch's bring-up on cellar now that it should run the image, make what
